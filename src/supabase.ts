@@ -2,34 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { Activity } from './types';
 
 /**
- * Recommended SQL Table Definition for Supabase:
- * 
- * CREATE TABLE IF NOT EXISTS activities (
- *   id TEXT PRIMARY KEY,
- *   title TEXT NOT NULL,
- *   category TEXT NOT NULL,
- *   date TEXT,
- *   start_time TEXT,
- *   end_time TEXT,
- *   location TEXT,
- *   description TEXT,
- *   cost_per_person NUMERIC DEFAULT 0,
- *   who_paid_id TEXT,
- *   tagged_profile_ids JSONB DEFAULT '[]'::jsonb,
- *   host_profile_id TEXT,
- *   booking_status TEXT DEFAULT 'No Booking Needed',
- *   booking_deadline TEXT,
- *   booking_reference TEXT,
- *   is_idea BOOLEAN DEFAULT false,
- *   votes JSONB DEFAULT '[]'::jsonb,
- *   created_at TIMESTAMPTZ DEFAULT NOW()
- * );
- * 
- * -- Enable Realtime on activities table:
- * ALTER PUBLICATION supabase_realtime ADD TABLE activities;
+ * Fallback credentials to prevent client initialization crash
+ * if environment variables are temporarily missing.
  */
-
-// Fallback placeholder credentials to prevent startup crashes when env vars are missing
 const FALLBACK_URL = 'https://placeholder.supabase.co';
 const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
 
@@ -39,7 +14,7 @@ const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
  * - Automatically prepends https:// if missing (e.g. 'db.xxx.supabase.co' or 'xxx.supabase.co')
  * - Strips database prefix 'db.' if user pasted their db host instead of API endpoint
  * - Strips database ports like :5432 or :6543
- * - Converts raw project reference IDs (e.g. 20-character strings) into https://<id>.supabase.co
+ * - Converts raw project reference IDs into https://<id>.supabase.co
  */
 export function normalizeSupabaseUrl(rawUrl: string): string {
   if (!rawUrl) return '';
@@ -139,7 +114,7 @@ function initSupabaseClient() {
       },
     });
   } catch (err) {
-    console.error('[Supabase] Initialization error, falling back to dummy client:', err);
+    console.error('[Supabase] Initialization error:', err);
     return createClient(FALLBACK_URL, FALLBACK_KEY);
   }
 }
@@ -147,111 +122,155 @@ function initSupabaseClient() {
 // Single Supabase Client instance
 export const supabase = initSupabaseClient();
 
-// Track detected column format ('snake' | 'camel')
-let preferredColumnCase: 'snake' | 'camel' = 'snake';
+/**
+ * Standard UUID v4 generator for Postgres uuid primary keys
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
+export function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+/**
+ * Convert a Supabase database row to an application Activity object
+ */
 export function rowToActivity(row: any): Activity {
+  let startTime: string | undefined = undefined;
+  let endTime: string | undefined = undefined;
+
+  const rawSlot = row.time_slot ?? row.timeSlot ?? '';
+  if (rawSlot) {
+    if (rawSlot.includes(' - ')) {
+      const parts = rawSlot.split(' - ');
+      startTime = parts[0]?.trim() || undefined;
+      endTime = parts[1]?.trim() || undefined;
+    } else {
+      startTime = rawSlot.trim() || undefined;
+    }
+  } else {
+    startTime = row.start_time ?? row.startTime ?? undefined;
+    endTime = row.end_time ?? row.endTime ?? undefined;
+  }
+
+  const isIdea = row.is_idea ?? row.isIdea ?? (!row.date);
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
     category: row.category || 'Sightseeing & Culture',
     date: row.date || undefined,
-    startTime: row.startTime ?? row.start_time ?? undefined,
-    endTime: row.endTime ?? row.end_time ?? undefined,
+    startTime,
+    endTime,
     location: row.location || '',
     description: row.description || '',
-    costPerPerson: Number(row.costPerPerson ?? row.cost_per_person ?? 0),
-    whoPaidId: row.whoPaidId ?? row.who_paid_id ?? 'user-1',
-    taggedProfileIds: Array.isArray(row.taggedProfileIds)
-      ? row.taggedProfileIds
+    costPerPerson: Number(row.cost_per_person ?? row.costPerPerson ?? 0),
+    whoPaidId: row.who_paid ?? row.who_paid_id ?? row.whoPaidId ?? 'user-1',
+    taggedProfileIds: Array.isArray(row.tagged_users)
+      ? row.tagged_users
       : Array.isArray(row.tagged_profile_ids)
       ? row.tagged_profile_ids
+      : Array.isArray(row.taggedProfileIds)
+      ? row.taggedProfileIds
       : [],
-    hostProfileId: row.hostProfileId ?? row.host_profile_id ?? 'user-1',
-    bookingStatus: row.bookingStatus ?? row.booking_status ?? 'No Booking Needed',
-    bookingDeadline: row.bookingDeadline ?? row.booking_deadline ?? undefined,
-    bookingReference: row.bookingReference ?? row.booking_reference ?? undefined,
-    isIdea: Boolean(row.isIdea ?? row.is_idea ?? false),
+    hostProfileId: row.created_by ?? row.host_profile_id ?? row.hostProfileId ?? 'user-1',
+    bookingStatus: row.booking_status ?? row.bookingStatus ?? 'No Booking Needed',
+    bookingDeadline: row.booking_deadline ?? row.bookingDeadline ?? undefined,
+    bookingReference: row.booking_reference ?? row.bookingReference ?? undefined,
+    isIdea: Boolean(isIdea),
     votes: Array.isArray(row.votes) ? row.votes : [],
-    createdAt: row.createdAt ?? row.created_at ?? new Date().toISOString(),
+    createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   };
 }
 
-export function activityToRow(activity: Partial<Activity>, style: 'snake' | 'camel'): Record<string, any> {
-  if (style === 'camel') {
-    const row: Record<string, any> = {};
-    if (activity.id !== undefined) row.id = activity.id;
-    if (activity.title !== undefined) row.title = activity.title;
-    if (activity.category !== undefined) row.category = activity.category;
-    if (activity.date !== undefined) row.date = activity.date;
-    if (activity.startTime !== undefined) row.startTime = activity.startTime;
-    if (activity.endTime !== undefined) row.endTime = activity.endTime;
-    if (activity.location !== undefined) row.location = activity.location;
-    if (activity.description !== undefined) row.description = activity.description;
-    if (activity.costPerPerson !== undefined) row.costPerPerson = activity.costPerPerson;
-    if (activity.whoPaidId !== undefined) row.whoPaidId = activity.whoPaidId;
-    if (activity.taggedProfileIds !== undefined) row.taggedProfileIds = activity.taggedProfileIds;
-    if (activity.hostProfileId !== undefined) row.hostProfileId = activity.hostProfileId;
-    if (activity.bookingStatus !== undefined) row.bookingStatus = activity.bookingStatus;
-    if (activity.bookingDeadline !== undefined) row.bookingDeadline = activity.bookingDeadline;
-    if (activity.bookingReference !== undefined) row.bookingReference = activity.bookingReference;
-    if (activity.isIdea !== undefined) row.isIdea = activity.isIdea;
-    if (activity.votes !== undefined) row.votes = activity.votes;
-    if (activity.createdAt !== undefined) row.createdAt = activity.createdAt;
-    return row;
+/**
+ * Convert an Activity into the column dictionary matching the Supabase table schema
+ */
+export function activityToRow(activity: Partial<Activity>): Record<string, any> {
+  const row: Record<string, any> = {};
+
+  if (activity.id !== undefined) {
+    row.id = isUUID(activity.id) ? activity.id : generateUUID();
   }
 
-  const row: Record<string, any> = {};
-  if (activity.id !== undefined) row.id = activity.id;
-  if (activity.title !== undefined) row.title = activity.title;
-  if (activity.category !== undefined) row.category = activity.category;
-  if (activity.date !== undefined) row.date = activity.date;
-  if (activity.startTime !== undefined) row.start_time = activity.startTime;
-  if (activity.endTime !== undefined) row.end_time = activity.endTime;
-  if (activity.location !== undefined) row.location = activity.location;
-  if (activity.description !== undefined) row.description = activity.description;
-  if (activity.costPerPerson !== undefined) row.cost_per_person = activity.costPerPerson;
-  if (activity.whoPaidId !== undefined) row.who_paid_id = activity.whoPaidId;
-  if (activity.taggedProfileIds !== undefined) row.tagged_profile_ids = activity.taggedProfileIds;
-  if (activity.hostProfileId !== undefined) row.host_profile_id = activity.hostProfileId;
-  if (activity.bookingStatus !== undefined) row.booking_status = activity.bookingStatus;
-  if (activity.bookingDeadline !== undefined) row.booking_deadline = activity.bookingDeadline;
-  if (activity.bookingReference !== undefined) row.booking_reference = activity.bookingReference;
-  if (activity.isIdea !== undefined) row.is_idea = activity.isIdea;
-  if (activity.votes !== undefined) row.votes = activity.votes;
-  if (activity.createdAt !== undefined) row.created_at = activity.createdAt;
+  if (activity.title !== undefined) {
+    row.title = activity.title;
+  }
+
+  if (activity.date !== undefined) {
+    row.date = activity.isIdea ? null : (activity.date || null);
+  } else if (activity.isIdea) {
+    row.date = null;
+  }
+
+  if (activity.startTime !== undefined || activity.endTime !== undefined) {
+    if (activity.startTime && activity.endTime) {
+      row.time_slot = `${activity.startTime} - ${activity.endTime}`;
+    } else if (activity.startTime) {
+      row.time_slot = activity.startTime;
+    } else {
+      row.time_slot = null;
+    }
+  }
+
+  if (activity.location !== undefined) {
+    row.location = activity.location || null;
+  }
+
+  if (activity.costPerPerson !== undefined) {
+    row.cost_per_person = Number(activity.costPerPerson) || 0;
+  }
+
+  if (activity.whoPaidId !== undefined) {
+    row.who_paid = activity.whoPaidId;
+  }
+
+  if (activity.bookingStatus !== undefined) {
+    row.booking_status = activity.bookingStatus;
+  }
+
+  if (activity.category !== undefined) {
+    row.category = activity.category;
+  }
+
+  if (activity.taggedProfileIds !== undefined) {
+    row.tagged_users = activity.taggedProfileIds;
+  }
+
+  if (activity.hostProfileId !== undefined) {
+    row.created_by = activity.hostProfileId;
+  }
+
+  if (activity.createdAt !== undefined) {
+    row.created_at = activity.createdAt;
+  }
+
   return row;
 }
 
 /**
- * Fetch all activities directly using supabase.from('activities').select()
+ * Fetch all activities directly from Supabase using supabase.from('activities').select()
  */
 export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
-  if (!isSupabaseConfigured) {
-    return [];
-  }
-
   const { data, error } = await supabase
     .from('activities')
-    .select('*');
+    .select('*')
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('[Supabase] Failed to fetch activities:', error.message);
-    throw error;
+    console.error('[Supabase] select() error:', error.message);
+    throw new Error(`Failed to load activities from Supabase: ${error.message}`);
   }
 
-  if (!data || data.length === 0) {
-    return [];
-  }
-
-  // Detect column casing style from first row if fields present
-  const first = data[0];
-  if ('start_time' in first || 'cost_per_person' in first) {
-    preferredColumnCase = 'snake';
-  } else if ('startTime' in first || 'costPerPerson' in first) {
-    preferredColumnCase = 'camel';
-  }
-
+  if (!data) return [];
   return data.map(rowToActivity);
 }
 
@@ -259,53 +278,42 @@ export async function fetchActivitiesFromSupabase(): Promise<Activity[]> {
  * Insert an activity directly using supabase.from('activities').insert()
  */
 export async function insertActivityToSupabase(activity: Activity): Promise<Activity> {
-  if (!isSupabaseConfigured) {
-    return activity;
+  const row = activityToRow(activity);
+  
+  // Guarantee a valid UUID
+  if (!row.id || !isUUID(row.id)) {
+    row.id = generateUUID();
   }
 
-  const row = activityToRow(activity, preferredColumnCase);
   const { data, error } = await supabase
     .from('activities')
     .insert([row])
     .select();
 
   if (error) {
-    // If column case was opposite, retry once with other casing
-    const altCase = preferredColumnCase === 'snake' ? 'camel' : 'snake';
-    const altRow = activityToRow(activity, altCase);
-    const retry = await supabase
-      .from('activities')
-      .insert([altRow])
-      .select();
-
-    if (retry.error) {
-      console.error('[Supabase] Failed to insert activity:', retry.error.message);
-      throw retry.error;
-    }
-
-    preferredColumnCase = altCase;
-    return retry.data && retry.data[0] ? rowToActivity(retry.data[0]) : activity;
+    console.error('[Supabase] insert() error:', error.message);
+    throw new Error(`Failed to insert activity in Supabase: ${error.message}`);
   }
 
-  return data && data[0] ? rowToActivity(data[0]) : activity;
+  if (!data || data.length === 0) {
+    return { ...activity, id: row.id };
+  }
+
+  return rowToActivity(data[0]);
 }
 
 /**
  * Delete an activity directly using supabase.from('activities').delete()
  */
 export async function deleteActivityFromSupabase(id: string): Promise<boolean> {
-  if (!isSupabaseConfigured) {
-    return true;
-  }
-
   const { error } = await supabase
     .from('activities')
     .delete()
     .eq('id', id);
 
   if (error) {
-    console.error('[Supabase] Failed to delete activity:', error.message);
-    throw error;
+    console.error('[Supabase] delete() error:', error.message);
+    throw new Error(`Failed to delete activity in Supabase: ${error.message}`);
   }
 
   return true;
@@ -317,46 +325,32 @@ export async function deleteActivityFromSupabase(id: string): Promise<boolean> {
 export async function updateActivityInSupabase(
   id: string,
   updates: Partial<Activity>
-): Promise<void> {
-  if (!isSupabaseConfigured) {
-    return;
-  }
+): Promise<Activity | null> {
+  const row = activityToRow(updates);
+  delete row.id; // Primary key should not be in update payload
 
-  const row = activityToRow(updates, preferredColumnCase);
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('activities')
     .update(row)
-    .eq('id', id);
+    .eq('id', id)
+    .select();
 
   if (error) {
-    // Retry with alt casing if column mismatch
-    const altCase = preferredColumnCase === 'snake' ? 'camel' : 'snake';
-    const altRow = activityToRow(updates, altCase);
-    const retry = await supabase
-      .from('activities')
-      .update(altRow)
-      .eq('id', id);
-
-    if (retry.error) {
-      console.error('[Supabase] Failed to update activity:', retry.error.message);
-      throw retry.error;
-    }
-    preferredColumnCase = altCase;
+    console.error('[Supabase] update() error:', error.message);
+    throw new Error(`Failed to update activity in Supabase: ${error.message}`);
   }
+
+  return data && data[0] ? rowToActivity(data[0]) : null;
 }
 
 /**
- * Subscribe to realtime changes on the 'activities' table
+ * Subscribe to realtime changes on the 'activities' table using @supabase/supabase-js channel
  */
 export function subscribeToActivitiesRealtime(
   onInsert: (activity: Activity) => void,
   onUpdate: (activity: Activity) => void,
   onDelete: (id: string) => void
 ) {
-  if (!isSupabaseConfigured) {
-    return () => {};
-  }
-
   const channel = supabase
     .channel('activities_realtime_sync')
     .on(

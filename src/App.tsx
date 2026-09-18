@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Activity, Profile, TripInfo, BookingStatus } from './types';
-import { PRESET_PROFILES, INITIAL_TRIP, INITIAL_ACTIVITIES, INITIAL_IDEAS } from './data/seedData';
+import { PRESET_PROFILES, INITIAL_TRIP } from './data/seedData';
 import { Navbar, ActiveTab } from './components/navigation/Navbar';
 import { HomePage } from './components/views/HomePage';
 import { MacroCalendarView } from './components/views/MacroCalendarView';
@@ -23,9 +23,9 @@ import {
   deleteActivityFromSupabase,
   updateActivityInSupabase,
   subscribeToActivitiesRealtime,
+  generateUUID,
 } from './supabase';
 
-const STORAGE_KEY_ACTIVITIES = 'japan_2026_activities_blank_v1';
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
 const STORAGE_KEY_ACTIVE_PROFILE = 'group_travel_active_profile_v2';
 const STORAGE_KEY_HAS_PICKED = 'group_travel_has_picked_profile_v2';
@@ -70,25 +70,11 @@ export default function App() {
   const [targetProfileForPhoto, setTargetProfileForPhoto] = useState<Profile | null>(null);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
 
-  // Activities & Ideas state
-  const [activities, setActivities] = useState<Activity[]>(() => {
-    try {
-      localStorage.removeItem('group_travel_activities_v1');
-      localStorage.removeItem('group_travel_activities_v2');
-      localStorage.removeItem('japan_2026_activities_v1');
-    } catch (e) {
-      // Ignore
-    }
-    const saved = localStorage.getItem(STORAGE_KEY_ACTIVITIES);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved activities:', e);
-      }
-    }
-    return [...INITIAL_ACTIVITIES, ...INITIAL_IDEAS];
-  });
+  // Activities & Ideas state - stored directly in Supabase (NO localStorage)
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(true);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(isSupabaseConfigured);
 
   // Navigation tab state - defaults to the new Home page
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -114,25 +100,25 @@ export default function App() {
   // Booking Deadlines Drawer
   const [isDeadlinesDrawerOpen, setIsDeadlinesDrawerOpen] = useState(false);
 
-  // Supabase Realtime connection state
-  const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(isSupabaseConfigured);
+  // Load activities directly from Supabase via select()
+  const loadActivities = useCallback(async () => {
+    setIsLoadingActivities(true);
+    setActivityError(null);
+    try {
+      const items = await fetchActivitiesFromSupabase();
+      setActivities(items);
+      setIsSupabaseLive(true);
+    } catch (err: any) {
+      console.error('[Supabase select error]:', err);
+      setActivityError(err?.message || 'Failed to fetch activities from Supabase');
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  }, []);
 
   // Fetch from Supabase using supabase.from('activities').select() and subscribe in real-time
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
-
-    let isMounted = true;
-
-    // Load initial activities directly from Supabase
-    fetchActivitiesFromSupabase()
-      .then((remoteActivities) => {
-        if (!isMounted) return;
-        setActivities(remoteActivities);
-        setIsSupabaseLive(true);
-      })
-      .catch((err) => {
-        console.warn('[Supabase] Initial fetch error, using local fallback:', err);
-      });
+    loadActivities();
 
     // Subscribe to real-time postgres_changes on the activities table
     const unsubscribe = subscribeToActivitiesRealtime(
@@ -158,15 +144,9 @@ export default function App() {
     );
 
     return () => {
-      isMounted = false;
       unsubscribe();
     };
-  }, []);
-
-  // Save activities to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
-  }, [activities]);
+  }, [loadActivities]);
 
   // Save profiles to localStorage
   useEffect(() => {
@@ -216,22 +196,24 @@ export default function App() {
     setIsActivityModalOpen(true);
   };
 
-  const handleSaveActivity = (data: Partial<Activity>) => {
+  const handleSaveActivity = async (data: Partial<Activity>) => {
+    setActivityError(null);
     if (activityToEdit) {
-      // Update existing
-      const updatedActivity: Activity = { ...activityToEdit, ...data };
-      setActivities((prev) =>
-        prev.map((a) => (a.id === activityToEdit.id ? updatedActivity : a))
-      );
-      if (isSupabaseConfigured) {
-        updateActivityInSupabase(activityToEdit.id, data).catch((err) => {
-          console.error('[Supabase] Update activity error:', err);
-        });
+      // Update existing using supabase.from('activities').update()
+      try {
+        const updated = await updateActivityInSupabase(activityToEdit.id, data);
+        const resolved = updated || { ...activityToEdit, ...data };
+        setActivities((prev) =>
+          prev.map((a) => (a.id === activityToEdit.id ? resolved : a))
+        );
+      } catch (err: any) {
+        console.error('[Supabase update error]:', err);
+        setActivityError(err?.message || 'Failed to update activity in Supabase');
       }
     } else {
       // Add new using supabase.from('activities').insert()
       const newActivity: Activity = {
-        id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        id: generateUUID(),
         title: data.title || 'Untitled Activity',
         category: data.category || 'Sightseeing & Culture',
         date: data.isIdea ? undefined : data.date,
@@ -250,80 +232,86 @@ export default function App() {
         votes: data.isIdea ? [activeProfileId] : [],
         createdAt: new Date().toISOString(),
       };
-      setActivities((prev) => [newActivity, ...prev]);
-      if (isSupabaseConfigured) {
-        insertActivityToSupabase(newActivity).catch((err) => {
-          console.error('[Supabase] Insert activity error:', err);
+
+      try {
+        const inserted = await insertActivityToSupabase(newActivity);
+        setActivities((prev) => {
+          if (prev.some((a) => a.id === inserted.id)) return prev;
+          return [inserted, ...prev];
         });
+      } catch (err: any) {
+        console.error('[Supabase insert error]:', err);
+        setActivityError(err?.message || 'Failed to insert activity in Supabase');
       }
     }
   };
 
-  const handleDeleteActivity = (activityId: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== activityId));
-    if (isSupabaseConfigured) {
-      deleteActivityFromSupabase(activityId).catch((err) => {
-        console.error('[Supabase] Delete activity error:', err);
-      });
+  const handleDeleteActivity = async (activityId: string) => {
+    setActivityError(null);
+    try {
+      // Delete directly using supabase.from('activities').delete()
+      await deleteActivityFromSupabase(activityId);
+      setActivities((prev) => prev.filter((a) => a.id !== activityId));
+    } catch (err: any) {
+      console.error('[Supabase delete error]:', err);
+      setActivityError(err?.message || 'Failed to delete activity from Supabase');
     }
   };
 
-  const handleScheduleIdea = (
+  const handleScheduleIdea = async (
     ideaId: string,
     targetDate: string,
     startTime?: string,
     endTime?: string
   ) => {
+    setActivityError(null);
     const updates = {
       isIdea: false,
       date: targetDate,
       startTime: startTime || '10:00',
       endTime: endTime || '12:00',
     };
-    setActivities((prev) =>
-      prev.map((a) => (a.id === ideaId ? { ...a, ...updates } : a))
-    );
-    if (isSupabaseConfigured) {
-      updateActivityInSupabase(ideaId, updates).catch((err) => {
-        console.error('[Supabase] Schedule idea error:', err);
-      });
+    try {
+      await updateActivityInSupabase(ideaId, updates);
+      setActivities((prev) =>
+        prev.map((a) => (a.id === ideaId ? { ...a, ...updates } : a))
+      );
+      setSelectedTimelineDate(targetDate);
+      setActiveTab('timeline');
+    } catch (err: any) {
+      console.error('[Supabase schedule error]:', err);
+      setActivityError(err?.message || 'Failed to schedule idea in Supabase');
     }
-    setSelectedTimelineDate(targetDate);
-    setActiveTab('timeline');
   };
 
   const handleToggleVote = (ideaId: string) => {
-    let nextVotes: string[] = [];
     setActivities((prev) =>
       prev.map((a) => {
         if (a.id !== ideaId) return a;
         const currentVotes = a.votes || [];
         const hasVoted = currentVotes.includes(activeProfileId);
-        nextVotes = hasVoted
+        const nextVotes = hasVoted
           ? currentVotes.filter((id) => id !== activeProfileId)
           : [...currentVotes, activeProfileId];
         return { ...a, votes: nextVotes };
       })
     );
-    if (isSupabaseConfigured) {
-      updateActivityInSupabase(ideaId, { votes: nextVotes }).catch((err) => {
-        console.error('[Supabase] Vote error:', err);
-      });
-    }
   };
 
-  const handleMarkBooked = (activityId: string, reference?: string) => {
+  const handleMarkBooked = async (activityId: string, reference?: string) => {
+    setActivityError(null);
     const updates = {
       bookingStatus: 'Booked' as BookingStatus,
       bookingReference: reference || 'CONFIRMED',
     };
-    setActivities((prev) =>
-      prev.map((a) => (a.id === activityId ? { ...a, ...updates } : a))
-    );
-    if (isSupabaseConfigured) {
-      updateActivityInSupabase(activityId, updates).catch((err) => {
-        console.error('[Supabase] Mark booked error:', err);
-      });
+    try {
+      await updateActivityInSupabase(activityId, updates);
+      setActivities((prev) =>
+        prev.map((a) => (a.id === activityId ? { ...a, ...updates } : a))
+      );
+    } catch (err: any) {
+      console.error('[Supabase mark booked error]:', err);
+      setActivityError(err?.message || 'Failed to mark as booked in Supabase');
     }
   };
 
@@ -396,6 +384,29 @@ export default function App() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8">
+        {/* Supabase Status Alert Banner */}
+        {activityError && (
+          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Supabase Error:</span>
+              <span>{activityError}</span>
+            </div>
+            <button
+              onClick={loadActivities}
+              className="px-3 py-1 text-xs font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {isLoadingActivities && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-2.5 bg-white/90 border border-stone-200 rounded-xl text-stone-600 text-xs font-medium shadow-xs">
+            <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <span>Loading trip activities directly from Supabase...</span>
+          </div>
+        )}
+
         {/* Global Filter Bar (shown on Calendar, Timeline, and Ideas) */}
         {(activeTab === 'calendar' || activeTab === 'timeline' || activeTab === 'ideas') && (
           <FilterBar
