@@ -32,6 +32,7 @@ interface NavbarProps {
   onChangePhoto?: (profile: Profile) => void;
   needsBookingCount: number;
   ideasCount: number;
+  supabaseConnected?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -47,6 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onChangePhoto,
   needsBookingCount,
   ideasCount,
+  supabaseConnected = false,
 }) => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
@@ -78,6 +80,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <h1 className="text-lg font-bold text-stone-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
               Japan 2026
             </h1>
+            {supabaseConnected ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span>Realtime</span>
+              </span>
+            ) : (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-500 text-[11px] font-medium"
+                title="Waiting for VITE_SUPABASE_URL and key in .env"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"></span>
+                <span>Supabase Ready</span>
+              </span>
+            )}
           </div>
 
           {/* Right Controls: Active User Switcher, Add Activity */}

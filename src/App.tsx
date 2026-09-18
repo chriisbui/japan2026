@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Profile, TripInfo } from './types';
+import { Activity, Profile, TripInfo, BookingStatus } from './types';
 import { PRESET_PROFILES, INITIAL_TRIP, INITIAL_ACTIVITIES, INITIAL_IDEAS } from './data/seedData';
 import { Navbar, ActiveTab } from './components/navigation/Navbar';
 import { HomePage } from './components/views/HomePage';
@@ -15,6 +15,15 @@ import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  supabase,
+  isSupabaseConfigured,
+  fetchActivitiesFromSupabase,
+  insertActivityToSupabase,
+  deleteActivityFromSupabase,
+  updateActivityInSupabase,
+  subscribeToActivitiesRealtime,
+} from './supabase';
 
 const STORAGE_KEY_ACTIVITIES = 'japan_2026_activities_blank_v1';
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
@@ -105,6 +114,55 @@ export default function App() {
   // Booking Deadlines Drawer
   const [isDeadlinesDrawerOpen, setIsDeadlinesDrawerOpen] = useState(false);
 
+  // Supabase Realtime connection state
+  const [isSupabaseLive, setIsSupabaseLive] = useState<boolean>(isSupabaseConfigured);
+
+  // Fetch from Supabase using supabase.from('activities').select() and subscribe in real-time
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let isMounted = true;
+
+    // Load initial activities directly from Supabase
+    fetchActivitiesFromSupabase()
+      .then((remoteActivities) => {
+        if (!isMounted) return;
+        setActivities(remoteActivities);
+        setIsSupabaseLive(true);
+      })
+      .catch((err) => {
+        console.warn('[Supabase] Initial fetch error, using local fallback:', err);
+      });
+
+    // Subscribe to real-time postgres_changes on the activities table
+    const unsubscribe = subscribeToActivitiesRealtime(
+      // onInsert
+      (newActivity) => {
+        setActivities((prev) => {
+          if (prev.some((a) => a.id === newActivity.id)) {
+            return prev.map((a) => (a.id === newActivity.id ? newActivity : a));
+          }
+          return [newActivity, ...prev];
+        });
+      },
+      // onUpdate
+      (updatedActivity) => {
+        setActivities((prev) =>
+          prev.map((a) => (a.id === updatedActivity.id ? updatedActivity : a))
+        );
+      },
+      // onDelete
+      (deletedId) => {
+        setActivities((prev) => prev.filter((a) => a.id !== deletedId));
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   // Save activities to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
@@ -161,11 +219,17 @@ export default function App() {
   const handleSaveActivity = (data: Partial<Activity>) => {
     if (activityToEdit) {
       // Update existing
+      const updatedActivity: Activity = { ...activityToEdit, ...data };
       setActivities((prev) =>
-        prev.map((a) => (a.id === activityToEdit.id ? { ...a, ...data } : a))
+        prev.map((a) => (a.id === activityToEdit.id ? updatedActivity : a))
       );
+      if (isSupabaseConfigured) {
+        updateActivityInSupabase(activityToEdit.id, data).catch((err) => {
+          console.error('[Supabase] Update activity error:', err);
+        });
+      }
     } else {
-      // Add new
+      // Add new using supabase.from('activities').insert()
       const newActivity: Activity = {
         id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         title: data.title || 'Untitled Activity',
@@ -187,11 +251,21 @@ export default function App() {
         createdAt: new Date().toISOString(),
       };
       setActivities((prev) => [newActivity, ...prev]);
+      if (isSupabaseConfigured) {
+        insertActivityToSupabase(newActivity).catch((err) => {
+          console.error('[Supabase] Insert activity error:', err);
+        });
+      }
     }
   };
 
   const handleDeleteActivity = (activityId: string) => {
     setActivities((prev) => prev.filter((a) => a.id !== activityId));
+    if (isSupabaseConfigured) {
+      deleteActivityFromSupabase(activityId).catch((err) => {
+        console.error('[Supabase] Delete activity error:', err);
+      });
+    }
   };
 
   const handleScheduleIdea = (
@@ -200,49 +274,57 @@ export default function App() {
     startTime?: string,
     endTime?: string
   ) => {
+    const updates = {
+      isIdea: false,
+      date: targetDate,
+      startTime: startTime || '10:00',
+      endTime: endTime || '12:00',
+    };
     setActivities((prev) =>
-      prev.map((a) =>
-        a.id === ideaId
-          ? {
-              ...a,
-              isIdea: false,
-              date: targetDate,
-              startTime: startTime || '10:00',
-              endTime: endTime || '12:00',
-            }
-          : a
-      )
+      prev.map((a) => (a.id === ideaId ? { ...a, ...updates } : a))
     );
+    if (isSupabaseConfigured) {
+      updateActivityInSupabase(ideaId, updates).catch((err) => {
+        console.error('[Supabase] Schedule idea error:', err);
+      });
+    }
     setSelectedTimelineDate(targetDate);
     setActiveTab('timeline');
   };
 
   const handleToggleVote = (ideaId: string) => {
+    let nextVotes: string[] = [];
     setActivities((prev) =>
       prev.map((a) => {
         if (a.id !== ideaId) return a;
         const currentVotes = a.votes || [];
         const hasVoted = currentVotes.includes(activeProfileId);
-        const updatedVotes = hasVoted
+        nextVotes = hasVoted
           ? currentVotes.filter((id) => id !== activeProfileId)
           : [...currentVotes, activeProfileId];
-        return { ...a, votes: updatedVotes };
+        return { ...a, votes: nextVotes };
       })
     );
+    if (isSupabaseConfigured) {
+      updateActivityInSupabase(ideaId, { votes: nextVotes }).catch((err) => {
+        console.error('[Supabase] Vote error:', err);
+      });
+    }
   };
 
   const handleMarkBooked = (activityId: string, reference?: string) => {
+    const updates = {
+      bookingStatus: 'Booked' as BookingStatus,
+      bookingReference: reference || 'CONFIRMED',
+    };
     setActivities((prev) =>
-      prev.map((a) =>
-        a.id === activityId
-          ? {
-              ...a,
-              bookingStatus: 'Booked',
-              bookingReference: reference || a.bookingReference || 'CONFIRMED',
-            }
-          : a
-      )
+      prev.map((a) => (a.id === activityId ? { ...a, ...updates } : a))
     );
+    if (isSupabaseConfigured) {
+      updateActivityInSupabase(activityId, updates).catch((err) => {
+        console.error('[Supabase] Mark booked error:', err);
+      });
+    }
   };
 
   const handleSelectDay = (date: string) => {
@@ -309,6 +391,7 @@ export default function App() {
         onChangePhoto={handleOpenPhotoModal}
         needsBookingCount={needsBookingCount}
         ideasCount={ideaActivities.length}
+        supabaseConnected={isSupabaseLive}
       />
 
       {/* Main Container */}
