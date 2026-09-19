@@ -200,19 +200,28 @@ useEffect(() => {
   };
 
  const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
-  // 1. Update React state locally
+  // 1. Update React state locally for instant UI feedback
   setProfiles((prev) =>
     prev.map((p) => (p.id === profileId ? { ...p, avatarUrl } : p))
   );
 
-  // 2. Persist to Supabase database
+  // 2. Upsert to Supabase profiles table
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: profileId, avatar_url: avatarUrl }); // upsert guarantees it inserts or updates
+      .upsert(
+        { 
+          id: profileId, 
+          avatar_url: avatarUrl ?? null 
+        }, 
+        { onConflict: 'id' }
+      )
+      .select();
 
     if (error) {
-      console.error('[Supabase profile update error]:', error.message);
+      console.error('❌ Supabase profile update error:', error.message, error.details);
+    } else {
+      console.log('✅ Supabase profile updated successfully:', data);
     }
   } catch (err) {
     console.error('Failed to persist avatar to Supabase:', err);
