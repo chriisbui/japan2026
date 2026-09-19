@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Profile } from '../../types';
 import { ProfileAvatar } from '../common/ProfileAvatar';
-import { supabase } from '../../lib/supabaseClient'; // Adjust path to match your supabase client file
+import { supabase } from '../../lib/supabase'; // Adjust path to match your supabase client file
 import {
   Upload,
   Camera,
