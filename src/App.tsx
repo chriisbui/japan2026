@@ -199,19 +199,23 @@ useEffect(() => {
     setIsPhotoModalOpen(true);
   };
 
- const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
-  // 1. Update React state locally for instant UI feedback
+const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
+  // 1. Find the target profile to get its name
+  const targetProfile = profiles.find((p) => p.id === profileId);
+
+  // 2. Update React state locally for instant UI feedback
   setProfiles((prev) =>
     prev.map((p) => (p.id === profileId ? { ...p, avatarUrl } : p))
   );
 
-  // 2. Upsert to Supabase profiles table
+  // 3. Upsert to Supabase profiles table, including the name
   try {
     const { data, error } = await supabase
       .from('profiles')
       .upsert(
         { 
           id: profileId, 
+          name: targetProfile?.name || profileId, // Guarantees name is never null
           avatar_url: avatarUrl ?? null 
         }, 
         { onConflict: 'id' }
