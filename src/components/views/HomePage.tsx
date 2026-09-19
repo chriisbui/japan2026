@@ -3,6 +3,81 @@ import { Activity, Profile, TripInfo } from '../../types';
 import { getDaysArray } from '../../utils/dateUtils';
 import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane } from 'lucide-react';
 
+export const CATEGORY_CALENDAR_STYLES: Record<
+  string,
+  {
+    bg: string;
+    hoverBg: string;
+    text: string;
+    border: string;
+    dot: string;
+  }
+> = {
+  'Food & Drink': {
+    bg: 'bg-amber-100/90',
+    hoverBg: 'hover:bg-amber-200',
+    text: 'text-amber-950',
+    border: 'border-amber-300',
+    dot: 'bg-amber-500',
+  },
+  'Sightseeing & Culture': {
+    bg: 'bg-sky-100/90',
+    hoverBg: 'hover:bg-sky-200',
+    text: 'text-sky-950',
+    border: 'border-sky-300',
+    dot: 'bg-sky-500',
+  },
+  'Theme Parks & Attractions': {
+    bg: 'bg-purple-100/90',
+    hoverBg: 'hover:bg-purple-200',
+    text: 'text-purple-950',
+    border: 'border-purple-300',
+    dot: 'bg-purple-500',
+  },
+  'Shopping': {
+    bg: 'bg-rose-100/90',
+    hoverBg: 'hover:bg-rose-200',
+    text: 'text-rose-950',
+    border: 'border-rose-300',
+    dot: 'bg-rose-500',
+  },
+  'Nature & Adventure': {
+    bg: 'bg-emerald-100/90',
+    hoverBg: 'hover:bg-emerald-200',
+    text: 'text-emerald-950',
+    border: 'border-emerald-300',
+    dot: 'bg-emerald-500',
+  },
+  'Transit & Travel': {
+    bg: 'bg-blue-100/90',
+    hoverBg: 'hover:bg-blue-200',
+    text: 'text-blue-950',
+    border: 'border-blue-300',
+    dot: 'bg-blue-500',
+  },
+  'Accommodation': {
+    bg: 'bg-indigo-100/90',
+    hoverBg: 'hover:bg-indigo-200',
+    text: 'text-indigo-950',
+    border: 'border-indigo-300',
+    dot: 'bg-indigo-500',
+  },
+  'Relaxation & Wellness': {
+    bg: 'bg-teal-100/90',
+    hoverBg: 'hover:bg-teal-200',
+    text: 'text-teal-950',
+    border: 'border-teal-300',
+    dot: 'bg-teal-500',
+  },
+  'Logistics & Admin': {
+    bg: 'bg-stone-200/90',
+    hoverBg: 'hover:bg-stone-300',
+    text: 'text-stone-900',
+    border: 'border-stone-300',
+    dot: 'bg-stone-500',
+  },
+};
+
 interface HomePageProps {
   trip: TripInfo;
   activities: Activity[];
@@ -141,15 +216,31 @@ export const HomePage: React.FC<HomePageProps> = ({
       </div>
 
       {/* Condensed Calendar Grid Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Quick day-by-day itinerary showing scheduled activity names. Click any day or activity to expand.
-          </p>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Quick day-by-day itinerary with category color-coded activities. Click any day or activity to expand.
+            </p>
+          </div>
+          <div className="text-xs font-medium text-stone-500">
+            {days.length} Day Tiles
+          </div>
         </div>
-        <div className="text-xs font-medium text-stone-500">
-          {days.length} Day Tiles
+
+        {/* Category Color Legend */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+          <span className="text-stone-400 font-medium text-[10px] uppercase tracking-wider shrink-0 mr-1">Categories:</span>
+          {Object.entries(CATEGORY_CALENDAR_STYLES).map(([catName, style]) => (
+            <div
+              key={catName}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium shrink-0 ${style.bg} ${style.text} ${style.border}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+              <span>{catName}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -198,40 +289,47 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </button>
               </div>
 
-              {/* Just the Name of Each Activity with Remove Button */}
+              {/* Just the Name of Each Activity with Category Fill Colour & Remove Button */}
               <div className="flex-1 space-y-1.5 overflow-hidden">
                 {hasActs ? (
-                  dayActs.map((act) => (
-                    <div
-                      key={act.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectActivity(act);
-                      }}
-                      className="group/item flex items-center justify-between gap-1 text-[11px] font-medium text-stone-800 hover:text-indigo-600 bg-stone-50 hover:bg-indigo-50/60 p-1.5 rounded-md border border-stone-100 hover:border-indigo-200 transition-colors leading-snug cursor-pointer"
-                      title={act.title}
-                    >
-                      <span className="truncate flex-1">{act.title}</span>
-                      {(onRequestDeleteActivity || onDeleteActivity) && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onRequestDeleteActivity) {
-                              onRequestDeleteActivity(act);
-                            } else if (onDeleteActivity) {
-                              onDeleteActivity(act.id);
-                            }
-                          }}
-                          className="opacity-70 sm:opacity-0 group-hover/item:opacity-100 p-0.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-all shrink-0 cursor-pointer"
-                          title={`Remove "${act.title}"`}
-                          aria-label={`Remove ${act.title}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))
+                  dayActs.map((act) => {
+                    const style =
+                      CATEGORY_CALENDAR_STYLES[act.category] ||
+                      CATEGORY_CALENDAR_STYLES['Sightseeing & Culture'];
+
+                    return (
+                      <div
+                        key={act.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectActivity(act);
+                        }}
+                        className={`group/item flex items-center justify-between gap-1.5 text-[11px] font-medium p-1.5 rounded-md border shadow-2xs transition-all leading-snug cursor-pointer ${style.bg} ${style.hoverBg} ${style.text} ${style.border}`}
+                        title={`${act.title} (${act.category}${act.startTime ? ` • ${act.startTime}` : ''})`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+                        <span className="truncate flex-1 font-medium">{act.title}</span>
+                        {(onRequestDeleteActivity || onDeleteActivity) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onRequestDeleteActivity) {
+                                onRequestDeleteActivity(act);
+                              } else if (onDeleteActivity) {
+                                onDeleteActivity(act.id);
+                              }
+                            }}
+                            className="opacity-70 sm:opacity-0 group-hover/item:opacity-100 p-0.5 text-stone-500 hover:text-red-700 hover:bg-black/10 rounded transition-all shrink-0 cursor-pointer"
+                            title={`Remove "${act.title}"`}
+                            aria-label={`Remove ${act.title}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="h-full flex items-center justify-center py-4 text-[11px] text-stone-300 italic">
                     Free day

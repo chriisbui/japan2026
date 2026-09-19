@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Activity } from './types';
+import { Activity, BookingStatus } from './types';
 
 /**
  * Fallback credentials to prevent client initialization crash
@@ -163,6 +163,39 @@ export function rowToActivity(row: any): Activity {
 
   const isIdea = row.is_idea ?? row.isIdea ?? (!row.date);
 
+  let bookingStatus: BookingStatus = 'No Booking Needed';
+  let bookingDeadline: string | undefined = undefined;
+  let bookingReference: string | undefined = undefined;
+
+  const rawStatus = String(row.booking_status ?? row.bookingStatus ?? '');
+  if (rawStatus.includes('Needs Booking')) {
+    bookingStatus = 'Needs Booking';
+    const dlMatch =
+      rawStatus.match(/deadline[:\s]+([0-9]{4}-[0-9]{2}-[0-9]{2})/i) ||
+      rawStatus.match(/\[([0-9]{4}-[0-9]{2}-[0-9]{2})\]/) ||
+      rawStatus.match(/\|([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+    if (dlMatch) {
+      bookingDeadline = dlMatch[1];
+    } else if (row.booking_deadline || row.bookingDeadline || row.deadline) {
+      bookingDeadline = String(row.booking_deadline || row.bookingDeadline || row.deadline);
+    }
+  } else if (rawStatus.includes('Booked')) {
+    bookingStatus = 'Booked';
+    const refMatch =
+      rawStatus.match(/ref[:\s]+([^\s\]\)]+)/i) ||
+      rawStatus.match(/\[ref:(.+?)\]/i) ||
+      rawStatus.match(/\|(.+)/);
+    if (refMatch) {
+      bookingReference = refMatch[1].trim();
+    } else if (row.booking_reference || row.bookingReference) {
+      bookingReference = String(row.booking_reference || row.bookingReference);
+    }
+  } else if (rawStatus.includes('No Booking Needed')) {
+    bookingStatus = 'No Booking Needed';
+  } else if (rawStatus) {
+    bookingStatus = rawStatus as BookingStatus;
+  }
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
@@ -182,9 +215,9 @@ export function rowToActivity(row: any): Activity {
       ? row.taggedProfileIds
       : [],
     hostProfileId: row.created_by ?? row.host_profile_id ?? row.hostProfileId ?? 'user-1',
-    bookingStatus: row.booking_status ?? row.bookingStatus ?? 'No Booking Needed',
-    bookingDeadline: row.booking_deadline ?? row.bookingDeadline ?? undefined,
-    bookingReference: row.booking_reference ?? row.bookingReference ?? undefined,
+    bookingStatus,
+    bookingDeadline,
+    bookingReference,
     isIdea: Boolean(isIdea),
     votes: Array.isArray(row.votes) ? row.votes : [],
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
@@ -233,8 +266,27 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
     row.who_paid = activity.whoPaidId;
   }
 
-  if (activity.bookingStatus !== undefined) {
-    row.booking_status = activity.bookingStatus;
+  if (
+    activity.bookingStatus !== undefined ||
+    activity.bookingDeadline !== undefined ||
+    activity.bookingReference !== undefined
+  ) {
+    const status = activity.bookingStatus || 'No Booking Needed';
+    if (status === 'Needs Booking') {
+      if (activity.bookingDeadline && activity.bookingDeadline.trim()) {
+        row.booking_status = `Needs Booking [deadline:${activity.bookingDeadline.trim()}]`;
+      } else {
+        row.booking_status = 'Needs Booking';
+      }
+    } else if (status === 'Booked') {
+      if (activity.bookingReference && activity.bookingReference.trim()) {
+        row.booking_status = `Booked [ref:${activity.bookingReference.trim()}]`;
+      } else {
+        row.booking_status = 'Booked';
+      }
+    } else {
+      row.booking_status = status;
+    }
   }
 
   if (activity.category !== undefined) {

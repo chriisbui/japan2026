@@ -148,7 +148,7 @@ export default function App() {
     };
   }, [loadActivities]);
 
-// Fetch persistent profile pictures from Supabase on load
+// Fetch persistent profile pictures from Supabase on load and subscribe to real-time changes
 useEffect(() => {
   const loadProfilesFromSupabase = async () => {
     try {
@@ -161,7 +161,12 @@ useEffect(() => {
       if (data && data.length > 0) {
         setProfiles((prevProfiles) =>
           prevProfiles.map((preset) => {
-            const dbProfile = data.find((p: any) => p.id === preset.id);
+            const matches = data.filter(
+              (p: any) =>
+                p.id === preset.id ||
+                (p.name && preset.name && p.name.toLowerCase() === preset.name.toLowerCase())
+            );
+            const dbProfile = matches.find((p: any) => p.avatar_url || p.avatarUrl) || matches[0];
             return {
               ...preset,
               // Check both avatar_url and avatarUrl depending on DB column naming
@@ -176,6 +181,36 @@ useEffect(() => {
   };
 
   loadProfilesFromSupabase();
+
+  // Real-time listener for profiles across devices
+  const profileChannel = supabase
+    .channel('profiles_realtime_sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'profiles' },
+      (payload) => {
+        if (payload.new && typeof payload.new === 'object') {
+          const updated = payload.new as any;
+          const updatedAvatar = updated.avatar_url || updated.avatarUrl;
+          setProfiles((prev) =>
+            prev.map((preset) => {
+              const isMatch =
+                preset.id === updated.id ||
+                (updated.name && preset.name && updated.name.toLowerCase() === preset.name.toLowerCase());
+              if (isMatch && updatedAvatar !== undefined) {
+                return { ...preset, avatarUrl: updatedAvatar || undefined };
+              }
+              return preset;
+            })
+          );
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(profileChannel);
+  };
 }, []);
 
   // Save profiles to localStorage
@@ -226,6 +261,20 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
       console.error('❌ Supabase profile update error:', error.message, error.details);
     } else {
       console.log('✅ Supabase profile updated successfully:', data);
+    }
+
+    // Also keep the lowercase named record in sync if present in the database
+    if (targetProfile?.name && targetProfile.name.toLowerCase() !== profileId.toLowerCase()) {
+      await supabase
+        .from('profiles')
+        .upsert(
+          { 
+            id: targetProfile.name.toLowerCase(), 
+            name: targetProfile.name,
+            avatar_url: avatarUrl ?? null 
+          }, 
+          { onConflict: 'id' }
+        );
     }
   } catch (err) {
     console.error('Failed to persist avatar to Supabase:', err);
