@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { Profile } from '../../types';
 import { ProfileAvatar } from '../common/ProfileAvatar';
+import { supabase } from '../../lib/supabaseClient'; // Adjust path to match your supabase client file
 import {
   Upload,
-  Image as ImageIcon,
   Camera,
   X,
   Check,
   Trash2,
   Sparkles,
   Link,
+  Loader2,
 } from 'lucide-react';
 
 interface ChangeProfilePictureModalProps {
@@ -41,20 +42,43 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(profile.avatarUrl);
   const [urlInput, setUrlInput] = useState<string>('');
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
+  // Upload file directly to Supabase Storage Bucket
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file (PNG, JPG, WebP, GIF)');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPreviewUrl(reader.result);
+
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // 1. Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
       }
-    };
-    reader.readAsDataURL(file);
+
+      // 2. Retrieve Public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setPreviewUrl(data.publicUrl);
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image to Supabase Storage. Make sure the "avatars" bucket is created and set to Public.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -151,7 +175,7 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
             </div>
           </div>
 
-          {/* Drag & Drop Upload Zone + Manual Click */}
+          {/* Drag & Drop Upload Zone */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1.5">
               Upload from Device (Drag & Drop or Browse)
@@ -160,7 +184,7 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
                 isDragging
                   ? 'border-indigo-500 bg-indigo-50/50'
@@ -174,11 +198,20 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
                 onChange={handleFileInputChange}
                 className="hidden"
               />
-              <Upload className="w-6 h-6 mx-auto text-indigo-600 mb-1.5" />
-              <p className="text-xs font-medium text-stone-800">
-                <span className="text-indigo-600 font-semibold underline">Click to upload</span> or drag and drop
-              </p>
-              <p className="text-[10px] text-stone-400 mt-0.5">PNG, JPG, WebP, GIF up to 5MB</p>
+              {isUploading ? (
+                <div className="flex flex-col items-center justify-center py-1">
+                  <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mb-1.5" />
+                  <p className="text-xs font-semibold text-stone-700">Uploading to Supabase...</p>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-6 h-6 mx-auto text-indigo-600 mb-1.5" />
+                  <p className="text-xs font-medium text-stone-800">
+                    <span className="text-indigo-600 font-semibold underline">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">PNG, JPG, WebP, GIF up to 5MB</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -257,7 +290,8 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
           <button
             type="button"
             onClick={handleSave}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+            disabled={isUploading}
+            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
           >
             Save Photo
           </button>
