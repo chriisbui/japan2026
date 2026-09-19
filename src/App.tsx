@@ -148,6 +148,36 @@ export default function App() {
     };
   }, [loadActivities]);
 
+// Fetch persistent profile pictures from Supabase on load
+useEffect(() => {
+  const loadProfilesFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (error) {
+        console.error('Error fetching profiles from Supabase:', error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setProfiles((prevProfiles) =>
+          prevProfiles.map((preset) => {
+            const dbProfile = data.find((p: any) => p.id === preset.id);
+            return {
+              ...preset,
+              // Check both avatar_url and avatarUrl depending on DB column naming
+              avatarUrl: dbProfile?.avatar_url || dbProfile?.avatarUrl || preset.avatarUrl,
+            };
+          })
+        );
+      }
+    } catch (err) {
+      console.error('Failed to load profiles:', err);
+    }
+  };
+
+  loadProfilesFromSupabase();
+}, []);
+
   // Save profiles to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
@@ -169,11 +199,25 @@ export default function App() {
     setIsPhotoModalOpen(true);
   };
 
-  const handleSaveAvatar = (profileId: string, avatarUrl: string | undefined) => {
-    setProfiles((prev) =>
-      prev.map((p) => (p.id === profileId ? { ...p, avatarUrl } : p))
-    );
-  };
+ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
+  // 1. Update React state locally
+  setProfiles((prev) =>
+    prev.map((p) => (p.id === profileId ? { ...p, avatarUrl } : p))
+  );
+
+  // 2. Persist to Supabase database
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: profileId, avatar_url: avatarUrl }); // upsert guarantees it inserts or updates
+
+    if (error) {
+      console.error('[Supabase profile update error]:', error.message);
+    }
+  } catch (err) {
+    console.error('Failed to persist avatar to Supabase:', err);
+  }
+};
 
   // Activity actions
   const handleOpenAddModal = (
