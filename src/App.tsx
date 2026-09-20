@@ -15,7 +15,7 @@ import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
 import { motion, AnimatePresence } from 'motion/react';
-import { calculateBookingDate } from './utils/dateUtils';
+import { calculateBookingDate, getDefaultTimesForDate, addHoursToTime } from './utils/dateUtils';
 import {
   supabase,
   isSupabaseConfigured,
@@ -289,10 +289,24 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     endTime?: string,
     asIdea = false
   ) => {
+    const targetDate = date || (asIdea ? '' : selectedTimelineDate);
+    let resolvedStart = startTime;
+    let resolvedEnd = endTime;
+
+    if (!asIdea && targetDate && (!resolvedStart || !resolvedEnd)) {
+      const defaultTimes = getDefaultTimesForDate(targetDate, activities);
+      if (!resolvedStart) {
+        resolvedStart = defaultTimes.startTime;
+      }
+      if (!resolvedEnd) {
+        resolvedEnd = addHoursToTime(resolvedStart, 1);
+      }
+    }
+
     setActivityToEdit(null);
-    setDefaultDateForModal(date || (asIdea ? '' : selectedTimelineDate));
-    setDefaultStartTimeForModal(startTime || '');
-    setDefaultEndTimeForModal(endTime || '');
+    setDefaultDateForModal(targetDate);
+    setDefaultStartTimeForModal(resolvedStart || '');
+    setDefaultEndTimeForModal(resolvedEnd || '');
     setIsIdeaBucketMode(asIdea);
     setIsActivityModalOpen(true);
   };
@@ -787,6 +801,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         onSave={handleSaveActivity}
         onDelete={handleDeleteActivity}
         activityToEdit={activityToEdit}
+        activities={activities}
         profiles={profiles}
         activeProfileId={activeProfileId}
         defaultDate={defaultDateForModal}

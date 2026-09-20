@@ -7,6 +7,7 @@ import {
   formatTime12h,
   parseMinutes,
   calculateFreeTimeSlots,
+  addHoursToTime,
 } from '../../utils/dateUtils';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
@@ -172,7 +173,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                     </div>
                   </div>
                   <button
-                    onClick={() => onAddActivityForDay(dateStr, '11:00', '14:00')}
+                    onClick={() => onAddActivityForDay(dateStr)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100 shadow-2xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -300,7 +301,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                               <span className="text-[11px] text-emerald-700">Open personal window</span>
                             </div>
                             <button
-                              onClick={() => onAddActivityForDay(dateStr, slot.startTime, slot.endTime)}
+                              onClick={() => onAddActivityForDay(dateStr, slot.startTime, addHoursToTime(slot.startTime, 1))}
                               className="text-emerald-700 hover:text-emerald-900 font-semibold p-1 hover:bg-emerald-100 rounded text-xs inline-flex items-center gap-1"
                               title="Plan activity during this free gap"
                             >

@@ -22,6 +22,8 @@ import {
   formatDatePretty,
   formatDateFull,
   formatBookingLeadTimeDescription,
+  addHoursToTime,
+  getDefaultTimesForDate,
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 
@@ -31,6 +33,7 @@ interface ActivityModalProps {
   onSave: (activityData: Partial<Activity>) => void;
   onDelete?: (activityId: string) => void;
   activityToEdit?: Activity | null;
+  activities?: Activity[];
   profiles: Profile[];
   activeProfileId: string;
   defaultDate?: string;
@@ -45,6 +48,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   onSave,
   onDelete,
   activityToEdit,
+  activities = [],
   profiles,
   activeProfileId,
   defaultDate,
@@ -160,8 +164,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setIsIdea(isIdeaBucketMode);
         const initialDate = defaultDate || (isIdeaBucketMode ? '' : '2026-10-12');
         setDate(initialDate);
-        setStartTime(defaultStartTime || (isIdeaBucketMode ? '' : '10:00'));
-        setEndTime(defaultEndTime || (isIdeaBucketMode ? '' : '12:00'));
+
+        let initialStart = defaultStartTime;
+        let initialEnd = defaultEndTime;
+
+        if (!isIdeaBucketMode && initialDate) {
+          if (!initialStart) {
+            const computed = getDefaultTimesForDate(initialDate, activities);
+            initialStart = computed.startTime;
+            initialEnd = computed.endTime;
+          } else if (!initialEnd) {
+            initialEnd = addHoursToTime(initialStart, 1);
+          }
+        }
+
+        setStartTime(initialStart || (isIdeaBucketMode ? '' : '10:00'));
+        setEndTime(initialEnd || (isIdeaBucketMode ? '' : '11:00'));
         setLocation('');
         setDescription('');
         setCostPerPerson(0);
@@ -176,18 +194,30 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       }
       setErrors({});
     }
-  }, [isOpen, activityToEdit, activeProfileId, defaultDate, defaultStartTime, defaultEndTime, isIdeaBucketMode, profiles]);
+  }, [isOpen, activityToEdit, activeProfileId, defaultDate, defaultStartTime, defaultEndTime, isIdeaBucketMode, profiles, activities]);
 
   if (!isOpen) return null;
 
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
+    if (!activityToEdit && !isIdea && newDate) {
+      const computed = getDefaultTimesForDate(newDate, activities);
+      setStartTime(computed.startTime);
+      setEndTime(computed.endTime);
+    }
     if (bookingStatus === 'Needs Booking' && leadTimeMode === 'relative') {
       const days = bookingLeadTime.startsWith('custom:')
         ? parseInt(bookingLeadTime.split(':')[1], 10)
         : undefined;
       const nextDeadline = calculateBookingDate(newDate, bookingLeadTime, days);
       setBookingDeadline(nextDeadline);
+    }
+  };
+
+  const handleStartTimeChange = (newStart: string) => {
+    setStartTime(newStart);
+    if (newStart) {
+      setEndTime(addHoursToTime(newStart, 1));
     }
   };
 
@@ -432,7 +462,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                   id="activity-start-time-input"
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
                   className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>

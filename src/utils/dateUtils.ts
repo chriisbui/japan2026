@@ -24,6 +24,63 @@ export function formatMinutesToTime(totalMinutes: number): string {
   return `${paddedHours}:${paddedMins}`;
 }
 
+export function addHoursToTime(timeStr: string, hoursToAdd = 1): string {
+  if (!timeStr) return '';
+  const total = parseMinutes(timeStr) + hoursToAdd * 60;
+  if (total >= 24 * 60) {
+    return '23:59';
+  }
+  return formatMinutesToTime(total);
+}
+
+export function getDefaultTimesForDate(
+  targetDate: string,
+  activities: Activity[] = []
+): { startTime: string; endTime: string } {
+  if (!targetDate) {
+    return { startTime: '10:00', endTime: '11:00' };
+  }
+
+  // Filter activities on the given day that are not ideas and have a startTime or endTime
+  const dayActivities = activities.filter(
+    (a) => !a.isIdea && a.date === targetDate && (a.startTime || a.endTime)
+  );
+
+  if (dayActivities.length === 0) {
+    return { startTime: '10:00', endTime: '11:00' };
+  }
+
+  // Sort by chronological end time (or start time + 1hr if no end time)
+  const sorted = [...dayActivities].sort((a, b) => {
+    const endA = a.endTime
+      ? parseMinutes(a.endTime)
+      : a.startTime
+      ? parseMinutes(a.startTime) + 60
+      : 0;
+    const endB = b.endTime
+      ? parseMinutes(b.endTime)
+      : b.startTime
+      ? parseMinutes(b.startTime) + 60
+      : 0;
+    if (endA !== endB) return endA - endB;
+    return parseMinutes(a.startTime || '00:00') - parseMinutes(b.startTime || '00:00');
+  });
+
+  const lastActivity = sorted[sorted.length - 1];
+  let lastEnd = lastActivity.endTime;
+  if (!lastEnd && lastActivity.startTime) {
+    lastEnd = addHoursToTime(lastActivity.startTime, 1);
+  }
+  if (!lastEnd) {
+    lastEnd = '10:00';
+  }
+
+  const newStartTime = lastEnd;
+  const newEndTime = addHoursToTime(newStartTime, 1);
+
+  return { startTime: newStartTime, endTime: newEndTime };
+}
+
 export function formatTime12h(timeStr?: string): string {
   if (!timeStr) return '';
   const [hStr, mStr] = timeStr.split(':');

@@ -10,6 +10,7 @@ import {
   getDurationMinutes,
   formatDuration,
   calculateFreeTimeSlots,
+  addHoursToTime,
 } from '../../utils/dateUtils';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
@@ -37,7 +38,7 @@ interface MicroTimelineViewProps {
   activeProfileId: string;
   onEditActivity: (activity: Activity) => void;
   onDeleteActivity: (activityId: string) => void;
-  onAddActivityWithTime: (date: string, startTime: string, endTime: string) => void;
+  onAddActivityWithTime: (date: string, startTime?: string, endTime?: string) => void;
 }
 
 export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
@@ -181,7 +182,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             <h3 className="text-sm font-bold text-stone-900">Hour-by-Hour Timeline</h3>
           </div>
           <button
-            onClick={() => onAddActivityWithTime(selectedDate, '14:00', '16:00')}
+            onClick={() => onAddActivityWithTime(selectedDate)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -197,7 +198,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
               There are no activities planned for this day yet. Add an event or relax with unstructured exploration.
             </p>
             <button
-              onClick={() => onAddActivityWithTime(selectedDate, '10:00', '12:00')}
+              onClick={() => onAddActivityWithTime(selectedDate)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs"
             >
               <Plus className="w-4 h-4" /> Add First Activity
@@ -236,7 +237,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
 
                       <button
                         onClick={() =>
-                          onAddActivityWithTime(selectedDate, slot.startTime, slot.endTime)
+                          onAddActivityWithTime(selectedDate, slot.startTime, addHoursToTime(slot.startTime, 1))
                         }
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100/80 shadow-2xs transition-colors shrink-0 cursor-pointer"
                       >
