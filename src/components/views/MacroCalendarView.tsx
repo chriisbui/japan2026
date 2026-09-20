@@ -85,7 +85,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
         {days.map((dateStr, idx) => {
           const dayActs = activitiesByDay[dateStr] || [];
           const dayTotalCost = dayActs.reduce(
-            (sum, act) => sum + (act.costPerPerson || 0) * (act.taggedProfileIds?.length || 0),
+            (sum, act) => sum + (act.bookingStatus === 'Booked' ? (act.costPerPerson || 0) * (act.taggedProfileIds?.length || 0) : 0),
             0
           );
           const needsBookingCount = dayActs.filter((a) => a.bookingStatus === 'Needs Booking').length;
@@ -221,7 +221,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                               </span>
                             )}
                           </div>
-                          {act.costPerPerson > 0 && (
+                          {act.bookingStatus === 'Booked' && act.costPerPerson > 0 && (
                             <span className="text-[10px] font-semibold text-stone-600">
                               ${act.costPerPerson}/p
                             </span>

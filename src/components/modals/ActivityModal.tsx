@@ -268,7 +268,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       return;
     }
 
-    const finalCost = Number(costPerPerson) || 0;
+    const finalCost = bookingStatus === 'Booked' ? (Number(costPerPerson) || 0) : 0;
 
     onSave({
       ...(activityToEdit ? { id: activityToEdit.id } : {}),
@@ -765,46 +765,48 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             )}
           </div>
 
-          {/* Financials & Who Paid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 animate-in fade-in">
-            <div>
-              <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1 text-xs">
-                <DollarSign className="w-3.5 h-3.5 text-stone-500" />
-                Cost per Person ($)
-              </label>
-              <input
-                id="activity-cost-input"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-                value={costPerPerson}
-                onChange={(e) => setCostPerPerson(Math.max(0, Number(e.target.value)))}
-                className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">
-                Total for {taggedProfileIds.length} person(s):{' '}
-                <strong className="text-stone-800">${costPerPerson * taggedProfileIds.length}</strong>
-              </p>
-            </div>
+          {/* Financials & Who Paid - Only shown when Booked */}
+          {bookingStatus === 'Booked' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 animate-in fade-in">
+              <div>
+                <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1 text-xs">
+                  <DollarSign className="w-3.5 h-3.5 text-stone-500" />
+                  Cost per Person ($)
+                </label>
+                <input
+                  id="activity-cost-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={costPerPerson}
+                  onChange={(e) => setCostPerPerson(Math.max(0, Number(e.target.value)))}
+                  className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Total for {taggedProfileIds.length} person(s):{' '}
+                  <strong className="text-stone-800">${costPerPerson * taggedProfileIds.length}</strong>
+                </p>
+              </div>
 
-            <div>
-              <label className="block font-semibold text-stone-700 mb-1 text-xs">Who Paid? (Payer)</label>
-              <select
-                id="activity-who-paid-select"
-                value={whoPaidId}
-                onChange={(e) => setWhoPaidId(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
-              >
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.role})
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-stone-500 mt-1">Credited in Expenses</p>
+              <div>
+                <label className="block font-semibold text-stone-700 mb-1 text-xs">Who Paid? (Payer)</label>
+                <select
+                  id="activity-who-paid-select"
+                  value={whoPaidId}
+                  onChange={(e) => setWhoPaidId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
+                >
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-stone-500 mt-1">Credited in Expenses</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tagged Profiles (Attendees) */}
           <div>

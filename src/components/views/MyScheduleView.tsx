@@ -60,7 +60,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
   // Metrics for active user
   const myTotalEvents = myActivities.length;
   const myHostingCount = myActivities.filter((a) => a.hostProfileId === activeProfileId).length;
-  const myTotalCost = myActivities.reduce((sum, a) => sum + (a.costPerPerson || 0), 0);
+  const myTotalCost = myActivities.reduce((sum, a) => sum + (a.bookingStatus === 'Booked' ? (a.costPerPerson || 0) : 0), 0);
   const myNeedsBookingCount = myActivities.filter(
     (a) => a.bookingStatus === 'Needs Booking' && a.hostProfileId === activeProfileId
   ).length;
@@ -213,15 +213,17 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              {act.costPerPerson > 0 ? (
-                                <span className="text-xs font-bold text-stone-900">
-                                  ${act.costPerPerson} your share
-                                </span>
-                              ) : (
-                                <span className="text-xs font-medium text-emerald-600">Free</span>
-                              )}
-                            </div>
+                            {act.bookingStatus === 'Booked' && (
+                              <div className="text-right">
+                                {act.costPerPerson > 0 ? (
+                                  <span className="text-xs font-bold text-stone-900">
+                                    ${act.costPerPerson} your share
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-medium text-emerald-600">Free</span>
+                                )}
+                              </div>
+                            )}
                             {(onRequestDeleteActivity || onDeleteActivity) && (
                               <button
                                 type="button"

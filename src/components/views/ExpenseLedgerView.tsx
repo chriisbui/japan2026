@@ -68,9 +68,9 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Filter activities paid by the selected payer (excluding unbudgeted ideas)
+  // Filter activities paid by the selected payer (must be booked and have cost)
   const payerActivities = activities.filter(
-    (a) => !a.isIdea && a.whoPaidId === selectedPayerId && a.costPerPerson > 0
+    (a) => !a.isIdea && a.bookingStatus === 'Booked' && a.whoPaidId === selectedPayerId && a.costPerPerson > 0
   );
 
   // Split into active (unsettled) and settled activities
@@ -84,10 +84,11 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
     return bd.isSettled;
   });
 
-  // Activities paid by others that the active user participated in (What I Owe)
+  // Activities paid by others that the active user participated in (What I Owe - must be Booked)
   const activitiesIOwe = activities.filter(
     (a) =>
       !a.isIdea &&
+      a.bookingStatus === 'Booked' &&
       a.whoPaidId !== activeProfileId &&
       a.costPerPerson > 0 &&
       (a.taggedProfileIds || []).includes(activeProfileId)

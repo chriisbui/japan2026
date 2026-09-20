@@ -192,7 +192,7 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
                       <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                       <span>{activity.date ? formatDatePretty(activity.date) : 'Unscheduled idea'}</span>
                     </div>
-                    {activity.costPerPerson > 0 && (
+                    {activity.bookingStatus === 'Booked' && activity.costPerPerson > 0 && (
                       <div className="flex items-center gap-1.5 truncate">
                         <DollarSign className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                         <span>

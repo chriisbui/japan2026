@@ -12,8 +12,8 @@ export function calculateLedger(
   activities: Activity[],
   profiles: Profile[]
 ): LedgerSummary {
-  // Exclude unbooked ideas
-  const scheduled = activities.filter((a) => !a.isIdea);
+  // Exclude unbooked ideas and activities that are not booked
+  const scheduled = activities.filter((a) => !a.isIdea && a.bookingStatus === 'Booked');
 
   const totalPerCategory: Partial<Record<ActivityCategory, number>> = {};
   const memberFinancials: Record<string, MemberFinancials> = {};

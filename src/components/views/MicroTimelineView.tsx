@@ -101,7 +101,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
 
   const dayTotalCost = dayActivities.reduce(
-    (sum, act) => sum + (act.costPerPerson || 0) * (act.taggedProfileIds?.length || 0),
+    (sum, act) => sum + (act.bookingStatus === 'Booked' ? (act.costPerPerson || 0) * (act.taggedProfileIds?.length || 0) : 0),
     0
   );
 
@@ -337,8 +337,8 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                             )}
                           </div>
 
-                          {/* Who Paid */}
-                          {payer && (
+                          {/* Who Paid (Only if Booked) */}
+                          {act.bookingStatus === 'Booked' && payer && (
                             <div className="flex items-center gap-1.5">
                               <span className="text-stone-400 text-[11px]">Paid by:</span>
                               <ProfileAvatar profile={payer} size="xs" showName />
@@ -347,14 +347,16 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         </div>
 
                         <div className="flex items-center gap-3">
-                          {/* Cost per person */}
-                          {act.costPerPerson > 0 ? (
-                            <div className="text-right">
-                              <span className="font-semibold text-stone-900">${act.costPerPerson}</span>
-                              <span className="text-[10px] text-stone-500"> /person</span>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] font-medium text-emerald-600">Free</span>
+                          {/* Cost per person (Only if Booked) */}
+                          {act.bookingStatus === 'Booked' && (
+                            act.costPerPerson > 0 ? (
+                              <div className="text-right">
+                                <span className="font-semibold text-stone-900">${act.costPerPerson}</span>
+                                <span className="text-[10px] text-stone-500"> /person</span>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] font-medium text-emerald-600">Free</span>
+                            )
                           )}
 
                           {/* Tagged profile avatars */}

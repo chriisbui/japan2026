@@ -71,7 +71,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                 <span className="truncate">{activity.location}</span>
               </div>
             )}
-            {activity.costPerPerson > 0 && (
+            {activity.bookingStatus === 'Booked' && activity.costPerPerson > 0 && (
               <div className="text-[11px] text-stone-500 pt-0.5">
                 Expense share: ${activity.costPerPerson} per person
               </div>
