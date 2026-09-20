@@ -15,32 +15,32 @@ export const CATEGORY_CALENDAR_STYLES: Record<
   }
 > = {
   'Food & Drink': {
-    bg: 'bg-amber-100/90',
-    hoverBg: 'hover:bg-amber-200',
-    text: 'text-amber-950',
-    border: 'border-amber-300',
-    dot: 'bg-amber-500',
+    bg: 'bg-yellow-100/90',
+    hoverBg: 'hover:bg-yellow-200',
+    text: 'text-yellow-950',
+    border: 'border-yellow-300',
+    dot: 'bg-yellow-500',
   },
   Sightseeing: {
     bg: 'bg-sky-100/90',
     hoverBg: 'hover:bg-sky-200',
     text: 'text-sky-950',
     border: 'border-sky-300',
-    dot: 'bg-sky-500',
+    dot: 'bg-sky-400',
   },
   Experiences: {
-    bg: 'bg-indigo-100/90',
-    hoverBg: 'hover:bg-indigo-200',
-    text: 'text-indigo-950',
-    border: 'border-indigo-300',
-    dot: 'bg-indigo-500',
+    bg: 'bg-blue-100/90',
+    hoverBg: 'hover:bg-blue-200',
+    text: 'text-blue-950',
+    border: 'border-blue-400',
+    dot: 'bg-blue-700',
   },
   'Theme Parks': {
-    bg: 'bg-purple-100/90',
-    hoverBg: 'hover:bg-purple-200',
-    text: 'text-purple-950',
-    border: 'border-purple-300',
-    dot: 'bg-purple-500',
+    bg: 'bg-orange-100/90',
+    hoverBg: 'hover:bg-orange-200',
+    text: 'text-orange-950',
+    border: 'border-orange-300',
+    dot: 'bg-orange-500',
   },
   Nature: {
     bg: 'bg-emerald-100/90',
@@ -50,32 +50,32 @@ export const CATEGORY_CALENDAR_STYLES: Record<
     dot: 'bg-emerald-500',
   },
   Transit: {
-    bg: 'bg-blue-100/90',
-    hoverBg: 'hover:bg-blue-200',
-    text: 'text-blue-950',
-    border: 'border-blue-300',
-    dot: 'bg-blue-500',
+    bg: 'bg-stone-200/90',
+    hoverBg: 'hover:bg-stone-300',
+    text: 'text-stone-800',
+    border: 'border-stone-300',
+    dot: 'bg-stone-500',
   },
   Relaxation: {
-    bg: 'bg-teal-100/90',
-    hoverBg: 'hover:bg-teal-200',
-    text: 'text-teal-950',
-    border: 'border-teal-300',
-    dot: 'bg-teal-500',
+    bg: 'bg-pink-100/90',
+    hoverBg: 'hover:bg-pink-200',
+    text: 'text-pink-950',
+    border: 'border-pink-300',
+    dot: 'bg-pink-400',
   },
   Nightlife: {
-    bg: 'bg-fuchsia-100/90',
-    hoverBg: 'hover:bg-fuchsia-200',
-    text: 'text-fuchsia-950',
-    border: 'border-fuchsia-300',
-    dot: 'bg-fuchsia-500',
+    bg: 'bg-purple-100/90',
+    hoverBg: 'hover:bg-purple-200',
+    text: 'text-purple-950',
+    border: 'border-purple-300',
+    dot: 'bg-purple-600',
   },
   Shopping: {
-    bg: 'bg-rose-100/90',
-    hoverBg: 'hover:bg-rose-200',
-    text: 'text-rose-950',
-    border: 'border-rose-300',
-    dot: 'bg-rose-500',
+    bg: 'bg-red-100/90',
+    hoverBg: 'hover:bg-red-200',
+    text: 'text-red-950',
+    border: 'border-red-300',
+    dot: 'bg-red-500',
   },
 };
 
@@ -218,16 +218,11 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* Condensed Calendar Grid Header */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Quick day-by-day itinerary with category color-coded activities. Click any day or activity to expand.
-            </p>
-          </div>
-          <div className="text-xs font-medium text-stone-500">
-            {days.length} Day Tiles
-          </div>
+        <div>
+          <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Quick day-by-day itinerary with category color-coded activities. Click any day or activity to expand.
+          </p>
         </div>
 
         {/* Category Color Legend */}
@@ -250,7 +245,9 @@ export const HomePage: React.FC<HomePageProps> = ({
         {days.map((dateStr, index) => {
           const dayDate = new Date(dateStr + 'T00:00:00');
           const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'short' });
-          const dayMonthNum = dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const dayNum = dayDate.getDate();
+          const monthShort = dayDate.toLocaleDateString('en-US', { month: 'short' });
+          const dateFormatted = `${dayNum} ${monthShort}`;
           const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
           const dayActs = activitiesByDate[dateStr] || [];
           const hasActs = dayActs.length > 0;
@@ -264,16 +261,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                 isWeekend ? 'border-stone-200 bg-stone-50/30' : 'border-stone-200'
               }`}
             >
-              {/* Day Tile Header: Day Number, Weekday, Date */}
+              {/* Day Tile Header: [26 Oct] [Mon] [Day 1] */}
               <div className="flex items-center justify-between pb-2 border-b border-stone-100 mb-2.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold bg-stone-900 text-white">
-                    {index + 1}
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-900 text-white tracking-tight shrink-0">
+                    {dateFormatted}
                   </span>
-                  <div>
-                    <span className="text-xs font-bold text-stone-900 leading-none">{dayName}</span>
-                    <span className="text-[10px] text-stone-400 ml-1 leading-none">{dayMonthNum}</span>
-                  </div>
+                  <span className="text-xs font-bold text-stone-900 leading-none shrink-0">
+                    {dayName}
+                  </span>
+                  <span className="text-[10px] text-stone-400 font-normal leading-none shrink-0">
+                    Day {index + 1}
+                  </span>
                 </div>
 
                 {/* Quick Add Button */}
@@ -283,8 +282,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     e.stopPropagation();
                     onAddActivityForDay(dateStr);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-stone-400 hover:text-indigo-600 hover:bg-stone-100 transition-all cursor-pointer"
-                  title={`Add activity on ${dayMonthNum}`}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-stone-400 hover:text-indigo-600 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                  title={`Add activity on ${dateFormatted}`}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
