@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
 import { getDaysArray, formatDatePretty, parseMinutes } from '../../utils/dateUtils';
+import { CATEGORIES_META, normalizeCategory } from '../../data/categories';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { Calendar, Plus, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
@@ -148,12 +149,14 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                 ) : (
                   dayActs.map((act) => {
                     const isTaggedMe = act.taggedProfileIds?.includes(activeProfileId);
+                    const normCat = normalizeCategory(act.category);
+                    const catMeta = CATEGORIES_META[normCat] || CATEGORIES_META.Sightseeing;
                     return (
                       <div
                         key={act.id}
                         onClick={() => onEditActivity(act)}
-                        className={`group/card p-2 rounded-lg border text-left cursor-pointer transition-all hover:border-indigo-300 hover:bg-stone-50/80 ${
-                          isTaggedMe ? 'bg-white border-stone-200' : 'bg-stone-50/50 border-stone-150 opacity-80'
+                        className={`group/card p-2 rounded-lg border text-left cursor-pointer transition-all hover:shadow-xs hover:border-indigo-400 ${catMeta.color.bg} ${catMeta.color.border} ${
+                          isTaggedMe ? 'shadow-2xs' : 'opacity-85'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-1">

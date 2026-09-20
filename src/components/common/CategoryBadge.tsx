@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityCategory } from '../../types';
-import { CATEGORIES_META } from '../../data/categories';
+import { CATEGORIES_META, normalizeCategory } from '../../data/categories';
 
 interface CategoryBadgeProps {
   category: ActivityCategory;
@@ -15,7 +15,8 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
   showIcon = true,
   className = '',
 }) => {
-  const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing & Culture'];
+  const normalized = normalizeCategory(category);
+  const meta = CATEGORIES_META[normalized] || CATEGORIES_META.Sightseeing;
   const Icon = meta.icon;
 
   const sizeClasses = {

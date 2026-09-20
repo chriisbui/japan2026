@@ -284,6 +284,8 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           <BookingStatusBadge
                             status={act.bookingStatus}
                             deadline={act.bookingDeadline}
+                            leadTime={act.bookingLeadTime}
+                            eventDate={act.date}
                             bookingRef={act.bookingReference}
                           />
                         </div>

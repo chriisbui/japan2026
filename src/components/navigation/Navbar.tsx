@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'timeline', label: 'Day Timeline', icon: Clock },
     { id: 'my-schedule', label: 'My Schedule', icon: User },
     { id: 'ideas', label: 'Idea Bucket', icon: Lightbulb, badge: ideasCount },
-    { id: 'ledger', label: 'Expenses & Ledger', icon: DollarSign },
+    { id: 'ledger', label: 'Expenses', icon: DollarSign },
   ];
 
   return (

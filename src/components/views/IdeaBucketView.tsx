@@ -111,7 +111,13 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                   {/* Category & Status */}
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <CategoryBadge category={idea.category} size="sm" />
-                    <BookingStatusBadge status={idea.bookingStatus} deadline={idea.bookingDeadline} compact />
+                    <BookingStatusBadge
+                      status={idea.bookingStatus}
+                      deadline={idea.bookingDeadline}
+                      leadTime={idea.bookingLeadTime}
+                      eventDate={idea.date}
+                      compact
+                    />
                   </div>
 
                   {/* Title */}

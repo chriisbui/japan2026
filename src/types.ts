@@ -16,14 +16,14 @@ export interface Profile {
 
 export type ActivityCategory =
   | 'Food & Drink'
-  | 'Sightseeing & Culture'
-  | 'Theme Parks & Attractions'
-  | 'Shopping'
-  | 'Nature & Adventure'
-  | 'Transit & Travel'
-  | 'Accommodation'
-  | 'Relaxation & Wellness'
-  | 'Logistics & Admin';
+  | 'Sightseeing'
+  | 'Experiences'
+  | 'Theme Parks'
+  | 'Nature'
+  | 'Transit'
+  | 'Relaxation'
+  | 'Nightlife'
+  | 'Shopping';
 
 export type BookingStatus = 'Booked' | 'Needs Booking' | 'No Booking Needed';
 
@@ -42,9 +42,11 @@ export interface Activity {
   hostProfileId: string; // lead organizer
   bookingStatus: BookingStatus;
   bookingDeadline?: string; // YYYY-MM-DD target booking date if Needs Booking
+  bookingLeadTime?: string; // 'now' | '1_week' | '2_weeks' | '3_weeks' | '4_weeks' | '6_weeks' | '2_months' | '3_months' | 'custom_days:X' | 'exact_date'
   bookingReference?: string; // e.g. "CONF-89324" or URL
   isIdea?: boolean; // true if in Idea Bucket backlog
   votes?: string[]; // profileIds who upvoted idea
+  paidBackProfileIds?: string[]; // profileIds of debtors who have already paid back the payer
   createdAt: string;
 }
 

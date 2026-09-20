@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Activity, BookingStatus } from './types';
+import { normalizeCategory } from './data/categories';
 
 /**
  * Fallback credentials to prevent client initialization crash
@@ -165,7 +166,9 @@ export function rowToActivity(row: any): Activity {
 
   let bookingStatus: BookingStatus = 'No Booking Needed';
   let bookingDeadline: string | undefined = undefined;
+  let bookingLeadTime: string | undefined = undefined;
   let bookingReference: string | undefined = undefined;
+  let paidBackProfileIds: string[] = [];
 
   const rawStatus = String(row.booking_status ?? row.bookingStatus ?? '');
   if (rawStatus.includes('Needs Booking')) {
@@ -179,10 +182,15 @@ export function rowToActivity(row: any): Activity {
     } else if (row.booking_deadline || row.bookingDeadline || row.deadline) {
       bookingDeadline = String(row.booking_deadline || row.bookingDeadline || row.deadline);
     }
+
+    const leadMatch = rawStatus.match(/lead[:\s]+([^\]\|]+)/i);
+    if (leadMatch) {
+      bookingLeadTime = leadMatch[1].trim();
+    }
   } else if (rawStatus.includes('Booked')) {
     bookingStatus = 'Booked';
     const refMatch =
-      rawStatus.match(/ref[:\s]+([^\s\]\)]+)/i) ||
+      rawStatus.match(/ref[:\s]+([^\]\|]+)/i) ||
       rawStatus.match(/\[ref:(.+?)\]/i) ||
       rawStatus.match(/\|(.+)/);
     if (refMatch) {
@@ -196,10 +204,25 @@ export function rowToActivity(row: any): Activity {
     bookingStatus = rawStatus as BookingStatus;
   }
 
+  // Parse paid back users for expenses from booking_status or row fields
+  const paidMatch =
+    rawStatus.match(/paid[:\s]+([^\]\|]+)/i) ||
+    rawStatus.match(/reimbursed[:\s]+([^\]\|]+)/i);
+  if (paidMatch) {
+    paidBackProfileIds = paidMatch[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } else if (Array.isArray(row.paid_back_users)) {
+    paidBackProfileIds = row.paid_back_users;
+  } else if (Array.isArray(row.paidBackProfileIds)) {
+    paidBackProfileIds = row.paidBackProfileIds;
+  }
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
-    category: row.category || 'Sightseeing & Culture',
+    category: normalizeCategory(row.category),
     date: row.date || undefined,
     startTime,
     endTime,
@@ -217,9 +240,11 @@ export function rowToActivity(row: any): Activity {
     hostProfileId: row.created_by ?? row.host_profile_id ?? row.hostProfileId ?? 'user-1',
     bookingStatus,
     bookingDeadline,
+    bookingLeadTime,
     bookingReference,
     isIdea: Boolean(isIdea),
     votes: Array.isArray(row.votes) ? row.votes : [],
+    paidBackProfileIds,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   };
 }
@@ -258,6 +283,10 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
     row.location = activity.location || null;
   }
 
+  if (activity.description !== undefined) {
+    row.description = activity.description || null;
+  }
+
   if (activity.costPerPerson !== undefined) {
     row.cost_per_person = Number(activity.costPerPerson) || 0;
   }
@@ -269,21 +298,30 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
   if (
     activity.bookingStatus !== undefined ||
     activity.bookingDeadline !== undefined ||
-    activity.bookingReference !== undefined
+    activity.bookingLeadTime !== undefined ||
+    activity.bookingReference !== undefined ||
+    activity.paidBackProfileIds !== undefined
   ) {
     const status = activity.bookingStatus || 'No Booking Needed';
+    const tags: string[] = [];
+
     if (status === 'Needs Booking') {
-      if (activity.bookingDeadline && activity.bookingDeadline.trim()) {
-        row.booking_status = `Needs Booking [deadline:${activity.bookingDeadline.trim()}]`;
-      } else {
-        row.booking_status = 'Needs Booking';
-      }
+      const dl = activity.bookingDeadline?.trim();
+      const lt = activity.bookingLeadTime?.trim();
+      if (dl) tags.push(`deadline:${dl}`);
+      if (lt) tags.push(`lead:${lt}`);
     } else if (status === 'Booked') {
       if (activity.bookingReference && activity.bookingReference.trim()) {
-        row.booking_status = `Booked [ref:${activity.bookingReference.trim()}]`;
-      } else {
-        row.booking_status = 'Booked';
+        tags.push(`ref:${activity.bookingReference.trim()}`);
       }
+    }
+
+    if (activity.paidBackProfileIds && activity.paidBackProfileIds.length > 0) {
+      tags.push(`paid:${activity.paidBackProfileIds.join(',')}`);
+    }
+
+    if (tags.length > 0) {
+      row.booking_status = `${status} [${tags.join('|')}]`;
     } else {
       row.booking_status = status;
     }

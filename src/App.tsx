@@ -15,6 +15,7 @@ import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
 import { motion, AnimatePresence } from 'motion/react';
+import { calculateBookingDate } from './utils/dateUtils';
 import {
   supabase,
   isSupabaseConfigured,
@@ -321,7 +322,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
       const newActivity: Activity = {
         id: generateUUID(),
         title: data.title || 'Untitled Activity',
-        category: data.category || 'Sightseeing & Culture',
+        category: data.category || 'Sightseeing',
         date: data.isIdea ? undefined : data.date,
         startTime: data.isIdea ? undefined : data.startTime,
         endTime: data.isIdea ? undefined : data.endTime,
@@ -333,6 +334,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         hostProfileId: data.hostProfileId || activeProfileId,
         bookingStatus: data.bookingStatus || 'No Booking Needed',
         bookingDeadline: data.bookingDeadline,
+        bookingLeadTime: data.bookingLeadTime,
         bookingReference: data.bookingReference,
         isIdea: Boolean(data.isIdea),
         votes: data.isIdea ? [activeProfileId] : [],
@@ -371,11 +373,25 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     endTime?: string
   ) => {
     setActivityError(null);
+    const existing = activities.find((a) => a.id === ideaId);
+    let nextDeadline = existing?.bookingDeadline;
+    if (existing?.bookingStatus === 'Needs Booking' && existing.bookingLeadTime) {
+      if (existing.bookingLeadTime === 'now') {
+        nextDeadline = calculateBookingDate(undefined, 'now');
+      } else if (existing.bookingLeadTime !== 'exact_date') {
+        const days = existing.bookingLeadTime.startsWith('custom:')
+          ? parseInt(existing.bookingLeadTime.split(':')[1], 10)
+          : undefined;
+        nextDeadline = calculateBookingDate(targetDate, existing.bookingLeadTime, days);
+      }
+    }
+
     const updates = {
       isIdea: false,
       date: targetDate,
       startTime: startTime || '10:00',
       endTime: endTime || '12:00',
+      ...(nextDeadline ? { bookingDeadline: nextDeadline } : {}),
     };
     try {
       await updateActivityInSupabase(ideaId, updates);
@@ -418,6 +434,81 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     } catch (err: any) {
       console.error('[Supabase mark booked error]:', err);
       setActivityError(err?.message || 'Failed to mark as booked in Supabase');
+    }
+  };
+
+  // Toggle debtor payment status for an activity
+  const handleToggleDebtorPayment = async (activityId: string, debtorProfileId: string) => {
+    setActivityError(null);
+    const targetAct = activities.find((a) => a.id === activityId);
+    if (!targetAct) return;
+
+    const currentPaid = targetAct.paidBackProfileIds || [];
+    const isAlreadyPaid = currentPaid.includes(debtorProfileId);
+    const nextPaid = isAlreadyPaid
+      ? currentPaid.filter((id) => id !== debtorProfileId)
+      : [...currentPaid, debtorProfileId];
+
+    // Optimistically update React state
+    setActivities((prev) =>
+      prev.map((a) => (a.id === activityId ? { ...a, paidBackProfileIds: nextPaid } : a))
+    );
+
+    try {
+      await updateActivityInSupabase(activityId, {
+        ...targetAct,
+        paidBackProfileIds: nextPaid,
+      });
+    } catch (err: any) {
+      console.error('[Supabase payment toggle error]:', err);
+      setActivityError(err?.message || 'Failed to update payment status in Supabase');
+    }
+  };
+
+  // Settle all debtors for an activity at once
+  const handleSettleAllDebtors = async (activityId: string) => {
+    setActivityError(null);
+    const targetAct = activities.find((a) => a.id === activityId);
+    if (!targetAct) return;
+
+    const debtors = (targetAct.taggedProfileIds || []).filter(
+      (id) => id !== targetAct.whoPaidId
+    );
+    const nextPaid = Array.from(new Set([...(targetAct.paidBackProfileIds || []), ...debtors]));
+
+    setActivities((prev) =>
+      prev.map((a) => (a.id === activityId ? { ...a, paidBackProfileIds: nextPaid } : a))
+    );
+
+    try {
+      await updateActivityInSupabase(activityId, {
+        ...targetAct,
+        paidBackProfileIds: nextPaid,
+      });
+    } catch (err: any) {
+      console.error('[Supabase settle all error]:', err);
+      setActivityError(err?.message || 'Failed to settle all debtors in Supabase');
+    }
+  };
+
+  // Reopen/unsettle debtors for an activity
+  const handleReopenDebtors = async (activityId: string) => {
+    setActivityError(null);
+    const targetAct = activities.find((a) => a.id === activityId);
+    if (!targetAct) return;
+
+    setActivities((prev) =>
+      prev.map((a) => (a.id === activityId ? { ...a, paidBackProfileIds: [] } : a))
+    );
+
+    try {
+      await updateActivityInSupabase(activityId, {
+        ...targetAct,
+        paidBackProfileIds: [],
+      });
+    } catch (err: any) {
+      console.error('[Supabase reopen error]:', err);
+      setActivityError(err?.message || 'Failed to reopen transaction in Supabase');
     }
   };
 
@@ -660,6 +751,10 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 activities={activities}
                 profiles={profiles}
                 activeProfileId={activeProfileId}
+                onToggleDebtorPayment={handleToggleDebtorPayment}
+                onSettleAllDebtors={handleSettleAllDebtors}
+                onReopenDebtors={handleReopenDebtors}
+                onEditActivity={handleOpenEditModal}
               />
             </motion.div>
           )}

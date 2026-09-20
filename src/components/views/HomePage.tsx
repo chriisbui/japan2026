@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
 import { getDaysArray } from '../../utils/dateUtils';
+import { normalizeCategory } from '../../data/categories';
 import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane } from 'lucide-react';
 
 export const CATEGORY_CALENDAR_STYLES: Record<
@@ -20,61 +21,61 @@ export const CATEGORY_CALENDAR_STYLES: Record<
     border: 'border-amber-300',
     dot: 'bg-amber-500',
   },
-  'Sightseeing & Culture': {
+  Sightseeing: {
     bg: 'bg-sky-100/90',
     hoverBg: 'hover:bg-sky-200',
     text: 'text-sky-950',
     border: 'border-sky-300',
     dot: 'bg-sky-500',
   },
-  'Theme Parks & Attractions': {
-    bg: 'bg-purple-100/90',
-    hoverBg: 'hover:bg-purple-200',
-    text: 'text-purple-950',
-    border: 'border-purple-300',
-    dot: 'bg-purple-500',
-  },
-  'Shopping': {
-    bg: 'bg-rose-100/90',
-    hoverBg: 'hover:bg-rose-200',
-    text: 'text-rose-950',
-    border: 'border-rose-300',
-    dot: 'bg-rose-500',
-  },
-  'Nature & Adventure': {
-    bg: 'bg-emerald-100/90',
-    hoverBg: 'hover:bg-emerald-200',
-    text: 'text-emerald-950',
-    border: 'border-emerald-300',
-    dot: 'bg-emerald-500',
-  },
-  'Transit & Travel': {
-    bg: 'bg-blue-100/90',
-    hoverBg: 'hover:bg-blue-200',
-    text: 'text-blue-950',
-    border: 'border-blue-300',
-    dot: 'bg-blue-500',
-  },
-  'Accommodation': {
+  Experiences: {
     bg: 'bg-indigo-100/90',
     hoverBg: 'hover:bg-indigo-200',
     text: 'text-indigo-950',
     border: 'border-indigo-300',
     dot: 'bg-indigo-500',
   },
-  'Relaxation & Wellness': {
+  'Theme Parks': {
+    bg: 'bg-purple-100/90',
+    hoverBg: 'hover:bg-purple-200',
+    text: 'text-purple-950',
+    border: 'border-purple-300',
+    dot: 'bg-purple-500',
+  },
+  Nature: {
+    bg: 'bg-emerald-100/90',
+    hoverBg: 'hover:bg-emerald-200',
+    text: 'text-emerald-950',
+    border: 'border-emerald-300',
+    dot: 'bg-emerald-500',
+  },
+  Transit: {
+    bg: 'bg-blue-100/90',
+    hoverBg: 'hover:bg-blue-200',
+    text: 'text-blue-950',
+    border: 'border-blue-300',
+    dot: 'bg-blue-500',
+  },
+  Relaxation: {
     bg: 'bg-teal-100/90',
     hoverBg: 'hover:bg-teal-200',
     text: 'text-teal-950',
     border: 'border-teal-300',
     dot: 'bg-teal-500',
   },
-  'Logistics & Admin': {
-    bg: 'bg-stone-200/90',
-    hoverBg: 'hover:bg-stone-300',
-    text: 'text-stone-900',
-    border: 'border-stone-300',
-    dot: 'bg-stone-500',
+  Nightlife: {
+    bg: 'bg-fuchsia-100/90',
+    hoverBg: 'hover:bg-fuchsia-200',
+    text: 'text-fuchsia-950',
+    border: 'border-fuchsia-300',
+    dot: 'bg-fuchsia-500',
+  },
+  Shopping: {
+    bg: 'bg-rose-100/90',
+    hoverBg: 'hover:bg-rose-200',
+    text: 'text-rose-950',
+    border: 'border-rose-300',
+    dot: 'bg-rose-500',
   },
 };
 
@@ -293,9 +294,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="flex-1 space-y-1.5 overflow-hidden">
                 {hasActs ? (
                   dayActs.map((act) => {
+                    const normalizedCat = normalizeCategory(act.category);
                     const style =
-                      CATEGORY_CALENDAR_STYLES[act.category] ||
-                      CATEGORY_CALENDAR_STYLES['Sightseeing & Culture'];
+                      CATEGORY_CALENDAR_STYLES[normalizedCat] ||
+                      CATEGORY_CALENDAR_STYLES.Sightseeing;
 
                     return (
                       <div

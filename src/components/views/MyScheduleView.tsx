@@ -201,6 +201,8 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                             <BookingStatusBadge
                               status={act.bookingStatus}
                               deadline={act.bookingDeadline}
+                              leadTime={act.bookingLeadTime}
+                              eventDate={act.date}
                               bookingRef={act.bookingReference}
                             />
                             {isHost && (

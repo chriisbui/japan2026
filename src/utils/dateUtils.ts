@@ -158,13 +158,166 @@ export function calculateFreeTimeSlots(
   return slots;
 }
 
-export function getDeadlineUrgency(deadlineDateStr?: string): {
-  status: 'overdue' | 'urgent' | 'upcoming' | 'none';
+/**
+ * Standard lead time presets for when activity bookings open
+ */
+export interface BookingLeadPreset {
+  id: string;
   label: string;
-  daysRemaining: number;
+  shortLabel: string;
+  days: number;
+  description: string;
+}
+
+export const BOOKING_LEAD_PRESETS: BookingLeadPreset[] = [
+  { id: '1_week', label: '1 week before', shortLabel: '1 wk before', days: 7, description: 'Bookings open 7 days prior' },
+  { id: '2_weeks', label: '2 weeks before', shortLabel: '2 wks before', days: 14, description: 'Bookings open 14 days prior' },
+  { id: '3_weeks', label: '3 weeks before', shortLabel: '3 wks before', days: 21, description: 'Bookings open 21 days prior' },
+  { id: '4_weeks', label: '4 weeks before (1 month)', shortLabel: '4 wks before', days: 28, description: 'Bookings open 28 days prior' },
+  { id: '6_weeks', label: '6 weeks before', shortLabel: '6 wks before', days: 42, description: 'Bookings open 42 days prior' },
+  { id: '2_months', label: '2 months before', shortLabel: '2 mos before', days: 60, description: 'Bookings open 60 days prior' },
+  { id: '3_months', label: '3 months before', shortLabel: '3 mos before', days: 90, description: 'Bookings open 90 days prior' },
+];
+
+/**
+ * Calculates a booking deadline / opening date (YYYY-MM-DD) based on event date and lead time.
+ */
+export function calculateBookingDate(
+  eventDate?: string,
+  leadTime: string = '2_weeks',
+  customDays?: number
+): string {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  if (leadTime === 'now') {
+    return todayStr;
+  }
+
+  if (!eventDate) {
+    return todayStr;
+  }
+
+  let daysBefore = 14;
+  if (leadTime === '1_week') daysBefore = 7;
+  else if (leadTime === '2_weeks') daysBefore = 14;
+  else if (leadTime === '3_weeks') daysBefore = 21;
+  else if (leadTime === '4_weeks') daysBefore = 28;
+  else if (leadTime === '6_weeks') daysBefore = 42;
+  else if (leadTime === '2_months') daysBefore = 60;
+  else if (leadTime === '3_months') daysBefore = 90;
+  else if (leadTime.startsWith('custom:')) {
+    const val = parseInt(leadTime.split(':')[1], 10);
+    if (!isNaN(val)) daysBefore = val;
+  } else if (leadTime === 'custom' && customDays !== undefined) {
+    daysBefore = customDays;
+  }
+
+  const [y, m, d] = eventDate.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  target.setDate(target.getDate() - daysBefore);
+
+  const resY = target.getFullYear();
+  const resM = String(target.getMonth() + 1).padStart(2, '0');
+  const resD = String(target.getDate()).padStart(2, '0');
+  return `${resY}-${resM}-${resD}`;
+}
+
+/**
+ * Human readable description of lead time timing
+ */
+export function formatBookingLeadTimeDescription(
+  leadTime?: string,
+  deadlineDate?: string,
+  eventDate?: string
+): {
+  badgeText: string;
+  leadLabel: string;
+  calculatedDateFormatted: string;
+  isOpenNow: boolean;
 } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let isOpenNow = false;
+  if (leadTime === 'now') {
+    isOpenNow = true;
+  } else if (deadlineDate) {
+    const [y, m, d] = deadlineDate.split('-').map(Number);
+    const target = new Date(y, m - 1, d);
+    if (target.getTime() <= today.getTime()) {
+      isOpenNow = true;
+    }
+  }
+
+  let leadLabel = 'Exact date';
+  if (leadTime === 'now') {
+    leadLabel = 'Can book now';
+  } else if (leadTime === '1_week') {
+    leadLabel = '1 week before';
+  } else if (leadTime === '2_weeks') {
+    leadLabel = '2 weeks before';
+  } else if (leadTime === '3_weeks') {
+    leadLabel = '3 weeks before';
+  } else if (leadTime === '4_weeks') {
+    leadLabel = '4 weeks before';
+  } else if (leadTime === '6_weeks') {
+    leadLabel = '6 weeks before';
+  } else if (leadTime === '2_months') {
+    leadLabel = '2 months before';
+  } else if (leadTime === '3_months') {
+    leadLabel = '3 months before';
+  } else if (leadTime?.startsWith('custom:')) {
+    const days = parseInt(leadTime.split(':')[1], 10);
+    leadLabel = `${days} days before`;
+  } else if (deadlineDate && eventDate) {
+    const [eY, eM, eD] = eventDate.split('-').map(Number);
+    const [dY, dM, dD] = deadlineDate.split('-').map(Number);
+    const diffDays = Math.round(
+      (new Date(eY, eM - 1, eD).getTime() - new Date(dY, dM - 1, dD).getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    if (diffDays === 0) leadLabel = 'Day of event';
+    else if (diffDays === 7) leadLabel = '1 week before';
+    else if (diffDays === 14) leadLabel = '2 weeks before';
+    else if (diffDays === 21) leadLabel = '3 weeks before';
+    else if (diffDays === 28) leadLabel = '4 weeks before';
+    else if (diffDays > 0) leadLabel = `${diffDays} days before`;
+  }
+
+  const calculatedDateFormatted = deadlineDate ? formatDatePretty(deadlineDate) : '';
+  const badgeText = isOpenNow ? 'Can Book Now' : `Opens ${leadLabel}`;
+
+  return {
+    badgeText,
+    leadLabel,
+    calculatedDateFormatted,
+    isOpenNow,
+  };
+}
+
+export function getDeadlineUrgency(
+  deadlineDateStr?: string,
+  leadTime?: string
+): {
+  status: 'open' | 'overdue' | 'urgent' | 'upcoming' | 'none';
+  label: string;
+  sublabel: string;
+  daysRemaining: number;
+  isOpenNow: boolean;
+} {
+  if (leadTime === 'now') {
+    return {
+      status: 'open',
+      label: 'Can Book Now',
+      sublabel: 'Booking is open now',
+      daysRemaining: 0,
+      isOpenNow: true,
+    };
+  }
+
   if (!deadlineDateStr) {
-    return { status: 'none', label: '', daysRemaining: 0 };
+    return { status: 'none', label: '', sublabel: '', daysRemaining: 0, isOpenNow: false };
   }
 
   const [y, m, d] = deadlineDateStr.split('-').map(Number);
@@ -178,27 +331,35 @@ export function getDeadlineUrgency(deadlineDateStr?: string): {
 
   if (diffDays < 0) {
     return {
-      status: 'overdue',
-      label: `Overdue by ${Math.abs(diffDays)}d`,
+      status: 'open',
+      label: 'Booking Open Now',
+      sublabel: `Opened ${Math.abs(diffDays)}d ago (${formatDatePretty(deadlineDateStr)})`,
       daysRemaining: diffDays,
+      isOpenNow: true,
     };
   } else if (diffDays === 0) {
     return {
       status: 'urgent',
-      label: 'Due Today!',
+      label: 'Opens Today!',
+      sublabel: 'Booking window opens today',
       daysRemaining: 0,
+      isOpenNow: true,
     };
   } else if (diffDays <= 7) {
     return {
       status: 'urgent',
-      label: `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`,
+      label: `Opens in ${diffDays} day${diffDays > 1 ? 's' : ''}`,
+      sublabel: `Target date: ${formatDatePretty(deadlineDateStr)}`,
       daysRemaining: diffDays,
+      isOpenNow: false,
     };
   } else {
     return {
       status: 'upcoming',
-      label: `Due in ${diffDays} days (${formatDatePretty(deadlineDateStr)})`,
+      label: `Opens in ${diffDays} days (${formatDatePretty(deadlineDateStr)})`,
+      sublabel: formatDatePretty(deadlineDateStr),
       daysRemaining: diffDays,
+      isOpenNow: false,
     };
   }
 }

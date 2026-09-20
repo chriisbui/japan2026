@@ -120,3 +120,51 @@ function calculateSettlements(
 
   return transactions;
 }
+
+export interface ActivityExpenseBreakdown {
+  payerId: string;
+  costPerPerson: number;
+  totalCost: number;
+  allParticipants: string[];
+  debtorIds: string[];
+  paidDebtorIds: string[];
+  unpaidDebtorIds: string[];
+  totalDebtors: number;
+  amountOwedToPayer: number;
+  amountPaidBack: number;
+  amountStillOwed: number;
+  isSettled: boolean;
+}
+
+export function getActivityExpenseBreakdown(activity: Activity): ActivityExpenseBreakdown {
+  const payerId = activity.whoPaidId || 'unpaid';
+  const costPerPerson = Number(activity.costPerPerson) || 0;
+  const allParticipants = activity.taggedProfileIds || [];
+  const debtorIds = allParticipants.filter((id) => id !== payerId);
+  const paidDebtorIds = (activity.paidBackProfileIds || []).filter((id) => debtorIds.includes(id));
+  const unpaidDebtorIds = debtorIds.filter((id) => !paidDebtorIds.includes(id));
+  const totalDebtors = debtorIds.length;
+
+  const totalCost = costPerPerson * (allParticipants.length > 0 ? allParticipants.length : 1);
+  const amountOwedToPayer = costPerPerson * totalDebtors;
+  const amountPaidBack = costPerPerson * paidDebtorIds.length;
+  const amountStillOwed = costPerPerson * unpaidDebtorIds.length;
+
+  // Fully settled if all debtors have paid back
+  const isSettled = totalDebtors > 0 ? unpaidDebtorIds.length === 0 : true;
+
+  return {
+    payerId,
+    costPerPerson,
+    totalCost,
+    allParticipants,
+    debtorIds,
+    paidDebtorIds,
+    unpaidDebtorIds,
+    totalDebtors,
+    amountOwedToPayer,
+    amountPaidBack,
+    amountStillOwed,
+    isSettled,
+  };
+}
