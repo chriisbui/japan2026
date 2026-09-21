@@ -411,15 +411,19 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1">
-                          {act.isExpenseOnly && onEditExpense && (
+                          {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onEditExpense(act);
+                                if (act.isExpenseOnly && onEditExpense) {
+                                  onEditExpense(act);
+                                } else if (onEditActivity) {
+                                  onEditActivity(act);
+                                }
                               }}
                               className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Expense"
+                              title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -624,15 +628,19 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                           100% Recovered (${bd.amountPaidBack})
                         </span>
                         <div className="flex items-center gap-1">
-                          {act.isExpenseOnly && onEditExpense && (
+                          {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onEditExpense(act);
+                                if (act.isExpenseOnly && onEditExpense) {
+                                  onEditExpense(act);
+                                } else if (onEditActivity) {
+                                  onEditActivity(act);
+                                }
                               }}
                               className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Expense"
+                              title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -791,25 +799,45 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         </span>
                       </div>
 
-                      <span
-                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${
-                          hasPaid
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : 'bg-amber-50 text-amber-800 border-amber-200'
-                        }`}
-                      >
-                        {hasPaid ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Settled ✓</span>
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Pending Payment</span>
-                          </>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${
+                            hasPaid
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}
+                        >
+                          {hasPaid ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Settled ✓</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pending Payment</span>
+                            </>
+                          )}
+                        </span>
+
+                        {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (act.isExpenseOnly && onEditExpense) {
+                                onEditExpense(act);
+                              } else if (onEditActivity) {
+                                onEditActivity(act);
+                              }
+                            }}
+                            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                            title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
                         )}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 );
