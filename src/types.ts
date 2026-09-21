@@ -31,6 +31,7 @@ export interface Activity {
   id: string;
   title: string;
   category: ActivityCategory;
+  city?: string; // e.g. 'Tokyo' | 'Fuji' | 'Kyoto' | 'Osaka' (for Idea Bucket or activities)
   date?: string; // YYYY-MM-DD, or undefined if in Idea Bucket
   startTime?: string; // HH:mm (24-hour)
   endTime?: string; // HH:mm

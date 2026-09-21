@@ -16,7 +16,7 @@ import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
 import { motion, AnimatePresence } from 'motion/react';
-import { calculateBookingDate, getDefaultTimesForDate, addHoursToTime } from './utils/dateUtils';
+import { calculateBookingDate, getDefaultTimesForDate, addHoursToTime, getCityForDate } from './utils/dateUtils';
 import {
   supabase,
   isSupabaseConfigured,
@@ -342,6 +342,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         id: generateUUID(),
         title: data.title || 'Untitled Activity',
         category: data.category || 'Sightseeing',
+        city: data.city,
         date: data.isIdea ? undefined : data.date,
         startTime: data.isIdea ? undefined : data.startTime,
         endTime: data.isIdea ? undefined : data.endTime,
@@ -479,6 +480,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
       date: targetDate,
       startTime: startTime || '10:00',
       endTime: endTime || '12:00',
+      city: existing?.city || getCityForDate(targetDate).name,
       ...(nextDeadline ? { bookingDeadline: nextDeadline } : {}),
     };
     try {
@@ -491,6 +493,20 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     } catch (err: any) {
       console.error('[Supabase schedule error]:', err);
       setActivityError(err?.message || 'Failed to schedule idea in Supabase');
+    }
+  };
+
+  const handleUpdateIdeaCity = async (ideaId: string, city: string | undefined) => {
+    setActivityError(null);
+    const updates = { city: city || undefined };
+    try {
+      await updateActivityInSupabase(ideaId, updates);
+      setActivities((prev) =>
+        prev.map((a) => (a.id === ideaId ? { ...a, city: city || undefined } : a))
+      );
+    } catch (err: any) {
+      console.error('[Supabase update idea city error]:', err);
+      setActivityError(err?.message || 'Failed to update idea city in Supabase');
     }
   };
 
@@ -822,6 +838,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 onDeleteIdea={handleDeleteActivity}
                 onScheduleIdea={handleScheduleIdea}
                 onToggleVote={handleToggleVote}
+                onUpdateIdeaCity={handleUpdateIdeaCity}
               />
             </motion.div>
           )}

@@ -25,6 +25,8 @@ import {
   addHoursToTime,
   getDefaultTimesForDate,
   getCityForDate,
+  getCityMeta,
+  TRIP_CITIES,
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 
@@ -60,6 +62,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ActivityCategory>('Sightseeing');
   const [isIdea, setIsIdea] = useState(isIdeaBucketMode);
+  const [city, setCity] = useState<string>('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -86,6 +89,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setTitle(activityToEdit.title || '');
         setCategory(normalizeCategory(activityToEdit.category));
         setIsIdea(Boolean(activityToEdit.isIdea));
+        setCity(activityToEdit.city || '');
         const initialDate = activityToEdit.date || defaultDate || '';
         setDate(initialDate);
         setStartTime(activityToEdit.startTime || '');
@@ -163,6 +167,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setTitle('');
         setCategory('Sightseeing');
         setIsIdea(isIdeaBucketMode);
+        setCity(defaultDate ? getCityForDate(defaultDate).name : '');
         const initialDate = defaultDate || (isIdeaBucketMode ? '' : '2026-10-12');
         setDate(initialDate);
 
@@ -305,6 +310,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       ...(activityToEdit ? { id: activityToEdit.id } : {}),
       title: title.trim(),
       category,
+      city: city ? city.trim() : (!isIdea && date ? getCityForDate(date).name : undefined),
       isIdea,
       date: isIdea ? undefined : date,
       startTime: isIdea ? undefined : startTime,
@@ -437,56 +443,123 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </div>
           </div>
 
+          {/* Assigned City for Idea Bucket Item */}
+          {isIdea && (
+            <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label className="font-semibold text-stone-700 flex items-center gap-1.5 text-xs">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>Assigned City</span>
+                </label>
+                {city ? (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityMeta(city).badgeClass}`}>
+                    <MapPin className="w-2.5 h-2.5 shrink-0" />
+                    <span>{city}</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-500 font-medium">Flexible / Any</span>
+                )}
+              </div>
+              <p className="text-[11px] text-stone-500 mb-2.5">
+                Assign a city to this idea. When scheduling to the calendar, the date options will be filtered to days that work with this city (+1 day transition).
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                <button
+                  type="button"
+                  id="city-opt-any"
+                  onClick={() => setCity('')}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                    !city
+                      ? 'bg-stone-800 text-white border-stone-800 shadow-2xs'
+                      : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                  }`}
+                >
+                  🌐 Any City
+                </button>
+                {TRIP_CITIES.map((c) => {
+                  const meta = getCityMeta(c);
+                  const isSelected = city.toLowerCase() === c.toLowerCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      id={`city-opt-${c.toLowerCase()}`}
+                      onClick={() => setCity(c)}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
+                        isSelected
+                          ? `${meta.badgeClass} ring-1 ring-current shadow-2xs font-bold`
+                          : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Date & Time Window (if not Idea) */}
           {!isIdea && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs">
-                    <Calendar className="w-3.5 h-3.5 text-stone-500" />
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  {date && (
-                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${getCityForDate(date).badgeClass}`}>
-                      <MapPin className="w-2.5 h-2.5" />
-                      {getCityForDate(date).name}
-                    </span>
-                  )}
+            <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-1 mb-1.5 min-h-[22px]">
+                    <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs truncate">
+                      <Calendar className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                      <span>Date</span> <span className="text-red-500">*</span>
+                    </label>
+                    {date && (
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 ${getCityForDate(date).badgeClass}`}>
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />
+                        <span>{getCityForDate(date).name}</span>
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    id="activity-date-input"
+                    type="date"
+                    required={!isIdea}
+                    value={date}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="w-full max-w-full min-w-0 px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs text-stone-800 box-border"
+                  />
                 </div>
-                <input
-                  id="activity-date-input"
-                  type="date"
-                  required={!isIdea}
-                  value={date}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-stone-500" />
-                  Start Time
-                </label>
-                <input
-                  id="activity-start-time-input"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => handleStartTimeChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-stone-500" />
-                  End Time
-                </label>
-                <input
-                  id="activity-end-time-input"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
+
+                <div className="grid grid-cols-2 gap-2 sm:contents min-w-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center mb-1.5 min-h-[22px]">
+                      <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs truncate">
+                        <Clock className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                        <span>Start Time</span>
+                      </label>
+                    </div>
+                    <input
+                      id="activity-start-time-input"
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => handleStartTimeChange(e.target.value)}
+                      className="w-full max-w-full min-w-0 px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs text-stone-800 box-border"
+                    />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center mb-1.5 min-h-[22px]">
+                      <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs truncate">
+                        <Clock className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                        <span>End Time</span>
+                      </label>
+                    </div>
+                    <input
+                      id="activity-end-time-input"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full max-w-full min-w-0 px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs text-stone-800 box-border"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

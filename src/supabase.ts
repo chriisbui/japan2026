@@ -223,10 +223,17 @@ export function rowToActivity(row: any): Activity {
     rawStatus.includes('expense:1') ||
     Boolean(row.is_expense_only ?? row.isExpenseOnly);
 
+  let city: string | undefined = row.city;
+  const cityMatch = rawStatus.match(/city[:\s]+([^\]\|]+)/i);
+  if (cityMatch) {
+    city = cityMatch[1].trim();
+  }
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
     category: normalizeCategory(row.category),
+    city: city || undefined,
     date: row.date || undefined,
     startTime,
     endTime,
@@ -330,11 +337,19 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
       tags.push(`paid:${activity.paidBackProfileIds.join(',')}`);
     }
 
+    if (activity.city && activity.city.trim()) {
+      tags.push(`city:${activity.city.trim()}`);
+    }
+
     if (tags.length > 0) {
       row.booking_status = `${status} [${tags.join('|')}]`;
     } else {
       row.booking_status = status;
     }
+  }
+
+  if (activity.city !== undefined) {
+    row.city = activity.city || null;
   }
 
   if (activity.category !== undefined) {

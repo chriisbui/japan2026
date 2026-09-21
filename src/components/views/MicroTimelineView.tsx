@@ -108,57 +108,57 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Day Navigation Bar */}
-      <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+      <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-4 shadow-xs">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => prevDay && onSelectDate(prevDay)}
               disabled={!prevDay}
-              className={`p-1.5 rounded-lg border transition-colors ${
+              className={`p-2 rounded-lg border transition-colors shrink-0 ${
                 prevDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700'
+                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer'
                   : 'border-stone-100 text-stone-300 cursor-not-allowed'
               }`}
               title="Previous Day"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+            <div className="text-center min-w-0 flex-1">
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
                   Day {currentDayIndex + 1} of {days.length}
                 </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${getCityForDate(selectedDate).badgeClass}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityForDate(selectedDate).badgeClass}`}>
                   <MapPin className="w-3 h-3 shrink-0" />
                   <span>{getCityForDate(selectedDate).name}</span>
                 </span>
-                <h2 className="text-base font-bold text-stone-900">{formatDateFull(selectedDate)}</h2>
               </div>
-              <p className="text-xs text-stone-500 mt-0.5">
+              <h2 className="text-sm sm:text-base font-bold text-stone-900 mt-1">{formatDateFull(selectedDate)}</h2>
+              <p className="text-[11px] text-stone-500 mt-0.5">
                 {dayActivities.length} scheduled event{dayActivities.length === 1 ? '' : 's'} •{' '}
-                {freeTimeSlots.length} open free-time block{freeTimeSlots.length === 1 ? '' : 's'} • Est. Day Spend: ${dayTotalCost}
+                {freeTimeSlots.length} open free block{freeTimeSlots.length === 1 ? '' : 's'} • Spend: ${dayTotalCost}
               </p>
             </div>
 
             <button
               onClick={() => nextDay && onSelectDate(nextDay)}
               disabled={!nextDay}
-              className={`p-1.5 rounded-lg border transition-colors ${
+              className={`p-2 rounded-lg border transition-colors shrink-0 ${
                 nextDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700'
+                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer'
                   : 'border-stone-100 text-stone-300 cursor-not-allowed'
               }`}
               title="Next Day"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           {/* Quick Day Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 pt-1 border-t border-stone-100 -mx-1 px-1">
             {days.map((dateStr, idx) => {
               const isSelected = dateStr === selectedDate;
               const chipCity = getCityForDate(dateStr);
@@ -166,7 +166,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                 <button
                   key={dateStr}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
                     isSelected
                       ? 'bg-indigo-600 text-white shadow-xs font-semibold'
                       : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -186,7 +186,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
       </div>
 
       {/* Hour-by-Hour Timeline Schedule */}
-      <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs">
+      <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-5 shadow-xs">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-600" />
@@ -210,37 +210,37 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             </p>
             <button
               onClick={() => onAddActivityWithTime(selectedDate)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add First Activity
             </button>
           </div>
         ) : (
-          <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
-            {timelineItems.map((item, idx) => {
+          <div className="relative pl-5 sm:pl-6 space-y-3.5 sm:space-y-4 before:content-[''] before:absolute before:left-2 before:sm:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
+            {timelineItems.map((item) => {
               if (item.type === 'free_time' && item.freeSlot) {
                 const slot = item.freeSlot;
                 return (
                   <div key={slot.id} className="relative group">
                     {/* Node Dot */}
-                    <div className="absolute -left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500"></div>
+                    <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500"></div>
 
                     {/* Free Time Card */}
-                    <div className="p-3.5 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50/80 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                          <Coffee className="w-4 h-4" />
+                    <div className="p-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50/80 transition-colors flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <Coffee className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-emerald-800">
-                              Open Free Time ({slot.durationLabel})
+                              Free Time ({slot.durationLabel})
                             </span>
                             <span className="text-[11px] font-semibold text-emerald-700/80 bg-emerald-100/60 px-1.5 py-0.5 rounded">
                               {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                             </span>
                           </div>
-                          <p className="text-[11px] text-emerald-900/70 mt-0.5">
+                          <p className="hidden sm:block text-[11px] text-emerald-900/70 mt-0.5">
                             Unscheduled gap for resting, neighborhood wandering, spontaneous cafes, or shopping.
                           </p>
                         </div>
@@ -253,7 +253,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100/80 shadow-2xs transition-colors shrink-0 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Fill This Gap</span>
+                        <span>Fill Gap</span>
                       </button>
                     </div>
                   </div>
@@ -269,49 +269,41 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                 return (
                   <div key={act.id} className="relative group">
                     {/* Node Dot */}
-                    <div className="absolute -left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-white border-2 border-indigo-600 shadow-xs"></div>
+                    <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-white border-2 border-indigo-600 shadow-xs"></div>
 
                     {/* Activity Card */}
                     <div
-                      className={`p-4 rounded-xl border transition-all ${
+                      className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
                         isTaggedMe
                           ? 'bg-white border-stone-200 shadow-xs hover:border-indigo-300'
                           : 'bg-stone-50/70 border-stone-200/80 opacity-90'
                       }`}
                     >
-                      {/* Top Row: Time, Category, Booking Status, and Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md">
+                      {/* Line 1: Time on one line with actions */}
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md shrink-0">
                             {formatTimeRange(act.startTime, act.endTime)}
                           </span>
                           {duration > 0 && (
-                            <span className="text-[11px] text-stone-500 font-medium">
+                            <span className="text-[11px] text-stone-500 font-medium shrink-0">
                               ({formatDuration(duration)})
                             </span>
                           )}
-                          <CategoryBadge category={act.category} size="sm" />
-                          <BookingStatusBadge
-                            status={act.bookingStatus}
-                            deadline={act.bookingDeadline}
-                            leadTime={act.bookingLeadTime}
-                            eventDate={act.date}
-                            bookingRef={act.bookingReference}
-                          />
                         </div>
 
                         {/* Edit / Delete actions */}
-                        <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100">
+                        <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 shrink-0">
                           <button
                             onClick={() => onEditActivity(act)}
-                            className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                            className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
                             title="Edit Activity"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => onDeleteActivity(act.id)}
-                            className="p-1 rounded-md text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1 rounded-md text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete Activity"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -319,24 +311,33 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         </div>
                       </div>
 
+                      {/* Line 2: Category and Needs Booking tag (compact, without opening timing) */}
+                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                        <CategoryBadge category={act.category} size="sm" />
+                        <BookingStatusBadge
+                          status={act.bookingStatus}
+                          compact={true}
+                          bookingRef={act.bookingReference}
+                        />
+                      </div>
+
                       {/* Title & Description */}
-                      <h4 className="text-sm font-bold text-stone-900">{act.title}</h4>
+                      <h4 className="text-sm sm:text-base font-bold text-stone-900 leading-snug">{act.title}</h4>
                       {act.description && (
                         <p className="text-xs text-stone-600 mt-1 leading-relaxed">{act.description}</p>
                       )}
 
                       {/* Location row */}
                       {act.location && (
-                        <div className="flex items-center gap-1 text-xs text-stone-600 mt-2">
+                        <div className="flex items-center gap-1.5 text-xs text-stone-600 mt-1.5">
                           <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                          <span>{act.location}</span>
+                          <span className="truncate">{act.location}</span>
                         </div>
                       )}
 
                       {/* Meta footer: Payer, Cost, Attendees */}
                       <div className="mt-3 pt-2.5 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div className="flex flex-wrap items-center gap-3">
-                          {/* Who Paid (Only if Booked) */}
                           {act.bookingStatus === 'Booked' && payer && (
                             <div className="flex items-center gap-1.5">
                               <span className="text-stone-400 text-[11px]">Paid by:</span>
@@ -345,8 +346,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          {/* Cost per person (Only if Booked) */}
+                        <div className="flex items-center gap-3 ml-auto">
                           {act.bookingStatus === 'Booked' && (
                             act.costPerPerson > 0 ? (
                               <div className="text-right">
@@ -358,15 +358,16 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                             )
                           )}
 
-                          {/* Tagged profile avatars */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-stone-400 mr-1">Attendees:</span>
-                            <div className="flex -space-x-1.5 overflow-hidden">
-                              {act.taggedProfileIds.map((pid) => (
-                                <ProfileAvatar key={pid} profile={getProfile(pid)} size="xs" />
-                              ))}
+                          {act.taggedProfileIds && act.taggedProfileIds.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] text-stone-400 mr-1">Attendees:</span>
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {act.taggedProfileIds.map((pid) => (
+                                  <ProfileAvatar key={pid} profile={getProfile(pid)} size="xs" />
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -129,6 +129,146 @@ export interface CityTagInfo {
   subtleClass: string;
 }
 
+export const TRIP_CITIES = ['Tokyo', 'Fuji', 'Kyoto', 'Osaka'] as const;
+export type TripCity = (typeof TRIP_CITIES)[number];
+
+export interface CitySegment {
+  city: string;
+  startDate: string;
+  endDate: string;
+}
+
+export const TRIP_CITY_SEGMENTS: CitySegment[] = [
+  { city: 'Tokyo', startDate: '2026-10-26', endDate: '2026-11-01' },
+  { city: 'Fuji', startDate: '2026-11-02', endDate: '2026-11-03' },
+  { city: 'Kyoto', startDate: '2026-11-04', endDate: '2026-11-06' },
+  { city: 'Osaka', startDate: '2026-11-07', endDate: '2026-11-12' },
+  { city: 'Tokyo', startDate: '2026-11-13', endDate: '2026-11-20' },
+];
+
+/**
+ * Returns visual styling and metadata for a city
+ */
+export function getCityMeta(cityName?: string): CityTagInfo {
+  if (!cityName || cityName.toLowerCase() === 'unassigned' || cityName.toLowerCase() === 'flexible' || cityName.toLowerCase() === 'any') {
+    return {
+      name: cityName || 'Unassigned',
+      badgeClass: 'bg-stone-100 text-stone-700 border-stone-300',
+      tagClass: 'bg-stone-200 text-stone-800 border-stone-300',
+      subtleClass: 'bg-stone-500/10 text-stone-700',
+    };
+  }
+  const norm = cityName.trim().toLowerCase();
+  if (norm === 'tokyo') {
+    return {
+      name: 'Tokyo',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
+      subtleClass: 'bg-rose-500/10 text-rose-700',
+    };
+  }
+  if (norm === 'fuji') {
+    return {
+      name: 'Fuji',
+      badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
+      tagClass: 'bg-teal-100 text-teal-800 border-teal-300',
+      subtleClass: 'bg-teal-500/10 text-teal-700',
+    };
+  }
+  if (norm === 'kyoto') {
+    return {
+      name: 'Kyoto',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      tagClass: 'bg-amber-100 text-amber-900 border-amber-300',
+      subtleClass: 'bg-amber-500/10 text-amber-800',
+    };
+  }
+  if (norm === 'osaka') {
+    return {
+      name: 'Osaka',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+      tagClass: 'bg-purple-100 text-purple-800 border-purple-300',
+      subtleClass: 'bg-purple-500/10 text-purple-700',
+    };
+  }
+  return {
+    name: cityName,
+    badgeClass: 'bg-stone-50 text-stone-700 border-stone-200',
+    tagClass: 'bg-stone-100 text-stone-800 border-stone-300',
+    subtleClass: 'bg-stone-500/10 text-stone-700',
+  };
+}
+
+/**
+ * Adds or subtracts days to a YYYY-MM-DD date string safely.
+ */
+export function addDaysToDate(dateStr: string, daysToAdd: number): string {
+  const [sY, sM, sD] = dateStr.split('-').map(Number);
+  const d = new Date(sY, sM - 1, sD);
+  d.setDate(d.getDate() + daysToAdd);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Returns the valid trip days that work with a specific city:
+ * Includes all days in each city stay, PLUS ONE day after the 'end' of each city stay.
+ * If city is not specified or 'Any' / 'Flexible' / 'Unassigned', returns all trip days.
+ */
+export function getValidDaysForCity(city: string | undefined, allTripDays: string[]): string[] {
+  if (!city || city === 'Any' || city === 'Flexible' || city === 'Unassigned' || city.trim() === '') {
+    return allTripDays;
+  }
+
+  const normalizedCity = city.trim().toLowerCase();
+  const validSet = new Set<string>();
+
+  TRIP_CITY_SEGMENTS.forEach((segment) => {
+    if (segment.city.toLowerCase() === normalizedCity) {
+      // All days in this segment: startDate through endDate
+      const segDays = getDaysArray(segment.startDate, segment.endDate);
+      segDays.forEach((d) => {
+        if (allTripDays.includes(d)) {
+          validSet.add(d);
+        }
+      });
+
+      // PLUS ONE DAY AFTER the 'end' of each city
+      const oneDayAfter = addDaysToDate(segment.endDate, 1);
+      if (allTripDays.includes(oneDayAfter)) {
+        validSet.add(oneDayAfter);
+      }
+    }
+  });
+
+  if (validSet.size === 0) {
+    return allTripDays;
+  }
+
+  return allTripDays.filter((d) => validSet.has(d));
+}
+
+/**
+ * Check if a specific date is the +1 transition day for a city
+ */
+export function getCityDayTransitionInfo(dateStr: string, city?: string): { isTransitionDay: boolean; transitionFrom?: string } {
+  if (!city || city === 'Any' || city === 'Flexible' || city === 'Unassigned') {
+    return { isTransitionDay: false };
+  }
+  const normCity = city.trim().toLowerCase();
+  for (const segment of TRIP_CITY_SEGMENTS) {
+    if (segment.city.toLowerCase() === normCity) {
+      const oneDayAfter = addDaysToDate(segment.endDate, 1);
+      if (dateStr === oneDayAfter) {
+        return { isTransitionDay: true, transitionFrom: segment.city };
+      }
+    }
+  }
+  return { isTransitionDay: false };
+}
+
 /**
  * Returns the city for a given date in the trip:
  * Oct26 - Nov01: Tokyo
@@ -139,62 +279,27 @@ export interface CityTagInfo {
  */
 export function getCityForDate(dateStr?: string): CityTagInfo {
   if (!dateStr) {
-    return {
-      name: 'Tokyo',
-      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
-      subtleClass: 'bg-rose-500/10 text-rose-700',
-    };
+    return getCityMeta('Tokyo');
   }
 
   // Date formatted as YYYY-MM-DD
   if (dateStr >= '2026-10-26' && dateStr <= '2026-11-01') {
-    return {
-      name: 'Tokyo',
-      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
-      subtleClass: 'bg-rose-500/10 text-rose-700',
-    };
+    return getCityMeta('Tokyo');
   }
   if (dateStr >= '2026-11-02' && dateStr <= '2026-11-03') {
-    return {
-      name: 'Fuji',
-      badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
-      tagClass: 'bg-teal-100 text-teal-800 border-teal-300',
-      subtleClass: 'bg-teal-500/10 text-teal-700',
-    };
+    return getCityMeta('Fuji');
   }
   if (dateStr >= '2026-11-04' && dateStr <= '2026-11-06') {
-    return {
-      name: 'Kyoto',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
-      tagClass: 'bg-amber-100 text-amber-900 border-amber-300',
-      subtleClass: 'bg-amber-500/10 text-amber-800',
-    };
+    return getCityMeta('Kyoto');
   }
   if (dateStr >= '2026-11-07' && dateStr <= '2026-11-12') {
-    return {
-      name: 'Osaka',
-      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
-      tagClass: 'bg-purple-100 text-purple-800 border-purple-300',
-      subtleClass: 'bg-purple-500/10 text-purple-700',
-    };
+    return getCityMeta('Osaka');
   }
   if (dateStr >= '2026-11-13' && dateStr <= '2026-11-20') {
-    return {
-      name: 'Tokyo',
-      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
-      subtleClass: 'bg-rose-500/10 text-rose-700',
-    };
+    return getCityMeta('Tokyo');
   }
 
-  return {
-    name: 'Tokyo',
-    badgeClass: 'bg-stone-50 text-stone-700 border-stone-200',
-    tagClass: 'bg-stone-100 text-stone-800 border-stone-300',
-    subtleClass: 'bg-stone-500/10 text-stone-700',
-  };
+  return getCityMeta('Tokyo');
 }
 
 export function getDaysArray(startDate: string, endDate: string): string[] {
