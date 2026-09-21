@@ -10,6 +10,7 @@ import { IdeaBucketView } from './components/views/IdeaBucketView';
 import { ExpenseLedgerView } from './components/views/ExpenseLedgerView';
 import { FilterBar, FilterState } from './components/common/FilterBar';
 import { ActivityModal } from './components/modals/ActivityModal';
+import { ExpenseModal } from './components/modals/ExpenseModal';
 import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal';
 import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal';
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
@@ -97,6 +98,10 @@ export default function App() {
   const [defaultStartTimeForModal, setDefaultStartTimeForModal] = useState<string>('');
   const [defaultEndTimeForModal, setDefaultEndTimeForModal] = useState<string>('');
   const [isIdeaBucketMode, setIsIdeaBucketMode] = useState<boolean>(false);
+
+  // Standalone Expense Modal state
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState<boolean>(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<Activity | null>(null);
 
   // Booking Deadlines Drawer
   const [isDeadlinesDrawerOpen, setIsDeadlinesDrawerOpen] = useState(false);
@@ -380,6 +385,75 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     }
   };
 
+  // Standalone Expense actions
+  const handleOpenAddExpense = () => {
+    setExpenseToEdit(null);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleOpenEditExpense = (expense: Activity) => {
+    setExpenseToEdit(expense);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleSaveExpense = async (data: Partial<Activity>) => {
+    setActivityError(null);
+    if (expenseToEdit) {
+      try {
+        const payload: Partial<Activity> = {
+          ...data,
+          isExpenseOnly: true,
+          bookingStatus: 'Booked',
+        };
+        const updated = await updateActivityInSupabase(expenseToEdit.id, payload);
+        const resolved = updated || ({
+          ...expenseToEdit,
+          ...payload,
+        } as Activity);
+        setActivities((prev) =>
+          prev.map((a) => (a.id === expenseToEdit.id ? resolved : a))
+        );
+      } catch (err: any) {
+        console.error('[Supabase update expense error]:', err);
+        setActivityError(err?.message || 'Failed to update expense in Supabase');
+      }
+    } else {
+      const newExpense: Activity = {
+        id: generateUUID(),
+        title: data.title || 'Group Expense',
+        category: data.category || 'Food & Drink',
+        date: data.date || INITIAL_TRIP.startDate,
+        costPerPerson: data.costPerPerson || 0,
+        whoPaidId: data.whoPaidId || activeProfileId,
+        taggedProfileIds: data.taggedProfileIds || profiles.map((p) => p.id),
+        hostProfileId: data.whoPaidId || activeProfileId,
+        bookingStatus: 'Booked',
+        isIdea: false,
+        isExpenseOnly: true,
+        description: data.description || '',
+        location: '',
+        paidBackProfileIds: [],
+        votes: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      try {
+        const inserted = await insertActivityToSupabase(newExpense);
+        setActivities((prev) => {
+          if (prev.some((a) => a.id === inserted.id)) return prev;
+          return [inserted, ...prev];
+        });
+      } catch (err: any) {
+        console.error('[Supabase insert expense error]:', err);
+        setActivityError(err?.message || 'Failed to insert expense in Supabase');
+      }
+    }
+  };
+
+  const handleDeleteExpense = (expense: Activity) => {
+    setActivityToDelete(expense);
+  };
+
   const handleScheduleIdea = async (
     ideaId: string,
     targetDate: string,
@@ -564,14 +638,14 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
   };
 
   // Filtered lists
-  const scheduledActivities = activities.filter((a) => !a.isIdea);
-  const ideaActivities = activities.filter((a) => a.isIdea);
+  const scheduledActivities = activities.filter((a) => !a.isIdea && !a.isExpenseOnly);
+  const ideaActivities = activities.filter((a) => a.isIdea && !a.isExpenseOnly);
 
   const filteredScheduledActivities = scheduledActivities.filter(filterPredicate);
   const filteredIdeaActivities = ideaActivities.filter(filterPredicate);
 
   const needsBookingCount = activities.filter(
-    (a) => a.bookingStatus === 'Needs Booking'
+    (a) => !a.isExpenseOnly && a.bookingStatus === 'Needs Booking'
   ).length;
 
   return (
@@ -769,6 +843,9 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 onSettleAllDebtors={handleSettleAllDebtors}
                 onReopenDebtors={handleReopenDebtors}
                 onEditActivity={handleOpenEditModal}
+                onAddExpense={handleOpenAddExpense}
+                onEditExpense={handleOpenEditExpense}
+                onDeleteExpense={handleDeleteExpense}
               />
             </motion.div>
           )}
@@ -792,6 +869,25 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         onClose={() => setIsPhotoModalOpen(false)}
         profile={targetProfileForPhoto}
         onSaveAvatar={handleSaveAvatar}
+      />
+
+      {/* Standalone Expense Modal */}
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => {
+          setIsExpenseModalOpen(false);
+          setExpenseToEdit(null);
+        }}
+        onSave={handleSaveExpense}
+        onDelete={(id) => {
+          handleDeleteActivity(id);
+          setIsExpenseModalOpen(false);
+          setExpenseToEdit(null);
+        }}
+        expenseToEdit={expenseToEdit}
+        profiles={profiles}
+        activeProfileId={activeProfileId}
+        defaultDate={selectedTimelineDate || INITIAL_TRIP.startDate}
       />
 
       {/* Add / Edit Activity Modal */}

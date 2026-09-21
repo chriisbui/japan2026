@@ -1,6 +1,6 @@
 import React from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
-import { getDaysArray, formatDatePretty, parseMinutes } from '../../utils/dateUtils';
+import { getDaysArray, formatDatePretty, parseMinutes, getCityForDate } from '../../utils/dateUtils';
 import { CATEGORIES_META, normalizeCategory } from '../../data/categories';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { ProfileAvatar } from '../common/ProfileAvatar';
@@ -97,6 +97,8 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
           const dayNum = dateObj.getDate();
           const monthName = dateObj.toLocaleDateString('en-US', { month: 'short' });
 
+          const city = getCityForDate(dateStr);
+
           return (
             <div
               key={dateStr}
@@ -108,16 +110,22 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                 className="p-3.5 bg-stone-50/80 hover:bg-indigo-50/40 border-b border-stone-100 flex items-center justify-between cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-stone-200 flex flex-col items-center justify-center shadow-2xs group-hover:border-indigo-400">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-stone-200 flex flex-col items-center justify-center shadow-2xs group-hover:border-indigo-400 shrink-0">
                     <span className="text-[10px] font-bold uppercase text-indigo-600 tracking-wider">
                       {weekday}
                     </span>
                     <span className="text-sm font-bold text-stone-900 leading-none">{dayNum}</span>
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider block">
-                      Day {idx + 1}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
+                        Day {idx + 1}
+                      </span>
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold border ${city.badgeClass}`}>
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />
+                        <span>{city.name}</span>
+                      </span>
+                    </div>
                     <h3 className="text-xs font-semibold text-stone-900">
                       {monthName} {dayNum}
                     </h3>

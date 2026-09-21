@@ -24,6 +24,7 @@ import {
   formatBookingLeadTimeDescription,
   addHoursToTime,
   getDefaultTimesForDate,
+  getCityForDate,
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 
@@ -440,17 +441,25 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
           {!isIdea && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-stone-500" />
-                  Date <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs">
+                    <Calendar className="w-3.5 h-3.5 text-stone-500" />
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  {date && (
+                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${getCityForDate(date).badgeClass}`}>
+                      <MapPin className="w-2.5 h-2.5" />
+                      {getCityForDate(date).name}
+                    </span>
+                  )}
+                </div>
                 <input
                   id="activity-date-input"
                   type="date"
                   required={!isIdea}
                   value={date}
                   onChange={(e) => handleDateChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs"
                 />
               </div>
               <div>

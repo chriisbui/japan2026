@@ -27,6 +27,9 @@ import {
   AlertCircle,
   UserCheck,
   Check,
+  Plus,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
 
 interface ExpenseLedgerViewProps {
@@ -38,6 +41,9 @@ interface ExpenseLedgerViewProps {
   onSettleAllDebtors?: (activityId: string) => void;
   onReopenDebtors?: (activityId: string) => void;
   onEditActivity?: (activity: Activity) => void;
+  onAddExpense?: () => void;
+  onEditExpense?: (expense: Activity) => void;
+  onDeleteExpense?: (expense: Activity) => void;
 }
 
 export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
@@ -49,11 +55,12 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   onSettleAllDebtors,
   onReopenDebtors,
   onEditActivity,
+  onAddExpense,
+  onEditExpense,
+  onDeleteExpense,
 }) => {
   // Primary view tabs: 'active' (unsettled) | 'settled' (settled history) | 'owe' (what I owe) | 'balances' (group breakdown)
   const [viewTab, setViewTab] = useState<'active' | 'settled' | 'owe' | 'balances'>('active');
-  // Selected payer (defaults to active user, can view other travelers)
-  const [selectedPayerId, setSelectedPayerId] = useState<string>(activeProfileId);
   // Track open/collapsed activities
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   // Settlement text copy status
@@ -61,16 +68,15 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
   const activeProfile = getProfile(activeProfileId);
-  const selectedPayer = getProfile(selectedPayerId) || activeProfile;
 
   // Toggle card expansion
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Filter activities paid by the selected payer (must be booked and have cost)
+  // Filter activities paid by the active user (must be booked and have cost)
   const payerActivities = activities.filter(
-    (a) => !a.isIdea && a.bookingStatus === 'Booked' && a.whoPaidId === selectedPayerId && a.costPerPerson > 0
+    (a) => !a.isIdea && a.bookingStatus === 'Booked' && a.whoPaidId === activeProfileId && a.costPerPerson > 0
   );
 
   // Split into active (unsettled) and settled activities
@@ -155,33 +161,29 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               </h1>
             </div>
             <p className="text-xs text-stone-500 mt-1">
-              Select activities you fronted, mark who has paid you back, and track settled balances.
+              Track itinerary and standalone group expenses you fronted, mark who has paid you back, and settle balances.
             </p>
           </div>
 
-          {/* Traveler Switcher for Expenses */}
-          <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 p-1.5 rounded-xl self-start md:self-auto">
-            <span className="text-xs font-medium text-stone-500 px-2">Payer:</span>
-            <div className="flex items-center gap-1 overflow-x-auto max-w-[280px] sm:max-w-none">
-              {profiles.map((p) => {
-                const isSelected = p.id === selectedPayerId;
-                const isMe = p.id === activeProfileId;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedPayerId(p.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-stone-900 text-white shadow-2xs'
-                        : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
-                    }`}
-                  >
-                    <ProfileAvatar profile={p} size="sm" />
-                    <span>{p.name}</span>
-                    {isMe && <span className="text-[10px] opacity-75 font-normal">(You)</span>}
-                  </button>
-                );
-              })}
+          <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+            {onAddExpense && (
+              <button
+                type="button"
+                onClick={onAddExpense}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Expense</span>
+              </button>
+            )}
+
+            {/* Active Profile Info */}
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200">
+              <ProfileAvatar profile={activeProfile} size="sm" />
+              <div className="text-left">
+                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">Active Profile</span>
+                <span className="text-xs font-bold text-stone-900">{activeProfile?.name}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -203,7 +205,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
           <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-200">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-amber-800">Still Owed to {selectedPayer?.name}</span>
+              <span className="text-xs font-medium text-amber-800">Still Owed to You</span>
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <p className="text-2xl font-bold text-amber-900 mt-1">
@@ -241,7 +243,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                 : 'bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200'
             }`}
           >
-            <span>Paid by {selectedPayer?.name}</span>
+            <span>Paid by You</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                 viewTab === 'active' ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-600'
@@ -319,14 +321,24 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
               <h3 className="text-base font-bold text-stone-900">
                 {payerActivities.length === 0
-                  ? `No expenses recorded for ${selectedPayer?.name} yet`
+                  ? `No expenses recorded for you yet`
                   : 'All transactions are fully settled!'}
               </h3>
               <p className="text-xs text-stone-500 max-w-md mx-auto mt-1">
                 {payerActivities.length === 0
-                  ? `When activities are added with ${selectedPayer?.name} as the payer, they will appear here with participant breakdowns.`
-                  : `Every participant has paid back their share for ${selectedPayer?.name}'s activities. Click the Settled button above to review past settled transactions.`}
+                  ? `When expenses or activities are added with you as the payer, they will appear here with participant breakdowns.`
+                  : `Every participant has paid back their share for your activities. Click the Settled button above to review past settled transactions.`}
               </p>
+              {payerActivities.length === 0 && onAddExpense && (
+                <button
+                  type="button"
+                  onClick={onAddExpense}
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Expense</span>
+                </button>
+              )}
               {settledPayerActivities.length > 0 && (
                 <button
                   onClick={() => setViewTab('settled')}
@@ -365,6 +377,12 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-bold text-stone-900 text-sm">{act.title}</h3>
                             <CategoryBadge category={act.category} size="sm" />
+                            {act.isExpenseOnly && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                <Receipt className="w-3 h-3 text-emerald-600" />
+                                <span>Expense</span>
+                              </span>
+                            )}
                             {act.date && (
                               <span className="text-[11px] text-stone-500 flex items-center gap-1">
                                 <Calendar className="w-3 h-3 text-stone-400" />
@@ -392,12 +410,40 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
-                        >
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {act.isExpenseOnly && onEditExpense && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditExpense(act);
+                              }}
+                              className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {act.isExpenseOnly && onDeleteExpense && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteExpense(act);
+                              }}
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
+                          >
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -407,7 +453,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                             <Users className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Who Owes {selectedPayer?.name} (${bd.costPerPerson} each)</span>
+                            <span>Who Owes You (${bd.costPerPerson} each)</span>
                           </div>
 
                           {bd.unpaidDebtorIds.length > 0 && onSettleAllDebtors && (
@@ -512,7 +558,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <h3 className="text-sm font-bold text-stone-900">
-                Settled Transactions for {selectedPayer?.name} ({settledPayerActivities.length})
+                Settled Transactions for You ({settledPayerActivities.length})
               </h3>
             </div>
             <span className="text-xs text-stone-500">
@@ -553,6 +599,12 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                               {act.title}
                             </h3>
                             <CategoryBadge category={act.category} size="sm" />
+                            {act.isExpenseOnly && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                <Receipt className="w-3 h-3 text-emerald-600" />
+                                <span>Expense</span>
+                              </span>
+                            )}
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>Settled</span>
@@ -571,12 +623,40 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                           100% Recovered (${bd.amountPaidBack})
                         </span>
-                        <button
-                          type="button"
-                          className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
-                        >
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {act.isExpenseOnly && onEditExpense && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditExpense(act);
+                              }}
+                              className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {act.isExpenseOnly && onDeleteExpense && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteExpense(act);
+                              }}
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
+                          >
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -679,6 +759,12 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-bold text-stone-900 text-sm">{act.title}</h4>
                           <CategoryBadge category={act.category} size="sm" />
+                          {act.isExpenseOnly && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                              <Receipt className="w-3 h-3 text-emerald-600" />
+                              <span>Expense</span>
+                            </span>
+                          )}
                           {act.date && (
                             <span className="text-[11px] text-stone-500">
                               • {formatDatePretty(act.date)}

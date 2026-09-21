@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
-import { getDaysArray, formatDatePretty } from '../../utils/dateUtils';
+import { getDaysArray, formatDatePretty, getCityForDate } from '../../utils/dateUtils';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
 import { ProfileAvatar } from '../common/ProfileAvatar';
@@ -100,7 +100,6 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
             const votes = idea.votes || [];
             const hasVoted = votes.includes(activeProfileId);
             const isScheduling = schedulingIdeaId === idea.id;
-            const creator = getProfile(idea.hostProfileId);
 
             return (
               <div
@@ -212,7 +211,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                         >
                           {days.map((d, i) => (
                             <option key={d} value={d}>
-                              Day {i + 1} – {formatDatePretty(d)}
+                              Day {i + 1} – {formatDatePretty(d)} ({getCityForDate(d).name})
                             </option>
                           ))}
                         </select>

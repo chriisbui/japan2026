@@ -219,6 +219,10 @@ export function rowToActivity(row: any): Activity {
     paidBackProfileIds = row.paidBackProfileIds;
   }
 
+  const isExpenseOnly =
+    rawStatus.includes('expense:1') ||
+    Boolean(row.is_expense_only ?? row.isExpenseOnly);
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
@@ -243,6 +247,7 @@ export function rowToActivity(row: any): Activity {
     bookingLeadTime,
     bookingReference,
     isIdea: Boolean(isIdea),
+    isExpenseOnly,
     votes: Array.isArray(row.votes) ? row.votes : [],
     paidBackProfileIds,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
@@ -300,10 +305,15 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
     activity.bookingDeadline !== undefined ||
     activity.bookingLeadTime !== undefined ||
     activity.bookingReference !== undefined ||
-    activity.paidBackProfileIds !== undefined
+    activity.paidBackProfileIds !== undefined ||
+    activity.isExpenseOnly !== undefined
   ) {
-    const status = activity.bookingStatus || 'No Booking Needed';
+    const status = activity.bookingStatus || (activity.isExpenseOnly ? 'Booked' : 'No Booking Needed');
     const tags: string[] = [];
+
+    if (activity.isExpenseOnly) {
+      tags.push('expense:1');
+    }
 
     if (status === 'Needs Booking') {
       const dl = activity.bookingDeadline?.trim();

@@ -122,7 +122,6 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
                 activity.bookingDeadline,
                 activity.date
               );
-              const host = getProfile(activity.hostProfileId);
               const isConfirming = selectedActivityId === activity.id;
 
               return (
@@ -209,13 +208,8 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
                     )}
                   </div>
 
-                  {/* Host assignment */}
-                  <div className="flex items-center justify-between pt-2 border-t border-stone-200/60 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-stone-500">Lead Host:</span>
-                      <ProfileAvatar profile={host} size="xs" showName />
-                    </div>
-
+                  {/* Actions */}
+                  <div className="flex items-center justify-end pt-2 border-t border-stone-200/60 text-xs">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => onEditActivity(activity)}

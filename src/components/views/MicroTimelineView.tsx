@@ -11,6 +11,7 @@ import {
   formatDuration,
   calculateFreeTimeSlots,
   addHoursToTime,
+  getCityForDate,
 } from '../../utils/dateUtils';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
@@ -126,9 +127,13 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             </button>
 
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
                   Day {currentDayIndex + 1} of {days.length}
+                </span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${getCityForDate(selectedDate).badgeClass}`}>
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span>{getCityForDate(selectedDate).name}</span>
                 </span>
                 <h2 className="text-base font-bold text-stone-900">{formatDateFull(selectedDate)}</h2>
               </div>
@@ -156,17 +161,23 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0">
             {days.map((dateStr, idx) => {
               const isSelected = dateStr === selectedDate;
+              const chipCity = getCityForDate(dateStr);
               return (
                 <button
                   key={dateStr}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
                     isSelected
                       ? 'bg-indigo-600 text-white shadow-xs font-semibold'
                       : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
+                  title={`${dateStr} (${chipCity.name})`}
                 >
-                  Day {idx + 1}
+                  <span>D{idx + 1}</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-indigo-200' : 'text-stone-400'}`}>•</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-stone-500 font-normal'}`}>
+                    {chipCity.name}
+                  </span>
                 </button>
               );
             })}
@@ -252,8 +263,6 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
               if (item.type === 'activity' && item.activity) {
                 const act = item.activity;
                 const isTaggedMe = act.taggedProfileIds?.includes(activeProfileId);
-                const isHostMe = act.hostProfileId === activeProfileId;
-                const host = getProfile(act.hostProfileId);
                 const payer = getProfile(act.whoPaidId);
                 const duration = getDurationMinutes(act.startTime, act.endTime);
 
@@ -324,20 +333,9 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         </div>
                       )}
 
-                      {/* Meta footer: Payer, Host, Cost, Attendees */}
+                      {/* Meta footer: Payer, Cost, Attendees */}
                       <div className="mt-3 pt-2.5 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div className="flex flex-wrap items-center gap-3">
-                          {/* Host */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-stone-400 text-[11px]">Host:</span>
-                            <ProfileAvatar profile={host} size="xs" showName />
-                            {isHostMe && (
-                              <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-1 rounded">
-                                You
-                              </span>
-                            )}
-                          </div>
-
                           {/* Who Paid (Only if Booked) */}
                           {act.bookingStatus === 'Booked' && payer && (
                             <div className="flex items-center gap-1.5">

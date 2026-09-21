@@ -8,6 +8,7 @@ import {
   parseMinutes,
   calculateFreeTimeSlots,
   addHoursToTime,
+  getCityForDate,
 } from '../../utils/dateUtils';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
@@ -51,19 +52,20 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
   const activeUser = profiles.find((p) => p.id === activeProfileId);
   const days = getDaysArray(trip.startDate, trip.endDate);
 
-  // Filter activities where active user is tagged or host
+  // Filter activities where active user is tagged
   const myActivities = activities.filter(
     (a) =>
       !a.isIdea &&
-      (a.taggedProfileIds?.includes(activeProfileId) || a.hostProfileId === activeProfileId)
+      !a.isExpenseOnly &&
+      (a.taggedProfileIds || []).includes(activeProfileId)
   );
 
   // Metrics for active user
   const myTotalEvents = myActivities.length;
-  const myHostingCount = myActivities.filter((a) => a.hostProfileId === activeProfileId).length;
+  const myBookedCount = myActivities.filter((a) => a.bookingStatus === 'Booked').length;
   const myTotalCost = myActivities.reduce((sum, a) => sum + (a.bookingStatus === 'Booked' ? (a.costPerPerson || 0) : 0), 0);
   const myNeedsBookingCount = myActivities.filter(
-    (a) => a.bookingStatus === 'Needs Booking' && a.hostProfileId === activeProfileId
+    (a) => a.bookingStatus === 'Needs Booking'
   ).length;
 
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
@@ -80,7 +82,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                 <h2 className="text-lg font-bold text-stone-900">{activeUser?.name}'s Personal Schedule</h2>
               </div>
               <p className="text-xs text-stone-500 mt-0.5">
-                Filtered view showing only events you're tagged in or hosting, with your personal free time gaps.
+                Filtered view showing only events you're tagged in, with your personal free time gaps.
               </p>
             </div>
           </div>
@@ -100,8 +102,8 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
             <p className="text-base font-bold text-stone-900 mt-0.5">{myTotalEvents} events</p>
           </div>
           <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-100">
-            <span className="text-[11px] font-medium text-stone-500">Events Hosted By Me</span>
-            <p className="text-base font-bold text-stone-900 mt-0.5">{myHostingCount} hosted</p>
+            <span className="text-[11px] font-medium text-stone-500">Confirmed Booked</span>
+            <p className="text-base font-bold text-emerald-700 mt-0.5">{myBookedCount} booked</p>
           </div>
           <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-100">
             <span className="text-[11px] font-medium text-stone-500">My Cost Share</span>
@@ -132,8 +134,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
             (a) =>
               a.date === dateStr &&
               !a.isIdea &&
-              !a.taggedProfileIds?.includes(activeProfileId) &&
-              a.hostProfileId !== activeProfileId
+              !a.taggedProfileIds?.includes(activeProfileId)
           );
 
           // Calculate Free Time Slots specifically for active user!
@@ -145,10 +146,14 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
               className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs transition-all"
             >
               {/* Day header */}
-              <div className="flex items-center justify-between pb-3 border-b border-stone-100 mb-3">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100 mb-3 gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
                     Day {idx + 1}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${getCityForDate(dateStr).badgeClass}`}>
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span>{getCityForDate(dateStr).name}</span>
                   </span>
                   <h3 className="font-bold text-stone-900 text-sm">{formatDatePretty(dateStr)}</h3>
                 </div>
@@ -184,7 +189,6 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                 <div className="space-y-3">
                   {/* Render active user's activities */}
                   {dayActs.map((act) => {
-                    const isHost = act.hostProfileId === activeProfileId;
                     const payer = getProfile(act.whoPaidId);
 
                     return (
@@ -206,11 +210,6 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                               eventDate={act.date}
                               bookingRef={act.bookingReference}
                             />
-                            {isHost && (
-                              <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">
-                                You are Lead Host
-                              </span>
-                            )}
                           </div>
 
                           <div className="flex items-center gap-2">

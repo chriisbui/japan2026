@@ -45,6 +45,7 @@ export interface Activity {
   bookingLeadTime?: string; // 'now' | '1_week' | '2_weeks' | '3_weeks' | '4_weeks' | '6_weeks' | '2_months' | '3_months' | 'custom_days:X' | 'exact_date'
   bookingReference?: string; // e.g. "CONF-89324" or URL
   isIdea?: boolean; // true if in Idea Bucket backlog
+  isExpenseOnly?: boolean; // true if standalone expense not linked to an itinerary activity
   votes?: string[]; // profileIds who upvoted idea
   paidBackProfileIds?: string[]; // profileIds of debtors who have already paid back the payer
   createdAt: string;

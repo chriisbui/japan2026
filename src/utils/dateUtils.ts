@@ -41,9 +41,9 @@ export function getDefaultTimesForDate(
     return { startTime: '10:00', endTime: '11:00' };
   }
 
-  // Filter activities on the given day that are not ideas and have a startTime or endTime
+  // Filter activities on the given day that are not ideas or standalone expenses and have a startTime or endTime
   const dayActivities = activities.filter(
-    (a) => !a.isIdea && a.date === targetDate && (a.startTime || a.endTime)
+    (a) => !a.isIdea && !a.isExpenseOnly && a.date === targetDate && (a.startTime || a.endTime)
   );
 
   if (dayActivities.length === 0) {
@@ -120,6 +120,81 @@ export function formatDateFull(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+export interface CityTagInfo {
+  name: string;
+  badgeClass: string;
+  tagClass: string;
+  subtleClass: string;
+}
+
+/**
+ * Returns the city for a given date in the trip:
+ * Oct26 - Nov01: Tokyo
+ * Nov02 - Nov03: Fuji
+ * Nov04 - Nov06: Kyoto
+ * Nov07 - Nov12: Osaka
+ * Nov13 - Nov20: Tokyo
+ */
+export function getCityForDate(dateStr?: string): CityTagInfo {
+  if (!dateStr) {
+    return {
+      name: 'Tokyo',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
+      subtleClass: 'bg-rose-500/10 text-rose-700',
+    };
+  }
+
+  // Date formatted as YYYY-MM-DD
+  if (dateStr >= '2026-10-26' && dateStr <= '2026-11-01') {
+    return {
+      name: 'Tokyo',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
+      subtleClass: 'bg-rose-500/10 text-rose-700',
+    };
+  }
+  if (dateStr >= '2026-11-02' && dateStr <= '2026-11-03') {
+    return {
+      name: 'Fuji',
+      badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
+      tagClass: 'bg-teal-100 text-teal-800 border-teal-300',
+      subtleClass: 'bg-teal-500/10 text-teal-700',
+    };
+  }
+  if (dateStr >= '2026-11-04' && dateStr <= '2026-11-06') {
+    return {
+      name: 'Kyoto',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      tagClass: 'bg-amber-100 text-amber-900 border-amber-300',
+      subtleClass: 'bg-amber-500/10 text-amber-800',
+    };
+  }
+  if (dateStr >= '2026-11-07' && dateStr <= '2026-11-12') {
+    return {
+      name: 'Osaka',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+      tagClass: 'bg-purple-100 text-purple-800 border-purple-300',
+      subtleClass: 'bg-purple-500/10 text-purple-700',
+    };
+  }
+  if (dateStr >= '2026-11-13' && dateStr <= '2026-11-20') {
+    return {
+      name: 'Tokyo',
+      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
+      subtleClass: 'bg-rose-500/10 text-rose-700',
+    };
+  }
+
+  return {
+    name: 'Tokyo',
+    badgeClass: 'bg-stone-50 text-stone-700 border-stone-200',
+    tagClass: 'bg-stone-100 text-stone-800 border-stone-300',
+    subtleClass: 'bg-stone-500/10 text-stone-700',
+  };
 }
 
 export function getDaysArray(startDate: string, endDate: string): string[] {
