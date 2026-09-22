@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Map,
-  AdvancedMarker,
-  InfoWindow,
-  useMap,
-} from '@vis.gl/react-google-maps';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { Activity, Profile } from '../../types';
 import { CATEGORIES_META, normalizeCategory } from '../../data/categories';
 import {
@@ -14,10 +10,17 @@ import {
   Navigation,
   Compass,
   Layers,
+  Calendar,
+  DollarSign,
 } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { formatTimeRange, formatDateFull, getCityForDate } from '../../utils/dateUtils';
-import { getCoordinatesForActivity, AREAS, AreaId } from '../../utils/mapUtils';
+import {
+  getCoordinatesForActivity,
+  AREAS,
+  AreaId,
+  isValidCoordinate,
+} from '../../utils/mapUtils';
 
 interface DayTimelineMapProps {
   date: string;
@@ -28,14 +31,69 @@ interface DayTimelineMapProps {
   onAddActivityWithTime?: (date: string) => void;
 }
 
-// Map camera controller to smoothly fit all day activities or center on selected activity
+/**
+ * Custom HTML DivIcon for Day Timeline Leaflet map
+ */
+function createDayPin(
+  title: string,
+  category: string,
+  isIdea: boolean,
+  isSelected: boolean
+): L.DivIcon {
+  const meta = CATEGORIES_META[normalizeCategory(category)] || CATEGORIES_META['Sightseeing'];
+  const accentColor = meta.color.accent;
+  const badgeBg = '#ffffff';
+  const borderStyle = isIdea ? 'border: 1.5px dashed #d97706;' : `border: 1.5px solid ${accentColor};`;
+  const ringStyle = isSelected
+    ? 'box-shadow: 0 0 0 3px #1c1917, 0 10px 15px -3px rgba(0,0,0,0.35); transform: scale(1.12);'
+    : 'box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);';
+
+  const cleanTitle = (title || 'Activity').replace(/[<>&"]/g, (c) => {
+    switch (c) {
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '&':
+        return '&amp;';
+      case '"':
+        return '&quot;';
+      default:
+        return c;
+    }
+  });
+
+  const html = `
+    <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s ease; ${ringStyle}">
+      <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: ${badgeBg}; ${borderStyle}">
+        <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: ${accentColor}; flex-shrink: 0; display: inline-block;"></span>
+        <span style="font-size: 11px; font-weight: ${isIdea ? '400' : '600'}; font-style: ${isIdea ? 'italic' : 'normal'}; color: #1c1917; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, sans-serif;">
+          ${cleanTitle}
+        </span>
+      </div>
+      <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid ${accentColor}; margin-top: -1px;"></div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-osm-day-pin',
+    iconSize: [130, 36],
+    iconAnchor: [65, 36],
+    popupAnchor: [0, -36],
+  });
+}
+
+/**
+ * Controller hook component to adjust Leaflet bounds dynamically
+ */
 function DayMapCameraController({
-  activities,
+  pins,
   selectedActivity,
   defaultCenter,
   defaultZoom,
 }: {
-  activities: Activity[];
+  pins: { activity: Activity; coords: { lat: number; lng: number } }[];
   selectedActivity: Activity | null;
   defaultCenter: { lat: number; lng: number };
   defaultZoom: number;
@@ -45,61 +103,92 @@ function DayMapCameraController({
   useEffect(() => {
     if (!map) return;
 
-    const triggerResizeAndAdjust = () => {
+    const timeout = setTimeout(() => {
       try {
-        const googleObj = (window as any).google;
-        if (googleObj?.maps?.event?.trigger) {
-          googleObj.maps.event.trigger(map, 'resize');
-        }
-      } catch (err) {
-        console.warn('Google Maps resize trigger error:', err);
+        map.invalidateSize();
+      } catch {
+        // ignore
       }
+    }, 150);
 
+    const safeCenterLat = isValidCoordinate(defaultCenter?.lat, defaultCenter?.lng)
+      ? Number(defaultCenter.lat)
+      : 35.6812;
+    const safeCenterLng = isValidCoordinate(defaultCenter?.lat, defaultCenter?.lng)
+      ? Number(defaultCenter.lng)
+      : 139.7671;
+    const safeZoom = Number.isFinite(defaultZoom) ? defaultZoom : 12;
+
+    const size = map.getSize();
+    const isSized = size && size.x > 0 && size.y > 0;
+
+    try {
       if (selectedActivity) {
-        const coords = getCoordinatesForActivity(selectedActivity);
-        map.panTo(coords);
-        map.setZoom(15);
-        return;
-      }
-
-      if (activities.length === 0) {
-        map.panTo(defaultCenter);
-        map.setZoom(defaultZoom);
-      } else if (activities.length === 1) {
-        const coords = getCoordinatesForActivity(activities[0]);
-        map.panTo(coords);
-        map.setZoom(14);
-      } else {
-        const googleObj = (window as any).google;
-        if (googleObj?.maps?.LatLngBounds) {
-          const bounds = new googleObj.maps.LatLngBounds();
-          activities.forEach((act) => {
-            const coords = getCoordinatesForActivity(act);
-            bounds.extend(coords);
-          });
-          map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
-        } else {
-          const avgLat =
-            activities.reduce((sum, a) => sum + getCoordinatesForActivity(a).lat, 0) /
-            activities.length;
-          const avgLng =
-            activities.reduce((sum, a) => sum + getCoordinatesForActivity(a).lng, 0) /
-            activities.length;
-          map.panTo({ lat: avgLat, lng: avgLng });
-          map.setZoom(13);
+        const targetPin = pins.find((p) => p.activity.id === selectedActivity.id);
+        if (targetPin && isValidCoordinate(targetPin.coords.lat, targetPin.coords.lng)) {
+          const tLat = Number(targetPin.coords.lat);
+          const tLng = Number(targetPin.coords.lng);
+          if (isSized) {
+            map.flyTo([tLat, tLng], 15, { duration: 1.0 });
+          } else {
+            map.setView([tLat, tLng], 15);
+          }
+          return () => clearTimeout(timeout);
         }
       }
-    };
 
-    triggerResizeAndAdjust();
-    const rafId = requestAnimationFrame(triggerResizeAndAdjust);
-    const timer = setTimeout(triggerResizeAndAdjust, 150);
+      if (pins.length === 0) {
+        if (isSized) {
+          map.flyTo([safeCenterLat, safeCenterLng], safeZoom, { duration: 1.0 });
+        } else {
+          map.setView([safeCenterLat, safeCenterLng], safeZoom);
+        }
+      } else if (pins.length === 1) {
+        const p0 = pins[0].coords;
+        if (isValidCoordinate(p0.lat, p0.lng)) {
+          const pLat = Number(p0.lat);
+          const pLng = Number(p0.lng);
+          if (isSized) {
+            map.flyTo([pLat, pLng], 14, { duration: 1.0 });
+          } else {
+            map.setView([pLat, pLng], 14);
+          }
+        }
+      } else {
+        const validCoords = pins
+          .filter((p) => isValidCoordinate(p.coords.lat, p.coords.lng))
+          .map((p) => [Number(p.coords.lat), Number(p.coords.lng)] as [number, number]);
 
-    return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(timer);
-    };
-  }, [map, activities, selectedActivity, defaultCenter, defaultZoom]);
+        if (validCoords.length === 0) {
+          map.setView([safeCenterLat, safeCenterLng], safeZoom);
+        } else if (validCoords.length === 1) {
+          map.setView(validCoords[0], 14);
+        } else {
+          const bounds = L.latLngBounds(validCoords);
+          if (bounds.isValid() && isSized) {
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            // If all pins are identical coordinates, span is 0
+            if (Math.abs(ne.lat - sw.lat) < 0.0001 && Math.abs(ne.lng - sw.lng) < 0.0001) {
+              map.setView([ne.lat, ne.lng], 14);
+            } else {
+              map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+            }
+          } else {
+            map.setView([validCoords[0][0], validCoords[0][1]], 14);
+          }
+        }
+      }
+    } catch {
+      try {
+        map.setView([safeCenterLat, safeCenterLng], safeZoom);
+      } catch {
+        // no-op
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [map, pins, selectedActivity, defaultCenter, defaultZoom]);
 
   return null;
 }
@@ -110,98 +199,74 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
   profiles,
   activeProfileId,
   onEditActivity,
+  onAddActivityWithTime,
 }) => {
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
-  // Determine city fallback for this date
+  // Inferred city for this specific day
   const cityInfo = useMemo(() => getCityForDate(date), [date]);
 
-  // Find relevant accommodation for this specific date
-  const relevantAccommodations = useMemo(() => {
-    const activeProfile = profiles.find((p) => p.id === activeProfileId);
-    const targetProfiles = activeProfile?.accommodations?.length
-      ? [activeProfile]
-      : profiles;
-
-    const seen = new Set<string>();
-    const accomActs: Activity[] = [];
-
-    targetProfiles.forEach((p) => {
-      (p?.accommodations || []).forEach((item) => {
-        if (!item.location || !item.location.trim()) return;
-        // Check date range or city leg
-        const inDateRange =
-          (item.checkInDate && item.checkOutDate && date >= item.checkInDate && date <= item.checkOutDate) ||
-          item.city.toLowerCase() === cityInfo.name.toLowerCase();
-
-        if (inDateRange && !seen.has(item.id)) {
-          seen.add(item.id);
-          accomActs.push({
-            id: `accom-${item.id}`,
-            title: item.name ? item.name : `Accommodation: ${item.label}`,
-            category: 'Accommodation',
-            location: item.location,
-            lat: item.lat,
-            lng: item.lng,
-            placeId: item.placeId,
-            date: date,
-            startTime: '15:00',
-            endTime: '11:00',
-            description: `Stay in ${item.city} (${item.label}). Check-in: ${item.checkInDate}, Check-out: ${item.checkOutDate}`,
-            taggedProfileIds: p ? [p.id] : [],
-            costPerPerson: 0,
-            whoPaidId: p?.id || '',
-            hostProfileId: p?.id || '',
-            bookingStatus: 'Booked',
-            createdAt: new Date().toISOString(),
-            isIdea: false,
-          });
-        }
-      });
-    });
-
-    return accomActs;
-  }, [profiles, activeProfileId, date, cityInfo]);
-
-  // Combined activities for this day that have a location specified
-  const locatedActivities = useMemo(() => {
-    const acts = activities.filter((a) => Boolean(a.location && a.location.trim()));
-    return [...acts, ...relevantAccommodations];
-  }, [activities, relevantAccommodations]);
-
-  // Find matching default center based on the day's city
+  // Determine regional area
   const defaultArea = useMemo(() => {
     const cityName = cityInfo.name.toLowerCase();
-    if (cityName.includes('fuji')) return AREAS.find((a) => a.id === 'Mt Fuji') || AREAS[1];
-    if (cityName.includes('kyoto')) return AREAS.find((a) => a.id === 'Kyoto') || AREAS[2];
-    if (cityName.includes('osaka')) return AREAS.find((a) => a.id === 'Osaka') || AREAS[3];
-    return AREAS.find((a) => a.id === 'Tokyo') || AREAS[0];
+    if (cityName.includes('tokyo')) return AREAS[0];
+    if (cityName.includes('fuji') || cityName.includes('kawaguchiko') || cityName.includes('hakone'))
+      return AREAS[1];
+    if (cityName.includes('kyoto')) return AREAS[2];
+    if (cityName.includes('osaka')) return AREAS[3];
+    return AREAS[0];
   }, [cityInfo]);
 
+  // Activities with location
+  const locatedActivities = useMemo(() => {
+    return activities.filter((a) => Boolean(a.location && a.location.trim()));
+  }, [activities]);
+
+  // Filter out invalid or zeroed-out coordinates (Null Island defense)
+  const renderablePins = useMemo(() => {
+    return locatedActivities
+      .map((act) => {
+        if (act.lat !== undefined && act.lat !== null && act.lng !== undefined && act.lng !== null) {
+          if (isValidCoordinate(act.lat, act.lng)) {
+            return { activity: act, coords: { lat: Number(act.lat), lng: Number(act.lng) } };
+          }
+          if (Math.abs(Number(act.lat)) < 0.0001 && Math.abs(Number(act.lng)) < 0.0001) {
+            return null;
+          }
+        }
+
+        const fallback = getCoordinatesForActivity(act, defaultArea.id as AreaId);
+        if (fallback && isValidCoordinate(fallback.lat, fallback.lng)) {
+          return { activity: act, coords: { lat: Number(fallback.lat), lng: Number(fallback.lng) } };
+        }
+        return null;
+      })
+      .filter(
+        (item): item is { activity: Activity; coords: { lat: number; lng: number } } =>
+          item !== null && isValidCoordinate(item.coords.lat, item.coords.lng)
+      );
+  }, [locatedActivities, defaultArea]);
+
   return (
-    <div
-      id="day-timeline-map-section"
-      className="mt-8 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-xs"
-    >
-      {/* Map Header */}
-      <div className="px-4 py-3.5 bg-stone-50/80 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm mb-6">
+      {/* Header bar */}
+      <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-            <MapPin className="w-4 h-4" />
+          <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <Compass className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-              <span>Day Activity Locations</span>
-              <span className="text-stone-400 font-normal">·</span>
-              <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                {cityInfo.name}
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+              <span>{cityInfo.name} Day Map</span>
+              <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full font-medium">
+                OpenStreetMap
               </span>
             </h3>
             <p className="text-xs text-stone-500">
-              {locatedActivities.length === 1
+              {renderablePins.length === 1
                 ? '1 location pinned on the map'
-                : `${locatedActivities.length} locations pinned on the map`}
-              {locatedActivities.length > 0 && ` for ${formatDateFull(date)}`}
+                : `${renderablePins.length} locations pinned on the map`}
+              {renderablePins.length > 0 && ` for ${formatDateFull(date)}`}
             </p>
           </div>
         </div>
@@ -212,21 +277,21 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
             <button
               type="button"
               onClick={() => setSelectedActivity(null)}
-              className="px-2.5 py-1 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors shadow-2xs"
+              className="px-2.5 py-1 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors shadow-2xs cursor-pointer"
             >
               Fit All Locations
             </button>
           )}
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(
               `${cityInfo.name} Japan`
             )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-1 shadow-2xs"
-            title="Open City in Google Maps"
+            className="px-2.5 py-1 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
+            title="Search region on OpenStreetMap"
           >
-            <span>Google Maps</span>
+            <span>OpenStreetMap</span>
             <ExternalLink className="w-3 h-3 text-stone-400" />
           </a>
         </div>
@@ -234,230 +299,118 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
 
       {/* Interactive Map Canvas */}
       <div className="h-[340px] sm:h-[400px] w-full relative bg-stone-100">
-        <Map
-          id={`day-map-${date}`}
-          mapId="DEMO_MAP_ID"
-          defaultCenter={defaultArea.center}
-          defaultZoom={defaultArea.zoom}
-          gestureHandling="greedy"
-          disableDefaultUI={false}
-          clickableIcons={true}
-          internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-          className="w-full h-full"
+        <MapContainer
+          center={[defaultArea.center.lat, defaultArea.center.lng]}
+          zoom={defaultArea.zoom}
+          scrollWheelZoom={true}
+          style={{ height: '100%', width: '100%' }}
         >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
+          />
+
           <DayMapCameraController
-            activities={locatedActivities}
+            pins={renderablePins}
             selectedActivity={selectedActivity}
             defaultCenter={defaultArea.center}
             defaultZoom={defaultArea.zoom}
           />
 
-          {/* Color-coded Pins identical to Map View style */}
-          {locatedActivities.map((act) => {
-            const coords = getCoordinatesForActivity(act, defaultArea.id as AreaId);
-            const category = normalizeCategory(act.category);
-            const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
+          {renderablePins.map(({ activity: act, coords }) => {
             const isSelected = selectedActivity?.id === act.id;
             const isIdea = Boolean(act.isIdea || !act.date);
+            const pinIcon = createDayPin(act.title, act.category, isIdea, isSelected);
 
             return (
-              <AdvancedMarker
+              <Marker
                 key={act.id}
-                position={coords}
-                title={`${act.title} - ${act.location}`}
-                onClick={() => setSelectedActivity(act)}
+                position={[coords.lat, coords.lng]}
+                icon={pinIcon}
+                eventHandlers={{
+                  click: () => setSelectedActivity(act),
+                }}
               >
-                <div
-                  className={`relative flex flex-col items-center cursor-pointer transition-transform duration-200 ${
-                    isSelected ? 'scale-125 z-40' : 'hover:scale-110 z-10'
-                  }`}
-                >
-                  <div
-                    className={`px-2.5 py-1 rounded-full shadow-md text-xs border flex items-center gap-1.5 transition-shadow ${
-                      meta.color.badgeBg
-                    } ${
-                      isIdea ? 'border-dashed' : ''
-                    } ${
-                      isSelected
-                        ? 'ring-2 ring-stone-900 shadow-xl scale-105'
-                        : 'hover:shadow-lg'
-                    }`}
-                  >
+                <Popup>
+                  <div className="p-1 max-w-[240px] space-y-1.5 text-xs font-sans">
                     <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: meta.color.accent }}
-                    />
-                    <span
-                      className={`truncate max-w-[120px] ${meta.color.text || 'text-stone-900'} text-[11px] ${
-                        isIdea ? 'font-normal italic' : 'font-semibold'
+                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                        (
+                          CATEGORIES_META[normalizeCategory(act.category)] ||
+                          CATEGORIES_META['Sightseeing']
+                        ).color.badgeBg
                       }`}
                     >
-                      {act.title}
+                      {act.category}
                     </span>
+                    <h4 className="font-bold text-stone-900 leading-tight">{act.title}</h4>
+                    {act.location && (
+                      <p className="text-[11px] text-stone-600 flex items-start gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                        <span className="break-words">{act.location}</span>
+                      </p>
+                    )}
+                    {act.startTime && (
+                      <p className="text-[11px] text-stone-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-stone-400 shrink-0" />
+                        <span>{formatTimeRange(act.startTime, act.endTime)}</span>
+                      </p>
+                    )}
+                    <div className="pt-1 flex items-center justify-between border-t border-stone-100">
+                      <button
+                        type="button"
+                        onClick={() => onEditActivity(act)}
+                        className="text-emerald-700 hover:text-emerald-800 font-semibold text-xs cursor-pointer"
+                      >
+                        Edit Activity
+                      </button>
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=16/${coords.lat}/${coords.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-stone-500 hover:text-stone-800"
+                        title="View on OpenStreetMap"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
-                  <div
-                    className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] -mt-[1px]"
-                    style={{ borderTopColor: meta.color.accent }}
-                  />
-                </div>
-              </AdvancedMarker>
+                </Popup>
+              </Marker>
             );
           })}
-
-          {/* Pin Detail InfoWindow */}
-          {selectedActivity && (
-            <InfoWindow
-              position={getCoordinatesForActivity(selectedActivity, defaultArea.id as AreaId)}
-              onCloseClick={() => setSelectedActivity(null)}
-              headerContent={
-                <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{
-                      backgroundColor:
-                        (
-                          CATEGORIES_META[normalizeCategory(selectedActivity.category)] ||
-                          CATEGORIES_META['Sightseeing']
-                        ).color.accent,
-                    }}
-                  />
-                  <span className="truncate">{selectedActivity.title}</span>
-                </div>
-              }
-            >
-              <div className="p-1 max-w-[280px] space-y-2 text-xs">
-                {/* Category and time badge */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                      (
-                        CATEGORIES_META[normalizeCategory(selectedActivity.category)] ||
-                        CATEGORIES_META['Sightseeing']
-                      ).color.badgeBg
-                    }`}
-                  >
-                    {selectedActivity.category}
-                  </span>
-                  {selectedActivity.startTime && (
-                    <span className="text-[10px] text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-stone-500" />
-                      <span>{formatTimeRange(selectedActivity.startTime, selectedActivity.endTime)}</span>
-                    </span>
-                  )}
-                </div>
-
-                {/* Location Address */}
-                <div className="text-stone-600 flex items-start gap-1 bg-stone-50 p-1.5 rounded-lg border border-stone-200/60">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                  <span className="text-[11px] leading-snug break-words">
-                    {selectedActivity.location}
-                  </span>
-                </div>
-
-                {/* Cost & Members */}
-                <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[11px]">
-                  <span className="text-stone-500">
-                    {selectedActivity.costPerPerson > 0 ? (
-                      <strong className="text-stone-900">${selectedActivity.costPerPerson}/person</strong>
-                    ) : (
-                      'Free / No booking cost'
-                    )}
-                  </span>
-                  <div className="flex -space-x-1.5">
-                    {selectedActivity.taggedProfileIds.slice(0, 3).map((pid) => {
-                      const p = profiles.find((prof) => prof.id === pid);
-                      return p ? (
-                        <ProfileAvatar key={p.id} profile={p} size="sm" />
-                      ) : null;
-                    })}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 pt-1">
-                  {selectedActivity.category === 'Accommodation' ? (
-                    <span className="flex-1 py-1.5 bg-stone-100 text-stone-700 rounded-lg font-semibold text-center text-xs">
-                      Accommodation Stay
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onEditActivity(selectedActivity)}
-                      className="flex-1 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-semibold text-center transition-colors text-xs cursor-pointer"
-                    >
-                      Edit Activity
-                    </button>
-                  )}
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      `${selectedActivity.title} ${selectedActivity.location}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors"
-                    title="Open in Google Maps"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-            </InfoWindow>
-          )}
-        </Map>
-
-        {/* Empty state notice overlay when no activities on this day have locations */}
-        {locatedActivities.length === 0 && (
-          <div className="absolute inset-x-4 bottom-4 bg-white/95 backdrop-blur-xs border border-stone-200 rounded-xl p-3.5 shadow-md flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-stone-100 flex items-center justify-center shrink-0 text-stone-400">
-              <Compass className="w-5 h-5" />
-            </div>
-            <div className="text-xs">
-              <p className="font-semibold text-stone-800">No activity locations for this day yet</p>
-              <p className="text-stone-500">
-                Add or edit an activity with a location (e.g. Shibuya, Gion, Dotonbori) to view it here.
-              </p>
-            </div>
-          </div>
-        )}
+        </MapContainer>
       </div>
 
-      {/* Activity Chips Bar Below Map for Quick Selection */}
-      {locatedActivities.length > 0 && (
-        <div className="p-3 bg-stone-50/60 border-t border-stone-200 overflow-x-auto flex items-center gap-2 scrollbar-none">
-          <span className="text-[11px] font-semibold text-stone-500 shrink-0 flex items-center gap-1 ml-1">
-            <Layers className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Locations:</span>
-          </span>
-          {locatedActivities.map((act) => {
+      {/* Horizontal pill list of activities for this day */}
+      {renderablePins.length > 0 && (
+        <div className="px-4 py-2.5 bg-stone-50/70 border-t border-stone-200 overflow-x-auto flex items-center gap-2 scrollbar-none">
+          <span className="text-xs font-semibold text-stone-500 shrink-0">Stops:</span>
+          {renderablePins.map(({ activity: act }) => {
             const isSelected = selectedActivity?.id === act.id;
-            const category = normalizeCategory(act.category);
-            const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
-
             return (
               <button
                 key={act.id}
                 type="button"
                 onClick={() => setSelectedActivity(act)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 border shrink-0 ${
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                    : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300 hover:bg-stone-100/80'
+                    ? 'bg-stone-900 text-white shadow-xs'
+                    : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
                 }`}
               >
                 <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: meta.color.accent }}
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      (
+                        CATEGORIES_META[normalizeCategory(act.category)] ||
+                        CATEGORIES_META['Sightseeing']
+                      ).color.accent,
+                  }}
                 />
-                <span className="font-medium">{act.title}</span>
-                {act.startTime && (
-                  <span
-                    className={`text-[10px] px-1 py-0.2 rounded font-mono ${
-                      isSelected ? 'text-white/80' : 'text-stone-500'
-                    }`}
-                  >
-                    {act.startTime}
-                  </span>
-                )}
+                <span className="truncate max-w-[120px]">{act.title}</span>
               </button>
             );
           })}
@@ -466,3 +419,5 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
     </div>
   );
 };
+
+export default DayTimelineMap;

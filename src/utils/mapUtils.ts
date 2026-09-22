@@ -48,10 +48,24 @@ export const AREAS: AreaConfig[] = [
   },
 ];
 
+// Validate that coordinates are valid and not zeroed-out (Null Island defense)
+export function isValidCoordinate(lat?: number | null, lng?: number | null): boolean {
+  if (lat === undefined || lat === null || lng === undefined || lng === null) return false;
+  const numLat = Number(lat);
+  const numLng = Number(lng);
+  if (!Number.isFinite(numLat) || !Number.isFinite(numLng)) return false;
+  if (Number.isNaN(numLat) || Number.isNaN(numLng)) return false;
+  // Null Island check: lat === 0 and lng === 0
+  if (Math.abs(numLat) < 0.0001 && Math.abs(numLng) < 0.0001) return false;
+  // Geographical bounds check
+  if (numLat < -90 || numLat > 90 || numLng < -180 || numLng > 180) return false;
+  return true;
+}
+
 // Helper to estimate coordinates if not yet saved
 export function getCoordinatesForActivity(act: Activity, areaFallback: AreaId = 'Tokyo'): { lat: number; lng: number } {
-  if (act.lat !== undefined && act.lng !== undefined && !isNaN(act.lat) && !isNaN(act.lng)) {
-    return { lat: act.lat, lng: act.lng };
+  if (isValidCoordinate(act.lat, act.lng)) {
+    return { lat: Number(act.lat), lng: Number(act.lng) };
   }
 
   // Known landmark coordinates for instant placement
@@ -84,6 +98,9 @@ export function getCoordinatesForActivity(act: Activity, areaFallback: AreaId = 
 
   // Fallback to area center with deterministic slight scatter
   let base = AREAS.find((a) => a.id === areaFallback)?.center || AREAS[0].center;
+  if (!base || !Number.isFinite(base.lat) || !Number.isFinite(base.lng)) {
+    base = { lat: 35.6812, lng: 139.7671 };
+  }
   if (locLower.includes('kyoto')) base = AREAS[2].center;
   else if (locLower.includes('osaka')) base = AREAS[3].center;
   else if (locLower.includes('fuji')) base = AREAS[1].center;
@@ -91,18 +108,21 @@ export function getCoordinatesForActivity(act: Activity, areaFallback: AreaId = 
 
   // Small optical hash offset to prevent exact pin overlap
   let hash = 0;
-  const idStr = act.id || act.title || 'default';
+  const idStr = String(act.id || act.title || 'default');
   for (let i = 0; i < idStr.length; i++) {
     hash = (hash << 5) - hash + idStr.charCodeAt(i);
     hash |= 0;
   }
-  const deltaLat = ((hash % 100) / 10000) * 1.5;
-  const deltaLng = (((hash >> 3) % 100) / 10000) * 1.5;
+  const deltaLat = ((Math.abs(hash) % 100) / 10000) * 1.5;
+  const deltaLng = (((Math.abs(hash) >> 3) % 100) / 10000) * 1.5;
 
-  return {
-    lat: base.lat + deltaLat,
-    lng: base.lng + deltaLng,
-  };
+  const finalLat = Number(base.lat) + deltaLat;
+  const finalLng = Number(base.lng) + deltaLng;
+
+  if (Number.isFinite(finalLat) && Number.isFinite(finalLng)) {
+    return { lat: finalLat, lng: finalLng };
+  }
+  return { lat: 35.6812, lng: 139.7671 };
 }
 
 // Check which area an activity belongs to

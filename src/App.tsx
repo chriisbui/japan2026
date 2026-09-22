@@ -13,8 +13,7 @@ import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal';
 import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal';
 import { EditProfileModal } from './components/modals/EditProfileModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
-import { TripMapView } from './components/views/TripMapView';
-import { APIProvider } from '@vis.gl/react-google-maps';
+import { MapView } from './components/views/MapView';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateBookingDate, getDefaultTimesForDate, addHoursToTime, getCityForDate } from './utils/dateUtils';
 import {
@@ -28,11 +27,6 @@ import {
   generateUUID,
   clearAllExistingLocationsFromSupabase,
 } from './supabase';
-
-const GOOGLE_MAPS_API_KEY =
-  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) ||
-  ((globalThis as any).GOOGLE_MAPS_API_KEY as string) ||
-  'AIzaSyBdPkAGqNcJBuN7oLpMJ0J_FTLhEVKHE4g';
 
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
 const STORAGE_KEY_ACTIVE_PROFILE = 'group_travel_active_profile_v2';
@@ -391,6 +385,10 @@ const handleSaveProfile = async (
         startTime: data.isIdea ? undefined : data.startTime,
         endTime: data.isIdea ? undefined : data.endTime,
         location: data.location || '',
+        lat: data.lat,
+        lng: data.lng,
+        placeId: data.placeId,
+        formattedAddress: data.formattedAddress,
         description: data.description || '',
         costPerPerson: data.costPerPerson || 0,
         whoPaidId: data.whoPaidId || activeProfileId,
@@ -674,8 +672,7 @@ const handleSaveProfile = async (
   ).length;
 
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['places', 'marker']}>
-      <div className="min-h-screen bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Navigation Header */}
       <Navbar
         trip={trip}
@@ -693,15 +690,17 @@ const handleSaveProfile = async (
         supabaseConnected={isSupabaseLive}
       />
 
-      {/* Map View - Kept continuously mounted to prevent Google Maps from re-initializing */}
-      <TripMapView
-        activities={activities}
-        profiles={profiles}
-        activeProfileId={activeProfileId}
-        onEditActivity={handleOpenEditModal}
-        onAddActivity={(date) => handleOpenAddModal(date)}
-        isActive={activeTab === 'map'}
-      />
+      {/* Map View - Rendered when Map tab is active */}
+      {activeTab === 'map' && (
+        <MapView
+          activities={activities}
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          onEditActivity={handleOpenEditModal}
+          onAddActivity={(date) => handleOpenAddModal(date)}
+          isActive={true}
+        />
+      )}
 
       {/* Standard Main Container for non-map tabs */}
       <main
@@ -938,7 +937,6 @@ const handleSaveProfile = async (
           handleOpenEditModal(act);
         }}
       />
-      </div>
-    </APIProvider>
+    </div>
   );
 }

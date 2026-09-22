@@ -30,6 +30,8 @@ import {
   TRIP_CITIES,
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
+import { geocodeLocationText } from '../../utils/nominatim';
+import { isValidCoordinate } from '../../utils/mapUtils';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -86,6 +88,32 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [bookingReference, setBookingReference] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  const handleManualGeocode = async () => {
+    if (!location.trim()) return;
+    setIsGeocoding(true);
+    setErrors((prev) => ({ ...prev, location: '' }));
+    try {
+      const resolved = await geocodeLocationText(location.trim());
+      if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
+        setLat(resolved.lat);
+        setLng(resolved.lng);
+        setPlaceId(resolved.placeId);
+        setFormattedAddress(resolved.formattedAddress);
+        if (!city && resolved.city) {
+          setCity(resolved.city);
+        }
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          location: 'Could not resolve non-zero coordinates via OpenStreetMap Nominatim. Please enter a more specific location name.',
+        }));
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -300,7 +328,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     setTaggedProfileIds([activeProfileId]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -310,6 +338,35 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
     if (!isIdea && !date) {
       newErrors.date = 'Date is required for scheduled activities';
+    }
+
+    let finalLat = lat;
+    let finalLng = lng;
+    let finalPlaceId = placeId;
+    let finalFormattedAddress = formattedAddress;
+
+    // If location is provided, ensure latitude and longitude are valid and non-zero before saving to Supabase
+    if (location.trim()) {
+      if (!isValidCoordinate(finalLat, finalLng)) {
+        setIsGeocoding(true);
+        const resolved = await geocodeLocationText(location.trim());
+        setIsGeocoding(false);
+        if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
+          finalLat = resolved.lat;
+          finalLng = resolved.lng;
+          finalPlaceId = resolved.placeId;
+          finalFormattedAddress = resolved.formattedAddress;
+          setLat(resolved.lat);
+          setLng(resolved.lng);
+          setPlaceId(resolved.placeId);
+          setFormattedAddress(resolved.formattedAddress);
+        } else {
+          newErrors.location =
+            'Please select a location from OpenStreetMap suggestions or ensure coordinates are valid non-zero numbers before saving.';
+        }
+      } else if (Math.abs(finalLat!) < 0.0001 && Math.abs(finalLng!) < 0.0001) {
+        newErrors.location = 'Coordinates cannot be zero (0, 0 / Null Island). Please provide a valid location.';
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -329,10 +386,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       startTime: isIdea ? undefined : startTime,
       endTime: isIdea ? undefined : endTime,
       location: location.trim(),
-      lat,
-      lng,
-      placeId,
-      formattedAddress,
+      lat: finalLat,
+      lng: finalLng,
+      placeId: finalPlaceId,
+      formattedAddress: finalFormattedAddress,
       description: description.trim(),
       costPerPerson: finalCost,
       whoPaidId,
@@ -581,47 +638,91 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </div>
           )}
 
-          {/* Location with Google Maps Places Autocomplete */}
+          {/* Location with OpenStreetMap Nominatim Geocoding */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Location</span>
               </label>
-              <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">
-                Google Maps Search
-              </span>
+              <div className="flex items-center gap-1.5">
+                {lat !== undefined && lng !== undefined && isValidCoordinate(lat, lng) ? (
+                  <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full font-mono font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-600 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full font-medium">
+                    OpenStreetMap Nominatim
+                  </span>
+                )}
+              </div>
             </div>
-            <GooglePlacesAutocompleteInput
-              id="activity-location-input"
-              value={location}
-              onChange={(val) => setLocation(val)}
-              onSelectPlace={(place) => {
-                setLocation(place.location);
-                setLat(place.lat);
-                setLng(place.lng);
-                setPlaceId(place.placeId);
-                setFormattedAddress(place.formattedAddress);
 
-                // If city is not explicitly selected yet, infer from place address
-                if (!city) {
-                  const combined = `${place.location} ${place.formattedAddress || ''}`.toLowerCase();
-                  if (combined.includes('tokyo') || combined.includes('shibuya') || combined.includes('shinjuku') || combined.includes('chiyoda')) {
-                    setCity('Tokyo');
-                  } else if (combined.includes('fuji') || combined.includes('kawaguchiko') || combined.includes('hakone') || combined.includes('yamanashi') || combined.includes('shizuoka')) {
-                    setCity('Fuji');
-                  } else if (combined.includes('kyoto') || combined.includes('gion') || combined.includes('arashiyama')) {
-                    setCity('Kyoto');
-                  } else if (combined.includes('osaka') || combined.includes('namba') || combined.includes('dotonbori') || combined.includes('umeda')) {
-                    setCity('Osaka');
-                  }
-                }
-              }}
-              placeholder="Search place, attraction, or address (e.g. Shibuya Sky, Fushimi Inari, Dotonbori)..."
-            />
-            <p className="mt-1 text-[11px] text-stone-400">
-              Start typing to search Google Maps and link location pins.
-            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <GooglePlacesAutocompleteInput
+                  id="activity-location-input"
+                  value={location}
+                  onChange={(val) => {
+                    setLocation(val);
+                    if (!val.trim()) {
+                      setLat(undefined);
+                      setLng(undefined);
+                      setPlaceId(undefined);
+                      setFormattedAddress(undefined);
+                    }
+                  }}
+                  onSelectPlace={(place) => {
+                    setLocation(place.location);
+                    setLat(place.lat);
+                    setLng(place.lng);
+                    setPlaceId(place.placeId);
+                    setFormattedAddress(place.formattedAddress);
+
+                    // If city is not explicitly selected yet, infer from place address
+                    if (!city) {
+                      const combined = `${place.location} ${place.formattedAddress || ''}`.toLowerCase();
+                      if (combined.includes('tokyo') || combined.includes('shibuya') || combined.includes('shinjuku') || combined.includes('chiyoda')) {
+                        setCity('Tokyo');
+                      } else if (combined.includes('fuji') || combined.includes('kawaguchiko') || combined.includes('hakone') || combined.includes('yamanashi') || combined.includes('shizuoka')) {
+                        setCity('Fuji');
+                      } else if (combined.includes('kyoto') || combined.includes('gion') || combined.includes('arashiyama')) {
+                        setCity('Kyoto');
+                      } else if (combined.includes('osaka') || combined.includes('namba') || combined.includes('dotonbori') || combined.includes('umeda')) {
+                        setCity('Osaka');
+                      }
+                    }
+                  }}
+                  placeholder="Search place, attraction, or address (e.g. Shibuya Sky, Fushimi Inari, Dotonbori)..."
+                />
+              </div>
+
+              {location.trim() && (
+                <button
+                  type="button"
+                  id="activity-geocode-btn"
+                  onClick={handleManualGeocode}
+                  disabled={isGeocoding}
+                  className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg border border-stone-300 transition-colors flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                  title="Geocode location text with OpenStreetMap Nominatim"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{isGeocoding ? 'Locating...' : 'Geocode'}</span>
+                </button>
+              )}
+            </div>
+
+            {errors.location ? (
+              <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1 font-medium">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{errors.location}</span>
+              </p>
+            ) : (
+              <p className="mt-1 text-[11px] text-stone-400">
+                Powered by free OpenStreetMap Nominatim. Coordinates are validated non-zero before saving.
+              </p>
+            )}
           </div>
 
           {/* Description / Notes */}
