@@ -219,6 +219,23 @@ export function rowToActivity(row: any): Activity {
     paidBackProfileIds = row.paidBackProfileIds;
   }
 
+  let excludedExpenseProfileIds: string[] = [];
+  const exclMatch =
+    rawStatus.match(/excluded_exp[:\s]+([^\]\|]+)/i) ||
+    rawStatus.match(/excluded[:\s]+([^\]\|]+)/i);
+  if (exclMatch) {
+    excludedExpenseProfileIds = exclMatch[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } else if (Array.isArray(row.excluded_expense_users)) {
+    excludedExpenseProfileIds = row.excluded_expense_users;
+  } else if (Array.isArray(row.excluded_expense_profile_ids)) {
+    excludedExpenseProfileIds = row.excluded_expense_profile_ids;
+  } else if (Array.isArray(row.excludedExpenseProfileIds)) {
+    excludedExpenseProfileIds = row.excludedExpenseProfileIds;
+  }
+
   const isExpenseOnly =
     rawStatus.includes('expense:1') ||
     Boolean(row.is_expense_only ?? row.isExpenseOnly);
@@ -273,6 +290,7 @@ export function rowToActivity(row: any): Activity {
     isExpenseOnly,
     votes: Array.isArray(row.votes) ? row.votes : [],
     paidBackProfileIds,
+    excludedExpenseProfileIds,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   };
 }
@@ -329,6 +347,7 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
     activity.bookingLeadTime !== undefined ||
     activity.bookingReference !== undefined ||
     activity.paidBackProfileIds !== undefined ||
+    activity.excludedExpenseProfileIds !== undefined ||
     activity.isExpenseOnly !== undefined
   ) {
     const status = activity.bookingStatus || (activity.isExpenseOnly ? 'Booked' : 'No Booking Needed');
@@ -351,6 +370,10 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
 
     if (activity.paidBackProfileIds && activity.paidBackProfileIds.length > 0) {
       tags.push(`paid:${activity.paidBackProfileIds.join(',')}`);
+    }
+
+    if (activity.excludedExpenseProfileIds && activity.excludedExpenseProfileIds.length > 0) {
+      tags.push(`excluded_exp:${activity.excludedExpenseProfileIds.join(',')}`);
     }
 
     if (activity.city && activity.city.trim()) {

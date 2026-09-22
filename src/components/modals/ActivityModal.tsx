@@ -16,6 +16,9 @@ import {
   Timer,
   CheckCircle2,
   CalendarDays,
+  UserMinus,
+  UserX,
+  Receipt,
 } from 'lucide-react';
 import {
   BOOKING_LEAD_PRESETS,

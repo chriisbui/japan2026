@@ -77,6 +77,7 @@ export interface Activity {
   isExpenseOnly?: boolean; // true if standalone expense not linked to an itinerary activity
   votes?: string[]; // profileIds who upvoted idea
   paidBackProfileIds?: string[]; // profileIds of debtors who have already paid back the payer
+  excludedExpenseProfileIds?: string[]; // profileIds of attendees excluded from the expense split
   createdAt: string;
 }
 

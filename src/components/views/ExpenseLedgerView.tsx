@@ -31,6 +31,9 @@ import {
   Plus,
   Edit3,
   Trash2,
+  UserMinus,
+  UserPlus,
+  UserX,
 } from 'lucide-react';
 
 interface ExpenseLedgerViewProps {
@@ -39,6 +42,7 @@ interface ExpenseLedgerViewProps {
   profiles: Profile[];
   activeProfileId: string;
   onToggleDebtorPayment?: (activityId: string, debtorProfileId: string) => void;
+  onToggleExcludeDebtor?: (activityId: string, debtorProfileId: string) => void;
   onSettleAllDebtors?: (activityId: string) => void;
   onReopenDebtors?: (activityId: string) => void;
   onEditActivity?: (activity: Activity) => void;
@@ -53,6 +57,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   profiles,
   activeProfileId,
   onToggleDebtorPayment,
+  onToggleExcludeDebtor,
   onSettleAllDebtors,
   onReopenDebtors,
   onEditActivity,
@@ -96,9 +101,11 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
     (a) =>
       !a.isIdea &&
       a.bookingStatus === 'Booked' &&
+      profiles.some((p) => p.id === a.whoPaidId) &&
       a.whoPaidId !== activeProfileId &&
-      a.costPerPerson > 0 &&
-      (a.taggedProfileIds || []).includes(activeProfileId)
+      Number(a.costPerPerson) > 0 &&
+      (a.taggedProfileIds || []).includes(activeProfileId) &&
+      !(a.excludedExpenseProfileIds || []).includes(activeProfileId)
   );
 
   const unpaidActivitiesIOwe = activitiesIOwe.filter(
@@ -130,6 +137,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   const oweBreakdownByPayer: Record<string, { amount: number; count: number }> = {};
   unpaidActivitiesIOwe.forEach((act) => {
     const payerId = act.whoPaidId;
+    if (!profiles.some((p) => p.id === payerId)) return;
     if (!oweBreakdownByPayer[payerId]) {
       oweBreakdownByPayer[payerId] = { amount: 0, count: 0 };
     }
@@ -165,7 +173,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Payer Selector Bar */}
+      {/* Top Header */}
       <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -193,15 +201,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                 <span>Add Expense</span>
               </button>
             )}
-
-            {/* Active Profile Info */}
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200">
-              <ProfileAvatar profile={activeProfile} size="sm" />
-              <div className="text-left">
-                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider block">Active Profile</span>
-                <span className="text-xs font-bold text-stone-900">{activeProfile?.name}</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -402,6 +401,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             <div className="space-y-3">
               {activePayerActivities.map((act) => {
                 const bd = getActivityExpenseBreakdown(act);
+                const CatMeta = CATEGORIES_META[act.category];
+                const CatIcon = CatMeta?.icon || Receipt;
                 const isExpanded = expandedIds[act.id] !== false; // default open for active
                 const progressPct =
                   bd.totalDebtors > 0
@@ -419,8 +420,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                       className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-stone-50/50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
-                          ${bd.costPerPerson}
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
+                          <CatIcon className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -551,33 +552,98 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                   </div>
                                 </div>
 
-                                {/* Checkbox / Select Payment Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleDebtorPayment && onToggleDebtorPayment(act.id, debtorId)}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                    hasPaid
-                                      ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
-                                      : 'bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 hover:border-emerald-300'
-                                  }`}
-                                  title={hasPaid ? 'Click to mark as unpaid' : 'Click to mark as paid'}
-                                >
-                                  {hasPaid ? (
-                                    <>
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      <span>Paid ✓</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Circle className="w-3.5 h-3.5 text-stone-400" />
-                                      <span>Mark as Paid</span>
-                                    </>
+                                <div className="flex items-center gap-1.5">
+                                  {/* Exclude from Transaction Button */}
+                                  {onToggleExcludeDebtor && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleExcludeDebtor(act.id, debtorId);
+                                      }}
+                                      className="inline-flex items-center gap-1 p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                                      title="Exclude from this transaction (stays on calendar activity)"
+                                    >
+                                      <UserMinus className="w-3.5 h-3.5" />
+                                      <span className="text-[10px] font-medium hidden sm:inline">Exclude</span>
+                                    </button>
                                   )}
-                                </button>
+
+                                  {/* Checkbox / Select Payment Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onToggleDebtorPayment && onToggleDebtorPayment(act.id, debtorId);
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                      hasPaid
+                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
+                                        : 'bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 hover:border-emerald-300'
+                                    }`}
+                                    title={hasPaid ? 'Click to mark as unpaid' : 'Click to mark as paid'}
+                                  >
+                                    {hasPaid ? (
+                                      <>
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>Paid ✓</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Circle className="w-3.5 h-3.5 text-stone-400" />
+                                        <span>Mark as Paid</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
+
+                        {/* Excluded from Transaction Section */}
+                        {bd.excludedProfileIds.length > 0 && (
+                          <div className="pt-2 border-t border-stone-200/80">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-semibold text-stone-600 flex items-center gap-1.5">
+                                <UserX className="w-3.5 h-3.5 text-stone-400" />
+                                Excluded from transaction split ({bd.excludedProfileIds.length})
+                              </span>
+                              <span className="text-[11px] text-stone-400">
+                                Still on calendar activity
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {bd.excludedProfileIds.map((exclId) => {
+                                const exclProfile = getProfile(exclId);
+                                return (
+                                  <div
+                                    key={exclId}
+                                    className="flex items-center gap-2 pl-2.5 pr-2 py-1.5 bg-white border border-dashed border-stone-300 rounded-xl text-xs shadow-2xs"
+                                  >
+                                    <ProfileAvatar profile={exclProfile} size="xs" />
+                                    <span className="text-stone-700 font-medium">{exclProfile?.name || 'Traveler'}</span>
+                                    <span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">Not charged</span>
+                                    {onToggleExcludeDebtor && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onToggleExcludeDebtor(act.id, exclId);
+                                        }}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer ml-1"
+                                        title="Add back to this transaction split"
+                                      >
+                                        <UserPlus className="w-3 h-3 text-indigo-600" />
+                                        <span>Add back to transaction</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Progress Bar */}
                         <div className="pt-2">
@@ -754,6 +820,48 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                             );
                           })}
                         </div>
+
+                        {bd.excludedProfileIds.length > 0 && (
+                          <div className="pt-2 border-t border-stone-200/80">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-semibold text-stone-600 flex items-center gap-1.5">
+                                <UserX className="w-3.5 h-3.5 text-stone-400" />
+                                Excluded from transaction ({bd.excludedProfileIds.length})
+                              </span>
+                              <span className="text-[11px] text-stone-400">
+                                Still on calendar activity
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {bd.excludedProfileIds.map((exclId) => {
+                                const exclProfile = getProfile(exclId);
+                                return (
+                                  <div
+                                    key={exclId}
+                                    className="flex items-center gap-2 pl-2.5 pr-2 py-1 bg-white border border-stone-200 rounded-lg text-xs"
+                                  >
+                                    <ProfileAvatar profile={exclProfile} size="xs" />
+                                    <span className="text-stone-700 font-medium">{exclProfile?.name || 'Traveler'}</span>
+                                    <span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">Not charged</span>
+                                    {onToggleExcludeDebtor && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onToggleExcludeDebtor(act.id, exclId);
+                                        }}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 ml-1"
+                                      >
+                                        <UserPlus className="w-3 h-3" />
+                                        <span>Add back</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -798,6 +906,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               {activitiesIOwe.map((act) => {
                 const payer = getProfile(act.whoPaidId);
                 const hasPaid = (act.paidBackProfileIds || []).includes(activeProfileId);
+                const CatMeta = CATEGORIES_META[act.category];
+                const CatIcon = CatMeta?.icon || Receipt;
 
                 return (
                   <div
@@ -809,8 +919,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center font-bold text-sm shrink-0">
-                        ${act.costPerPerson}
+                      <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 flex items-center justify-center shrink-0">
+                        <CatIcon className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">

@@ -400,6 +400,8 @@ const handleSaveProfile = async (
         bookingReference: data.bookingReference,
         isIdea: Boolean(data.isIdea),
         votes: data.isIdea ? [activeProfileId] : [],
+        paidBackProfileIds: data.paidBackProfileIds || [],
+        excludedExpenseProfileIds: data.excludedExpenseProfileIds || [],
         createdAt: new Date().toISOString(),
       };
 
@@ -618,7 +620,9 @@ const handleSaveProfile = async (
     if (!targetAct) return;
 
     const debtors = (targetAct.taggedProfileIds || []).filter(
-      (id) => id !== targetAct.whoPaidId
+      (id) =>
+        id !== targetAct.whoPaidId &&
+        !(targetAct.excludedExpenseProfileIds || []).includes(id)
     );
     const nextPaid = Array.from(new Set([...(targetAct.paidBackProfileIds || []), ...debtors]));
 
@@ -634,6 +638,42 @@ const handleSaveProfile = async (
     } catch (err: any) {
       console.error('[Supabase settle all error]:', err);
       setActivityError(err?.message || 'Failed to settle all debtors in Supabase');
+    }
+  };
+
+  // Toggle excluding an attendee from the financial transaction split
+  const handleToggleExcludeDebtor = async (activityId: string, debtorProfileId: string) => {
+    setActivityError(null);
+    const targetAct = activities.find((a) => a.id === activityId);
+    if (!targetAct) return;
+
+    const currentExcluded = targetAct.excludedExpenseProfileIds || [];
+    const isExcluded = currentExcluded.includes(debtorProfileId);
+    const nextExcluded = isExcluded
+      ? currentExcluded.filter((id) => id !== debtorProfileId)
+      : [...currentExcluded, debtorProfileId];
+
+    // If excluding, also ensure they are removed from paidBackProfileIds if present
+    const currentPaid = targetAct.paidBackProfileIds || [];
+    const nextPaid = !isExcluded
+      ? currentPaid.filter((id) => id !== debtorProfileId)
+      : currentPaid;
+
+    const updates = {
+      ...targetAct,
+      excludedExpenseProfileIds: nextExcluded,
+      paidBackProfileIds: nextPaid,
+    };
+
+    setActivities((prev) =>
+      prev.map((a) => (a.id === activityId ? { ...a, ...updates } : a))
+    );
+
+    try {
+      await updateActivityInSupabase(activityId, updates);
+    } catch (err: any) {
+      console.error('[Supabase exclude toggle error]:', err);
+      setActivityError(err?.message || 'Failed to update transaction exclusion in Supabase');
     }
   };
 
@@ -843,6 +883,7 @@ const handleSaveProfile = async (
                 profiles={profiles}
                 activeProfileId={activeProfileId}
                 onToggleDebtorPayment={handleToggleDebtorPayment}
+                onToggleExcludeDebtor={handleToggleExcludeDebtor}
                 onSettleAllDebtors={handleSettleAllDebtors}
                 onReopenDebtors={handleReopenDebtors}
                 onEditActivity={handleOpenEditModal}

@@ -18,7 +18,7 @@ export function calculateLedger(
   const totalPerCategory: Partial<Record<ActivityCategory, number>> = {};
   const memberFinancials: Record<string, MemberFinancials> = {};
 
-  // Initialize financials for all 6 preset profiles
+  // Initialize financials for all profiles
   profiles.forEach((p) => {
     memberFinancials[p.id] = {
       profileId: p.id,
@@ -31,30 +31,67 @@ export function calculateLedger(
   let totalTripCost = 0;
 
   scheduled.forEach((act) => {
-    const costPerPerson = act.costPerPerson || 0;
-    const taggedCount = act.taggedProfileIds?.length || 0;
-    if (costPerPerson <= 0 || taggedCount === 0) return;
+    const costPerPerson = Number(act.costPerPerson) || 0;
+    if (costPerPerson <= 0) return;
 
-    const activityTotalCost = costPerPerson * taggedCount;
+    // Filter participants who are actually included in the expense split
+    const allTagged = Array.from(new Set(act.taggedProfileIds || []));
+    const excludedIds = act.excludedExpenseProfileIds || [];
+    const expenseParticipants = allTagged.filter((id) => !excludedIds.includes(id));
+
+    if (expenseParticipants.length === 0) return;
+
+    const activityTotalCost = costPerPerson * expenseParticipants.length;
     totalTripCost += activityTotalCost;
 
     // Track category totals
     totalPerCategory[act.category] = (totalPerCategory[act.category] || 0) + activityTotalCost;
 
-    // Credit the payer
-    if (act.whoPaidId && memberFinancials[act.whoPaidId]) {
-      memberFinancials[act.whoPaidId].totalPaid += activityTotalCost;
+    const payerId = act.whoPaidId;
+    const isPayerValid = Boolean(payerId && payerId !== 'unpaid' && profiles.some((p) => p.id === payerId));
+    if (!isPayerValid) {
+      // Unpaid or external: No individual member fronted this amount,
+      // so no inter-member debt or settlement is generated.
+      return;
     }
 
-    // Debit each tagged participant
-    act.taggedProfileIds.forEach((pid) => {
+    // Debit each participant in the split for their personal share
+    expenseParticipants.forEach((pid) => {
       if (memberFinancials[pid]) {
         memberFinancials[pid].totalOwed += costPerPerson;
       }
     });
+
+    // Credit payments:
+    // Payer fronted the activity.
+    // If a participant has already reimbursed the payer (marked as paid),
+    // that participant paid their own share directly, and the payer received that reimbursement.
+    // If a participant hasn't reimbursed yet, the payer is still out-of-pocket for that amount.
+    const paidBackSet = new Set(act.paidBackProfileIds || []);
+
+    expenseParticipants.forEach((pid) => {
+      if (pid === payerId) {
+        // Payer paying for their own personal share
+        if (memberFinancials[payerId]) {
+          memberFinancials[payerId].totalPaid += costPerPerson;
+        }
+      } else {
+        if (paidBackSet.has(pid)) {
+          // Debtor has already paid back the payer
+          if (memberFinancials[pid]) {
+            memberFinancials[pid].totalPaid += costPerPerson;
+          }
+        } else {
+          // Debtor has not paid back yet; payer is still fronting this debtor's share
+          if (memberFinancials[payerId]) {
+            memberFinancials[payerId].totalPaid += costPerPerson;
+          }
+        }
+      }
+    });
   });
 
-  // Calculate net balances
+  // Calculate net balances (rounded to 2 decimal places)
   profiles.forEach((p) => {
     const fin = memberFinancials[p.id];
     fin.netBalance = Math.round((fin.totalPaid - fin.totalOwed) * 100) / 100;
@@ -126,9 +163,11 @@ export interface ActivityExpenseBreakdown {
   costPerPerson: number;
   totalCost: number;
   allParticipants: string[];
+  expenseParticipants: string[];
   debtorIds: string[];
   paidDebtorIds: string[];
   unpaidDebtorIds: string[];
+  excludedProfileIds: string[];
   totalDebtors: number;
   amountOwedToPayer: number;
   amountPaidBack: number;
@@ -139,13 +178,18 @@ export interface ActivityExpenseBreakdown {
 export function getActivityExpenseBreakdown(activity: Activity): ActivityExpenseBreakdown {
   const payerId = activity.whoPaidId || 'unpaid';
   const costPerPerson = Number(activity.costPerPerson) || 0;
-  const allParticipants = activity.taggedProfileIds || [];
-  const debtorIds = allParticipants.filter((id) => id !== payerId);
+  const allParticipants = Array.from(new Set(activity.taggedProfileIds || []));
+  const excludedProfileIds = (activity.excludedExpenseProfileIds || []).filter((id) =>
+    allParticipants.includes(id)
+  );
+  const expenseParticipants = allParticipants.filter((id) => !excludedProfileIds.includes(id));
+
+  const debtorIds = expenseParticipants.filter((id) => id !== payerId);
   const paidDebtorIds = (activity.paidBackProfileIds || []).filter((id) => debtorIds.includes(id));
   const unpaidDebtorIds = debtorIds.filter((id) => !paidDebtorIds.includes(id));
   const totalDebtors = debtorIds.length;
 
-  const totalCost = costPerPerson * (allParticipants.length > 0 ? allParticipants.length : 1);
+  const totalCost = costPerPerson * (expenseParticipants.length > 0 ? expenseParticipants.length : (allParticipants.length > 0 ? allParticipants.length : 1));
   const amountOwedToPayer = costPerPerson * totalDebtors;
   const amountPaidBack = costPerPerson * paidDebtorIds.length;
   const amountStillOwed = costPerPerson * unpaidDebtorIds.length;
@@ -158,9 +202,11 @@ export function getActivityExpenseBreakdown(activity: Activity): ActivityExpense
     costPerPerson,
     totalCost,
     allParticipants,
+    expenseParticipants,
     debtorIds,
     paidDebtorIds,
     unpaidDebtorIds,
+    excludedProfileIds,
     totalDebtors,
     amountOwedToPayer,
     amountPaidBack,

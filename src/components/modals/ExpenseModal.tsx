@@ -191,8 +191,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       isExpenseOnly: true, // Marked as standalone expense (not linked to itinerary)
       description: notes.trim(),
       location: '',
-      // Preserve existing paidBackProfileIds if editing
+      // Preserve existing paidBackProfileIds and excludedExpenseProfileIds if editing
       paidBackProfileIds: expenseToEdit?.paidBackProfileIds || [],
+      excludedExpenseProfileIds: expenseToEdit?.excludedExpenseProfileIds || [],
     };
 
     onSave(payload);
