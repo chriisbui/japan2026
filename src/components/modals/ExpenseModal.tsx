@@ -54,7 +54,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [costPerPerson, setCostPerPerson] = useState<number>(0);
   const [inputMode, setInputMode] = useState<'perPerson' | 'total'>('perPerson');
   const [totalAmountInput, setTotalAmountInput] = useState<number>(0);
-  const [whoPaidId, setWhoPaidId] = useState<string>(activeProfileId);
+  const whoPaidId = activeProfileId;
   const [taggedProfileIds, setTaggedProfileIds] = useState<string[]>([activeProfileId]);
   const [notes, setNotes] = useState<string>('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -77,7 +77,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           : [activeProfileId];
         setTaggedProfileIds(tagged);
         setTotalAmountInput(Math.round(cpp * tagged.length * 100) / 100);
-        setWhoPaidId(expenseToEdit.whoPaidId || activeProfileId);
         setNotes(expenseToEdit.description || '');
         setInputMode('perPerson');
       } else {
@@ -86,7 +85,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         setDate(defaultDate);
         setCostPerPerson(0);
         setTotalAmountInput(0);
-        setWhoPaidId(activeProfileId);
         // Default to all travelers in the group being part of the transaction for ease of use
         setTaggedProfileIds(profiles.map((p) => p.id));
         setNotes('');
@@ -350,6 +348,73 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
           </div>
 
+          {/* Who is part of this transaction? (Tagged members / participants) - Placed above Cost & Split Breakdown */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-semibold text-stone-700 flex items-center gap-1.5 text-xs">
+                <Users className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Who is part of this transaction? ({taggedProfileIds.length} of {profiles.length})</span>
+              </label>
+              <div className="flex gap-2 text-[11px]">
+                <button
+                  type="button"
+                  onClick={selectAllProfiles}
+                  className="text-emerald-700 hover:text-emerald-900 font-semibold cursor-pointer"
+                >
+                  All ({profiles.length})
+                </button>
+                <span className="text-stone-300">|</span>
+                <button
+                  type="button"
+                  onClick={selectOnlyMe}
+                  className="text-emerald-700 hover:text-emerald-900 font-semibold cursor-pointer"
+                >
+                  Only Me
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {profiles.map((profile) => {
+                const isTagged = taggedProfileIds.includes(profile.id);
+                const isMe = profile.id === activeProfileId;
+
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    onClick={() => toggleTaggedProfile(profile.id)}
+                    className={`flex items-center justify-between p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                      isTagged
+                        ? 'bg-emerald-50/70 border-emerald-400 ring-1 ring-emerald-300/50'
+                        : 'bg-white border-stone-200 text-stone-400 hover:bg-stone-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <ProfileAvatar profile={profile} size="sm" />
+                      <div>
+                        <span className={`font-semibold block truncate text-xs ${isTagged ? 'text-stone-900' : 'text-stone-400'}`}>
+                          {profile.name} {isMe && <span className="opacity-75 font-normal text-[10px]">(You)</span>}
+                        </span>
+                        {isMe && (
+                          <span className="text-[10px] text-emerald-700 font-bold block">
+                            Payer (You)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isTagged && (
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-stone-500 mt-1">
+              Select all members splitting this expense. Paid by you ({payerProfile?.name || 'Active Profile'}).
+            </p>
+          </div>
+
           {/* Cost Per Person / Split Calculation Section */}
           <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -426,7 +491,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             {/* Split summary indicator */}
             <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs">
               <div>
-                <span className="text-stone-500 block text-[11px]">Total Fronted by Payer:</span>
+                <span className="text-stone-500 block text-[11px]">Total Fronted by You:</span>
                 <span className="font-bold text-emerald-800 text-sm">
                   ${totalCalculated.toFixed(2)}
                 </span>
@@ -444,108 +509,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Who Paid (Payer) */}
-          <div>
-            <label className="block font-semibold text-stone-700 mb-1 text-xs">
-              Who Paid? (Payer fronting the bill) <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {profiles.map((p) => {
-                const isSelected = p.id === whoPaidId;
-                const isMe = p.id === activeProfileId;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setWhoPaidId(p.id)}
-                    className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-stone-900 text-white border-stone-900 shadow-2xs'
-                        : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    <ProfileAvatar profile={p} size="sm" />
-                    <div className="overflow-hidden">
-                      <span className="font-bold block truncate text-xs">
-                        {p.name} {isMe && <span className="opacity-75 font-normal text-[10px]">(You)</span>}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-stone-500 mt-1">
-              Credited in group settlements. Other participants will owe {payerProfile?.name || 'the payer'} their share.
-            </p>
-          </div>
-
-          {/* Who is part of this transaction? (Tagged members / participants) */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="font-semibold text-stone-700 flex items-center gap-1.5 text-xs">
-                <Users className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Who is part of this transaction? ({taggedProfileIds.length} of {profiles.length})</span>
-              </label>
-              <div className="flex gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={selectAllProfiles}
-                  className="text-emerald-700 hover:text-emerald-900 font-semibold cursor-pointer"
-                >
-                  All (6)
-                </button>
-                <span className="text-stone-300">|</span>
-                <button
-                  type="button"
-                  onClick={selectOnlyMe}
-                  className="text-emerald-700 hover:text-emerald-900 font-semibold cursor-pointer"
-                >
-                  Only Me
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {profiles.map((profile) => {
-                const isTagged = taggedProfileIds.includes(profile.id);
-                const isPayer = profile.id === whoPaidId;
-
-                return (
-                  <button
-                    key={profile.id}
-                    type="button"
-                    onClick={() => toggleTaggedProfile(profile.id)}
-                    className={`flex items-center justify-between p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                      isTagged
-                        ? 'bg-emerald-50/70 border-emerald-400 ring-1 ring-emerald-300/50'
-                        : 'bg-white border-stone-200 text-stone-400 hover:bg-stone-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <ProfileAvatar profile={profile} size="sm" />
-                      <div>
-                        <span className={`font-semibold block truncate text-xs ${isTagged ? 'text-stone-900' : 'text-stone-400'}`}>
-                          {profile.name}
-                        </span>
-                        {isPayer && (
-                          <span className="text-[10px] text-emerald-700 font-bold block">
-                            Payer
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {isTagged && (
-                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-stone-500 mt-1">
-              Select all members splitting this expense. Each selected member is charged ${costPerPerson.toFixed(2)}.
-            </p>
           </div>
 
           {/* Optional Notes */}

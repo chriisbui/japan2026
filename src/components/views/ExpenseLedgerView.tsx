@@ -8,6 +8,7 @@ import { formatDatePretty } from '../../utils/dateUtils';
 import {
   DollarSign,
   ArrowRight,
+  ArrowUpRight,
   PieChart,
   Wallet,
   CheckCircle,
@@ -125,6 +126,22 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
     totalIOweOthers += Number(act.costPerPerson) || 0;
   });
 
+  // Simple overview of who the active user owes
+  const oweBreakdownByPayer: Record<string, { amount: number; count: number }> = {};
+  unpaidActivitiesIOwe.forEach((act) => {
+    const payerId = act.whoPaidId;
+    if (!oweBreakdownByPayer[payerId]) {
+      oweBreakdownByPayer[payerId] = { amount: 0, count: 0 };
+    }
+    oweBreakdownByPayer[payerId].amount += Number(act.costPerPerson) || 0;
+    oweBreakdownByPayer[payerId].count += 1;
+  });
+  const owedPayersList = Object.entries(oweBreakdownByPayer).map(([payerId, data]) => ({
+    payer: getProfile(payerId),
+    amount: data.amount,
+    count: data.count,
+  }));
+
   // Overall full-trip ledger calculation for simplified cashflow
   const ledger = calculateLedger(activities, profiles);
 
@@ -190,17 +207,49 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
         {/* Summary Metric Cards for Selected Payer */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-5 pt-5 border-t border-stone-100">
-          <div className="bg-stone-50 rounded-xl p-4 border border-stone-200/80">
+          {/* Simple overview of what you owe */}
+          <div
+            onClick={() => setViewTab('owe')}
+            className={`rounded-xl p-4 border transition-all cursor-pointer group ${
+              totalIOweOthers > 0
+                ? 'bg-rose-50/70 hover:bg-rose-50/90 border-rose-200 hover:border-rose-300'
+                : 'bg-stone-50 hover:bg-stone-100/80 border-stone-200'
+            }`}
+            title="Click to view details of what you owe"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-stone-500">Total Fronted</span>
-              <Wallet className="w-4 h-4 text-stone-400" />
+              <span className={`text-xs font-semibold ${totalIOweOthers > 0 ? 'text-rose-800' : 'text-stone-600'}`}>
+                What You Owe
+              </span>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-stone-400 group-hover:text-rose-600 transition-colors">
+                <span>Details</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-stone-900 mt-1">
-              ${payerTotalFronted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className={`text-2xl font-bold mt-1 ${totalIOweOthers > 0 ? 'text-rose-950' : 'text-stone-900'}`}>
+              ${totalIOweOthers.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-[11px] text-stone-500 mt-0.5">
-              Across {payerActivities.length} paid activity{payerActivities.length === 1 ? '' : 'ies'}
+            <p className={`text-[11px] mt-0.5 ${totalIOweOthers > 0 ? 'text-rose-700/90' : 'text-stone-500'}`}>
+              {totalIOweOthers === 0
+                ? 'All settled up with other travelers'
+                : `Across ${unpaidActivitiesIOwe.length} unpaid ${unpaidActivitiesIOwe.length === 1 ? 'activity' : 'activities'}`}
             </p>
+
+            {/* Simple overview chips of who is owed */}
+            {owedPayersList.length > 0 && (
+              <div className="mt-2.5 pt-2 border-t border-rose-200/60 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-rose-700 font-medium">To:</span>
+                {owedPayersList.map(({ payer, amount }) => (
+                  <span
+                    key={payer?.id || Math.random()}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-rose-200 text-rose-900 text-[11px]"
+                  >
+                    <span className="font-medium">{payer?.name || 'Someone'}:</span>
+                    <span className="font-bold">${amount.toFixed(2)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-200">
@@ -212,7 +261,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               ${payerTotalOwedToThem.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
             <p className="text-[11px] text-amber-700/90 mt-0.5">
-              Pending in {activePayerActivities.length} unsettled activity{activePayerActivities.length === 1 ? '' : 'ies'}
+              Pending in {activePayerActivities.length} unsettled {activePayerActivities.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>
 

@@ -5,10 +5,8 @@ import { Navbar, ActiveTab } from './components/navigation/Navbar';
 import { HomePage } from './components/views/HomePage';
 import { MacroCalendarView } from './components/views/MacroCalendarView';
 import { MicroTimelineView } from './components/views/MicroTimelineView';
-import { MyScheduleView } from './components/views/MyScheduleView';
 import { IdeaBucketView } from './components/views/IdeaBucketView';
 import { ExpenseLedgerView } from './components/views/ExpenseLedgerView';
-import { FilterBar, FilterState } from './components/common/FilterBar';
 import { ActivityModal } from './components/modals/ActivityModal';
 import { ExpenseModal } from './components/modals/ExpenseModal';
 import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal';
@@ -81,14 +79,6 @@ export default function App() {
   // Navigation tab state - defaults to the new Home page
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [selectedTimelineDate, setSelectedTimelineDate] = useState<string>(INITIAL_TRIP.startDate);
-
-  // Filters state
-  const [filters, setFilters] = useState<FilterState>({
-    searchQuery: '',
-    category: 'ALL',
-    taggedProfileId: 'ALL',
-    bookingStatus: 'ALL',
-  });
 
   // Modals state
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -621,44 +611,9 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     setActiveTab('timeline');
   };
 
-  // Filter logic
-  const filterPredicate = (a: Activity) => {
-    // Search query
-    if (filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
-      const matchTitle = a.title.toLowerCase().includes(q);
-      const matchLoc = a.location?.toLowerCase().includes(q);
-      const matchDesc = a.description?.toLowerCase().includes(q);
-      if (!matchTitle && !matchLoc && !matchDesc) return false;
-    }
-
-    // Category
-    if (filters.category !== 'ALL' && a.category !== filters.category) {
-      return false;
-    }
-
-    // Tagged profile
-    if (
-      filters.taggedProfileId !== 'ALL' &&
-      !a.taggedProfileIds?.includes(filters.taggedProfileId)
-    ) {
-      return false;
-    }
-
-    // Booking status
-    if (filters.bookingStatus !== 'ALL' && a.bookingStatus !== filters.bookingStatus) {
-      return false;
-    }
-
-    return true;
-  };
-
-  // Filtered lists
+  // Lists of activities
   const scheduledActivities = activities.filter((a) => !a.isIdea && !a.isExpenseOnly);
   const ideaActivities = activities.filter((a) => a.isIdea && !a.isExpenseOnly);
-
-  const filteredScheduledActivities = scheduledActivities.filter(filterPredicate);
-  const filteredIdeaActivities = ideaActivities.filter(filterPredicate);
 
   const needsBookingCount = activities.filter(
     (a) => !a.isExpenseOnly && a.bookingStatus === 'Needs Booking'
@@ -708,21 +663,6 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
           </div>
         )}
 
-        {/* Global Filter Bar (shown on Calendar, Timeline, and Ideas) */}
-        {(activeTab === 'calendar' || activeTab === 'timeline' || activeTab === 'ideas') && (
-          <FilterBar
-            filters={filters}
-            onFilterChange={setFilters}
-            profiles={profiles}
-            totalCount={activeTab === 'ideas' ? ideaActivities.length : scheduledActivities.length}
-            filteredCount={
-              activeTab === 'ideas'
-                ? filteredIdeaActivities.length
-                : filteredScheduledActivities.length
-            }
-          />
-        )}
-
         {/* Tab Views */}
         <AnimatePresence mode="wait">
           {activeTab === 'home' && (
@@ -760,7 +700,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
             >
               <MacroCalendarView
                 trip={trip}
-                activities={filteredScheduledActivities}
+                activities={scheduledActivities}
                 profiles={profiles}
                 activeProfileId={activeProfileId}
                 onSelectDay={handleSelectDay}
@@ -772,7 +712,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
             </motion.div>
           )}
 
-          {activeTab === 'timeline' && (
+          {(activeTab === 'timeline' || activeTab === 'my-schedule') && (
             <motion.div
               key="timeline"
               initial={{ opacity: 0, y: 6 }}
@@ -784,7 +724,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 trip={trip}
                 selectedDate={selectedTimelineDate}
                 onSelectDate={setSelectedTimelineDate}
-                activities={filteredScheduledActivities}
+                activities={scheduledActivities}
                 profiles={profiles}
                 activeProfileId={activeProfileId}
                 onEditActivity={handleOpenEditModal}
@@ -792,30 +732,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 onAddActivityWithTime={(date, start, end) =>
                   handleOpenAddModal(date, start, end)
                 }
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'my-schedule' && (
-            <motion.div
-              key="my-schedule"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
-            >
-              <MyScheduleView
-                trip={trip}
-                activities={activities}
-                profiles={profiles}
-                activeProfileId={activeProfileId}
-                onEditActivity={handleOpenEditModal}
-                onRequestDeleteActivity={(act) => setActivityToDelete(act)}
-                onDeleteActivity={handleDeleteActivity}
-                onAddActivityForDay={(date, start, end) =>
-                  handleOpenAddModal(date, start, end)
-                }
-                onOpenSwitchProfile={() => setIsProfileModalOpen(true)}
+                initialScope={activeTab === 'my-schedule' ? 'mine' : 'all'}
               />
             </motion.div>
           )}
@@ -830,7 +747,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
             >
               <IdeaBucketView
                 trip={trip}
-                ideas={filteredIdeaActivities}
+                ideas={ideaActivities}
                 profiles={profiles}
                 activeProfileId={activeProfileId}
                 onAddNewIdea={() => handleOpenAddModal(undefined, undefined, undefined, true)}

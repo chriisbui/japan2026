@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
 import {
   getDaysArray,
   formatDateFull,
-  formatDatePretty,
   formatTimeRange,
   formatTime12h,
   parseMinutes,
@@ -19,15 +18,15 @@ import { ProfileAvatar } from '../common/ProfileAvatar';
 import {
   Clock,
   MapPin,
-  DollarSign,
   Plus,
   ChevronLeft,
   ChevronRight,
   Coffee,
-  Sparkles,
   Edit2,
   Trash2,
-  UserCheck,
+  Users,
+  User,
+  Sparkles,
 } from 'lucide-react';
 
 interface MicroTimelineViewProps {
@@ -40,6 +39,7 @@ interface MicroTimelineViewProps {
   onEditActivity: (activity: Activity) => void;
   onDeleteActivity: (activityId: string) => void;
   onAddActivityWithTime: (date: string, startTime?: string, endTime?: string) => void;
+  initialScope?: 'all' | 'mine';
 }
 
 export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
@@ -52,15 +52,41 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   onEditActivity,
   onDeleteActivity,
   onAddActivityWithTime,
+  initialScope = 'all',
 }) => {
+  const [scope, setScope] = useState<'all' | 'mine'>(initialScope);
+
+  const daysScrollContainerRef = useRef<HTMLDivElement>(null);
+  const dayButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
   const days = getDaysArray(trip.startDate, trip.endDate);
   const currentDayIndex = days.indexOf(selectedDate);
 
   const prevDay = currentDayIndex > 0 ? days[currentDayIndex - 1] : null;
   const nextDay = currentDayIndex < days.length - 1 ? days[currentDayIndex + 1] : null;
 
-  // Filter activities for this day
-  const dayActivities = activities
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const getProfile = (id: string) => profiles.find((p) => p.id === id);
+
+  // Auto-scroll the day selector on mobile/desktop so the selected day is always visible
+  useEffect(() => {
+    const selectedBtn = dayButtonRefs.current[selectedDate];
+    const container = daysScrollContainerRef.current;
+    if (selectedBtn && container) {
+      const containerWidth = container.clientWidth;
+      const btnLeft = selectedBtn.offsetLeft;
+      const btnWidth = selectedBtn.clientWidth;
+      const scrollTarget = btnLeft - containerWidth / 2 + btnWidth / 2;
+
+      container.scrollTo({
+        left: Math.max(0, scrollTarget),
+        behavior: 'smooth',
+      });
+    }
+  }, [selectedDate]);
+
+  // All activities for this day (sorted chronologically)
+  const allDayActivities = activities
     .filter((a) => a.date === selectedDate)
     .sort((a, b) => {
       const timeA = a.startTime ? parseMinutes(a.startTime) : 9999;
@@ -68,8 +94,21 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
       return timeA - timeB;
     });
 
-  // Calculate free time blocks
-  const freeTimeSlots = calculateFreeTimeSlots(dayActivities, '08:00', '22:30', 30);
+  // Activities specifically attended by the active profile
+  const myDayActivities = allDayActivities.filter((a) =>
+    (a.taggedProfileIds || []).includes(activeProfileId)
+  );
+
+  // Other group activities that the active profile is not attending
+  const otherGroupDayActivities = allDayActivities.filter(
+    (a) => !(a.taggedProfileIds || []).includes(activeProfileId)
+  );
+
+  // Active view activities based on scope toggle
+  const displayedActivities = scope === 'mine' ? myDayActivities : allDayActivities;
+
+  // Calculate free time blocks based on the displayed activities
+  const freeTimeSlots = calculateFreeTimeSlots(displayedActivities, '08:00', '22:30', 30);
 
   // Combine timed items and free time slots into a timeline sequence
   interface TimelineItem {
@@ -81,7 +120,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
 
   const timelineItems: TimelineItem[] = [];
 
-  dayActivities.forEach((act) => {
+  displayedActivities.forEach((act) => {
     timelineItems.push({
       type: 'activity',
       startTimeMinutes: act.startTime ? parseMinutes(act.startTime) : 0,
@@ -100,28 +139,23 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   // Sort chronological
   timelineItems.sort((a, b) => a.startTimeMinutes - b.startTimeMinutes);
 
-  const getProfile = (id: string) => profiles.find((p) => p.id === id);
-
-  const dayTotalCost = dayActivities.reduce(
-    (sum, act) => sum + (act.bookingStatus === 'Booked' ? (act.costPerPerson || 0) * (act.taggedProfileIds?.length || 0) : 0),
-    0
-  );
-
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Day Navigation Bar */}
+      {/* Day Navigation & Scope Bar */}
       <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-4 shadow-xs">
         <div className="flex flex-col gap-3">
+          {/* Day Stepper */}
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => prevDay && onSelectDate(prevDay)}
               disabled={!prevDay}
               className={`p-2 rounded-lg border transition-colors shrink-0 ${
                 prevDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer'
+                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer active:bg-stone-100'
                   : 'border-stone-100 text-stone-300 cursor-not-allowed'
               }`}
               title="Previous Day"
+              aria-label="Previous Day"
             >
               <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -131,15 +165,19 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
                   Day {currentDayIndex + 1} of {days.length}
                 </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityForDate(selectedDate).badgeClass}`}>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityForDate(selectedDate).badgeClass}`}
+                >
                   <MapPin className="w-3 h-3 shrink-0" />
                   <span>{getCityForDate(selectedDate).name}</span>
                 </span>
               </div>
-              <h2 className="text-sm sm:text-base font-bold text-stone-900 mt-1">{formatDateFull(selectedDate)}</h2>
+              <h2 className="text-sm sm:text-base font-bold text-stone-900 mt-1">
+                {formatDateFull(selectedDate)}
+              </h2>
               <p className="text-[11px] text-stone-500 mt-0.5">
-                {dayActivities.length} scheduled event{dayActivities.length === 1 ? '' : 's'} •{' '}
-                {freeTimeSlots.length} open free block{freeTimeSlots.length === 1 ? '' : 's'} • Spend: ${dayTotalCost}
+                {displayedActivities.length} event{displayedActivities.length === 1 ? '' : 's'} •{' '}
+                {freeTimeSlots.length} open free block{freeTimeSlots.length === 1 ? '' : 's'}
               </p>
             </div>
 
@@ -148,23 +186,30 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
               disabled={!nextDay}
               className={`p-2 rounded-lg border transition-colors shrink-0 ${
                 nextDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer'
+                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer active:bg-stone-100'
                   : 'border-stone-100 text-stone-300 cursor-not-allowed'
               }`}
               title="Next Day"
+              aria-label="Next Day"
             >
               <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
-          {/* Quick Day Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 pt-1 border-t border-stone-100 -mx-1 px-1">
+          {/* Quick Day Chips Horizontal Scroll (Auto-scrolled on selection) */}
+          <div
+            ref={daysScrollContainerRef}
+            className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 pt-1 border-t border-stone-100 -mx-1 px-1 scroll-smooth"
+          >
             {days.map((dateStr, idx) => {
               const isSelected = dateStr === selectedDate;
               const chipCity = getCityForDate(dateStr);
               return (
                 <button
                   key={dateStr}
+                  ref={(el) => {
+                    dayButtonRefs.current[dateStr] = el;
+                  }}
                   onClick={() => onSelectDate(dateStr)}
                   className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
                     isSelected
@@ -182,15 +227,87 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
               );
             })}
           </div>
+
+          {/* Scope Toggle: All Activities vs. My (Active Profile) Activities */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100">
+            <div className="inline-flex p-0.5 bg-stone-100 rounded-lg border border-stone-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setScope('all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  scope === 'all'
+                    ? 'bg-white text-stone-900 shadow-2xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>All Activities</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    scope === 'all' ? 'bg-stone-200/80 text-stone-800' : 'text-stone-400'
+                  }`}
+                >
+                  {allDayActivities.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScope('mine')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  scope === 'mine'
+                    ? 'bg-white text-stone-900 shadow-2xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                <User className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Only My Schedule</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    scope === 'mine' ? 'bg-indigo-100 text-indigo-800' : 'text-stone-400'
+                  }`}
+                >
+                  {myDayActivities.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Profile attribution chip */}
+            <div className="flex items-center gap-1.5 text-xs text-stone-500">
+              <ProfileAvatar profile={activeProfile} size="xs" />
+              <span className="font-medium text-stone-700">
+                {scope === 'mine'
+                  ? `${activeProfile?.name || 'My'}'s activities`
+                  : `Group schedule (${activeProfile?.name || 'You'} active)`}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Notice if viewing 'mine' and there are other group events the user is not attending */}
+      {scope === 'mine' && otherGroupDayActivities.length > 0 && (
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600">
+          <span>
+            {otherGroupDayActivities.length} other group {otherGroupDayActivities.length === 1 ? 'event is' : 'events are'} planned for this day.
+          </span>
+          <button
+            onClick={() => setScope('all')}
+            className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer shrink-0"
+          >
+            Show All
+          </button>
+        </div>
+      )}
 
       {/* Hour-by-Hour Timeline Schedule */}
       <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-5 shadow-xs">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-bold text-stone-900">Hour-by-Hour Timeline</h3>
+            <h3 className="text-sm font-bold text-stone-900">
+              {scope === 'mine' ? `${activeProfile?.name || 'My'} Schedule` : 'Day Timeline'}
+            </h3>
           </div>
           <button
             onClick={() => onAddActivityWithTime(selectedDate)}
@@ -202,18 +319,27 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
         </div>
 
         {timelineItems.length === 0 ? (
-          <div className="text-center py-16 border-2 border-dashed border-stone-200 rounded-xl">
-            <Coffee className="w-10 h-10 text-stone-400 mx-auto mb-2" />
-            <h4 className="font-semibold text-stone-800 text-sm">Completely Open Schedule</h4>
-            <p className="text-xs text-stone-500 max-w-xs mx-auto mt-1 mb-4">
-              There are no activities planned for this day yet. Add an event or relax with unstructured exploration.
-            </p>
-            <button
-              onClick={() => onAddActivityWithTime(selectedDate)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Add First Activity
-            </button>
+          <div className="text-center py-14 border-2 border-dashed border-stone-200 rounded-xl">
+            <Coffee className="w-9 h-9 text-stone-400 mx-auto mb-2" />
+            <h4 className="font-semibold text-stone-800 text-sm">
+              {scope === 'mine' ? 'No personal events for this day' : 'No activities planned for this day'}
+            </h4>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                onClick={() => onAddActivityWithTime(selectedDate)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Add Activity
+              </button>
+              {scope === 'mine' && allDayActivities.length > 0 && (
+                <button
+                  onClick={() => setScope('all')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 cursor-pointer"
+                >
+                  <Users className="w-3.5 h-3.5" /> View Group Events ({allDayActivities.length})
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="relative pl-5 sm:pl-6 space-y-3.5 sm:space-y-4 before:content-[''] before:absolute before:left-2 before:sm:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
@@ -225,24 +351,19 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                     {/* Node Dot */}
                     <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500"></div>
 
-                    {/* Free Time Card */}
+                    {/* Free Time Card (Clean & uncluttered, redundant supporting text removed) */}
                     <div className="p-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50/80 transition-colors flex items-center justify-between gap-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                           <Coffee className="w-3.5 h-3.5" />
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-emerald-800">
-                              Free Time ({slot.durationLabel})
-                            </span>
-                            <span className="text-[11px] font-semibold text-emerald-700/80 bg-emerald-100/60 px-1.5 py-0.5 rounded">
-                              {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
-                            </span>
-                          </div>
-                          <p className="hidden sm:block text-[11px] text-emerald-900/70 mt-0.5">
-                            Unscheduled gap for resting, neighborhood wandering, spontaneous cafes, or shopping.
-                          </p>
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <span className="text-xs font-bold text-emerald-800">
+                            Free Time ({slot.durationLabel})
+                          </span>
+                          <span className="text-[11px] font-semibold text-emerald-700/90 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                            {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
+                          </span>
                         </div>
                       </div>
 
@@ -269,7 +390,11 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                 return (
                   <div key={act.id} className="relative group">
                     {/* Node Dot */}
-                    <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-white border-2 border-indigo-600 shadow-xs"></div>
+                    <div
+                      className={`absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-white border-2 shadow-xs ${
+                        isTaggedMe ? 'border-indigo-600' : 'border-stone-400'
+                      }`}
+                    ></div>
 
                     {/* Activity Card */}
                     <div
@@ -288,6 +413,11 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           {duration > 0 && (
                             <span className="text-[11px] text-stone-500 font-medium shrink-0">
                               ({formatDuration(duration)})
+                            </span>
+                          )}
+                          {isTaggedMe && scope === 'all' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold border border-indigo-200">
+                              Attending
                             </span>
                           )}
                         </div>
@@ -311,7 +441,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Line 2: Category and Needs Booking tag (compact, without opening timing) */}
+                      {/* Line 2: Category and Needs Booking tag */}
                       <div className="flex items-center gap-1.5 flex-wrap mb-2">
                         <CategoryBadge category={act.category} size="sm" />
                         <BookingStatusBadge
