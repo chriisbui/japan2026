@@ -208,6 +208,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
             const category = normalizeCategory(act.category);
             const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
             const isSelected = selectedActivity?.id === act.id;
+            const isIdea = Boolean(act.isIdea || !act.date);
 
             return (
               <AdvancedMarker
@@ -222,8 +223,10 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                   }`}
                 >
                   <div
-                    className={`px-2.5 py-1 rounded-full shadow-md text-xs font-bold border flex items-center gap-1.5 transition-shadow ${
+                    className={`px-2.5 py-1 rounded-full shadow-md text-xs border flex items-center gap-1.5 transition-shadow ${
                       meta.color.badgeBg
+                    } ${
+                      isIdea ? 'border-dashed' : ''
                     } ${
                       isSelected
                         ? 'ring-2 ring-stone-900 shadow-xl scale-105'
@@ -234,7 +237,11 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: meta.color.accent }}
                     />
-                    <span className="truncate max-w-[120px] text-stone-900 font-semibold text-[11px]">
+                    <span
+                      className={`truncate max-w-[120px] text-stone-900 text-[11px] ${
+                        isIdea ? 'font-normal italic' : 'font-semibold'
+                      }`}
+                    >
                       {act.title}
                     </span>
                   </div>

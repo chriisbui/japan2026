@@ -20,7 +20,7 @@ import {
   Users,
   Tag,
   Eye,
-  User,
+  CheckCircle2,
   Lightbulb,
   ChevronRight,
   Filter,
@@ -38,7 +38,7 @@ import {
   getActivityArea,
 } from '../../utils/mapUtils';
 
-type ScopeType = 'all' | 'mine' | 'ideas';
+type ScopeType = 'all' | 'confirmed' | 'ideas';
 
 // Controller to smoothly pan/zoom map on area changes and handle tab resize/re-pan
 function MapCameraController({
@@ -144,17 +144,20 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
     return activities.filter((a) => Boolean(a.location && a.location.trim()));
   }, [activities]);
 
-  // Filtered by scope (All vs Mine vs Ideas) - EXCLUDING ideas from 'all' and 'mine'
+  // Filtered by scope (All vs Confirmed vs Ideas)
+  // 'all' shows both activities and ideas
+  // 'confirmed' is just the activities that are also on the timeline
+  // 'ideas' is only from ideas bucket
   const scopedActivities = useMemo(() => {
-    if (scope === 'mine') {
-      return locatedActivities.filter((a) => !a.isIdea && a.taggedProfileIds.includes(activeProfileId));
+    if (scope === 'confirmed') {
+      return locatedActivities.filter((a) => !a.isIdea && Boolean(a.date));
     }
     if (scope === 'ideas') {
-      return locatedActivities.filter((a) => Boolean(a.isIdea));
+      return locatedActivities.filter((a) => Boolean(a.isIdea || !a.date));
     }
-    // 'all' excludes ideas from standard scheduled activities
-    return locatedActivities.filter((a) => !a.isIdea);
-  }, [locatedActivities, scope, activeProfileId]);
+    // 'all' shows both activities and ideas
+    return locatedActivities;
+  }, [locatedActivities, scope]);
 
   // Filtered by category (if specified)
   const categorizedActivities = useMemo(() => {
@@ -253,53 +256,54 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
 
           {/* Right Toolbar: Scope toggle, Category filter, & Always-visible List toggle */}
           <div className="flex items-center flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 justify-between md:justify-end shrink-0">
-            {/* Scope Toggle: All vs Mine vs Idea Bucket */}
+            {/* Scope Toggle: All vs Confirmed vs Ideas */}
             <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs shrink-0">
               <button
                 type="button"
+                id="map-scope-all"
                 onClick={() => {
                   setScope('all');
                   setSelectedActivity(null);
                 }}
-                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-md transition-all ${
                   scope === 'all'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
+                    : 'text-stone-600 hover:text-stone-900 font-medium'
                 }`}
               >
                 All
               </button>
               <button
                 type="button"
+                id="map-scope-confirmed"
                 onClick={() => {
-                  setScope('mine');
+                  setScope('confirmed');
                   setSelectedActivity(null);
                 }}
-                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
-                  scope === 'mine'
+                className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                  scope === 'confirmed'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
+                    : 'text-stone-600 hover:text-stone-900 font-medium'
                 }`}
               >
-                <User className="w-3 h-3 text-emerald-600" />
-                <span className="hidden sm:inline">My Activities</span>
-                <span className="sm:hidden">Mine</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Confirmed</span>
               </button>
               <button
                 type="button"
+                id="map-scope-ideas"
                 onClick={() => {
                   setScope('ideas');
                   setSelectedActivity(null);
                 }}
-                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
                   scope === 'ideas'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
+                    : 'text-stone-600 hover:text-stone-900 font-medium'
                 }`}
               >
-                <Lightbulb className="w-3 h-3 text-amber-500" />
-                <span className="hidden sm:inline">Idea Bucket</span>
-                <span className="sm:hidden">Ideas</span>
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>Ideas</span>
               </button>
             </div>
 
@@ -392,6 +396,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
               const category = normalizeCategory(act.category);
               const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
               const isSelected = selectedActivity?.id === act.id;
+              const isIdea = Boolean(act.isIdea || !act.date);
 
               return (
                 <AdvancedMarker
@@ -406,8 +411,10 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                     }`}
                   >
                     <div
-                      className={`px-2.5 py-1 rounded-full shadow-md text-xs font-bold border flex items-center gap-1.5 transition-shadow ${
+                      className={`px-2.5 py-1 rounded-full shadow-md text-xs border flex items-center gap-1.5 transition-shadow ${
                         meta.color.badgeBg
+                      } ${
+                        isIdea ? 'border-dashed' : ''
                       } ${
                         isSelected
                           ? 'ring-2 ring-stone-900 shadow-xl scale-105'
@@ -418,7 +425,11 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                         className="w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: meta.color.accent }}
                       />
-                      <span className="truncate max-w-[120px] text-stone-900 font-semibold text-[11px]">
+                      <span
+                        className={`truncate max-w-[120px] text-stone-900 text-[11px] ${
+                          isIdea ? 'font-normal italic' : 'font-semibold'
+                        }`}
+                      >
                         {act.title}
                       </span>
                     </div>
@@ -437,7 +448,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                 position={getCoordinatesForActivity(selectedActivity, selectedAreaId)}
                 onCloseClick={() => setSelectedActivity(null)}
                 headerContent={
-                  <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                  <div className="text-stone-900 text-sm flex items-center gap-2">
                     <span
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{
@@ -445,7 +456,15 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                           (CATEGORIES_META[normalizeCategory(selectedActivity.category)] || CATEGORIES_META['Sightseeing']).color.accent,
                       }}
                     />
-                    <span className="truncate">{selectedActivity.title}</span>
+                    <span
+                      className={`truncate ${
+                        selectedActivity.isIdea || !selectedActivity.date
+                          ? 'font-normal italic'
+                          : 'font-bold'
+                      }`}
+                    >
+                      {selectedActivity.title}
+                    </span>
                   </div>
                 }
               >
@@ -459,15 +478,16 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                     >
                       {selectedActivity.category}
                     </span>
-                    {selectedActivity.date ? (
+                    {selectedActivity.date && !selectedActivity.isIdea ? (
                       <span className="text-[10px] text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-stone-500" />
                         <span>{formatDatePretty(selectedActivity.date)}</span>
                         {selectedActivity.startTime && <span>· {selectedActivity.startTime}</span>}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
-                        Idea Bucket
+                      <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-normal italic flex items-center gap-1">
+                        <Lightbulb className="w-3 h-3 text-amber-500" />
+                        <span>Idea</span>
                       </span>
                     )}
                   </div>
@@ -583,7 +603,11 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                   <p className="text-xs text-stone-500 mb-4 max-w-xs mx-auto">
                     {selectedCategory !== 'all'
                       ? `No ${selectedCategory} activities located in ${currentArea.name}.`
-                      : `No activities with locations in ${currentArea.name} yet.`}
+                      : scope === 'ideas'
+                      ? `No ideas located in ${currentArea.name} yet.`
+                      : scope === 'confirmed'
+                      ? `No confirmed activities located in ${currentArea.name} yet.`
+                      : `No activities or ideas with locations in ${currentArea.name} yet.`}
                   </p>
                   <div className="flex items-center justify-center gap-2">
                     {selectedCategory !== 'all' && (
@@ -610,6 +634,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                   const category = normalizeCategory(act.category);
                   const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
                   const isSelected = selectedActivity?.id === act.id;
+                  const isIdea = Boolean(act.isIdea || !act.date);
 
                   return (
                     <div
@@ -628,7 +653,13 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                             style={{ backgroundColor: meta.color.accent }}
                           />
                           <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-stone-900 truncate">
+                            <h4
+                              className={`text-xs truncate ${
+                                isIdea
+                                  ? 'font-normal italic text-stone-700'
+                                  : 'font-bold text-stone-900'
+                              }`}
+                            >
                               {act.title}
                             </h4>
                             <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5 truncate">
@@ -646,13 +677,16 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
 
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-100 text-[11px] text-stone-500">
                         <span>
-                          {act.date ? (
+                          {act.date && !act.isIdea ? (
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3 text-stone-400" />
                               <span>{formatDatePretty(act.date)}</span>
                             </span>
                           ) : (
-                            <span className="text-amber-700 font-medium">Idea Bucket</span>
+                            <span className="text-amber-700 font-normal italic flex items-center gap-1">
+                              <Lightbulb className="w-3 h-3 text-amber-500" />
+                              <span>Idea</span>
+                            </span>
                           )}
                         </span>
                         <button
