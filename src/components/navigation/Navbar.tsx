@@ -14,8 +14,8 @@ import {
   Plane,
   Compass,
   Check,
-  Camera,
   MapPin,
+  Pencil,
 } from 'lucide-react';
 
 export type ActiveTab = 'home' | 'calendar' | 'timeline' | 'my-schedule' | 'ideas' | 'ledger' | 'map';
@@ -152,29 +152,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 onSelectProfile(p.id);
                                 setProfileDropdownOpen(false);
                               }}
-                              className="flex items-center gap-2.5 flex-1 min-w-0"
+                              className="flex items-center gap-2.5 flex-1 min-w-0 text-left py-1"
                             >
                               <ProfileAvatar profile={p} size="sm" />
                               <span className="font-semibold text-stone-900 truncate">{p.name}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 ml-auto" />}
                             </button>
-                            {onChangePhoto && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setProfileDropdownOpen(false);
-                                  onChangePhoto(p);
-                                }}
-                                className="p-1 text-stone-400 hover:text-indigo-600 hover:bg-stone-200/50 rounded-md transition-colors"
-                                title={`Change photo for ${p.name}`}
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            )}
                           </div>
                         );
                       })}
+                    </div>
+
+                    <div className="pt-1.5 mt-1 border-t border-stone-100 px-2 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          if (activeProfile && onChangePhoto) {
+                            onChangePhoto(activeProfile);
+                          } else {
+                            onOpenProfileModal();
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-stone-700 hover:text-indigo-600 bg-stone-50 hover:bg-indigo-50/50 rounded-lg transition-colors cursor-pointer border border-stone-200"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Edit Profile, Flights & Stays</span>
+                      </button>
                     </div>
                   </div>
                 </>

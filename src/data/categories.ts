@@ -9,6 +9,7 @@ import {
   Palmtree,
   Wine,
   ShoppingBag,
+  Bed,
 } from 'lucide-react';
 import React from 'react';
 
@@ -154,6 +155,20 @@ export const CATEGORIES_META: Record<ActivityCategory, CategoryMeta> & Record<st
       accent: '#ef4444',
     },
   },
+  Accommodation: {
+    id: 'Accommodation',
+    label: 'Accommodation',
+    subtext: 'Hotel, ryokan, Airbnb, or hostel stay',
+    icon: Bed,
+    color: {
+      bg: 'bg-stone-800',
+      text: 'text-stone-100',
+      border: 'border-stone-700',
+      badgeBg: 'bg-stone-800 text-stone-100 border-stone-900',
+      dot: 'bg-stone-400',
+      accent: '#292524',
+    },
+  },
 };
 
 export const CATEGORY_LIST: ActivityCategory[] = [
@@ -178,6 +193,7 @@ export const CATEGORY_EMOJIS: Record<ActivityCategory, string> = {
   Relaxation: '♨️',
   Nightlife: '🍸',
   Shopping: '🛍️',
+  Accommodation: '🏨',
 };
 
 /**
@@ -186,10 +202,11 @@ export const CATEGORY_EMOJIS: Record<ActivityCategory, string> = {
 export const normalizeCategory = (cat?: string): ActivityCategory => {
   if (!cat) return 'Sightseeing';
   const clean = cat.trim();
+  if (clean === 'Accommodation') return 'Accommodation';
   if (clean === 'Sightseeing & Culture') return 'Sightseeing';
   if (clean === 'Theme Parks & Attractions') return 'Theme Parks';
   if (clean === 'Nature & Adventure') return 'Nature';
-  if (clean === 'Transit & Travel' || clean === 'Accommodation' || clean === 'Logistics & Admin') return 'Transit';
+  if (clean === 'Transit & Travel' || clean === 'Logistics & Admin') return 'Transit';
   if (clean === 'Relaxation & Wellness') return 'Relaxation';
   if (CATEGORY_LIST.includes(clean as ActivityCategory)) {
     return clean as ActivityCategory;

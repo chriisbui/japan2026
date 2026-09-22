@@ -1,6 +1,6 @@
 import React from 'react';
 import { Profile } from '../../types';
-import { Check, UserCircle2, X, Camera } from 'lucide-react';
+import { Check, X, Pencil } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 
 interface ProfileSelectionModalProps {
@@ -9,6 +9,7 @@ interface ProfileSelectionModalProps {
   profiles: Profile[];
   activeProfileId: string;
   onSelectProfile: (profileId: string) => void;
+  onEditProfile?: (profile: Profile) => void;
   onChangePhoto?: (profile: Profile) => void;
   canDismiss?: boolean;
 }
@@ -19,9 +20,12 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
   profiles,
   activeProfileId,
   onSelectProfile,
+  onEditProfile,
   onChangePhoto,
   canDismiss = true,
 }) => {
+  const handleEdit = onEditProfile || onChangePhoto;
+
   if (!isOpen) return null;
 
   return (
@@ -34,13 +38,9 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
         {/* Header */}
         <div className="px-6 py-5 border-b border-stone-100 flex items-start justify-between bg-stone-50/50">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-1.5">
-              <UserCircle2 className="w-3.5 h-3.5" />
-              <span>Instant Profile Switching</span>
-            </div>
             <h2 className="text-xl font-semibold text-stone-900 tracking-tight">Who's planning right now?</h2>
             <p className="text-xs text-stone-500 mt-0.5">
-              Select any of the 6 group members or update their profile photos.
+              Select any of the 6 group members or edit their profile, flights, and accommodations.
             </p>
           </div>
           {canDismiss && (
@@ -88,18 +88,19 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
                   </div>
                 </button>
 
-                {/* Change photo button */}
-                {onChangePhoto && (
+                {/* Edit profile button */}
+                {handleEdit && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onChangePhoto(profile);
+                      handleEdit(profile);
                     }}
-                    className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-stone-200 ml-2 shrink-0 cursor-pointer"
-                    title={`Change photo for ${profile.name}`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-indigo-600 bg-stone-100 hover:bg-indigo-50 rounded-lg transition-colors border border-stone-200 hover:border-indigo-200 ml-2 shrink-0 cursor-pointer"
+                    title={`Edit profile, flights, and accommodations for ${profile.name}`}
                   >
-                    <Camera className="w-4 h-4" />
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Edit</span>
                   </button>
                 )}
               </div>
@@ -109,7 +110,7 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
 
         {/* Footer info */}
         <div className="px-6 py-3.5 bg-stone-50 border-t border-stone-100 text-xs text-stone-500 flex items-center justify-between">
-          <span>Click any member to switch active profile, or the camera icon to upload a photo.</span>
+          <span>Click any member to switch active profile, or the edit icon to configure profile details.</span>
           {canDismiss && (
             <button
               onClick={onClose}

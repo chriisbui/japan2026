@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Activity, Profile, TripInfo, BookingStatus } from './types';
+import { Activity, Profile, TripInfo, BookingStatus, FlightDetails, AccommodationItem } from './types';
 import { PRESET_PROFILES, INITIAL_TRIP } from './data/seedData';
 import { Navbar, ActiveTab } from './components/navigation/Navbar';
 import { HomePage } from './components/views/HomePage';
@@ -11,7 +11,7 @@ import { ActivityModal } from './components/modals/ActivityModal';
 import { ExpenseModal } from './components/modals/ExpenseModal';
 import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal';
 import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal';
-import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
+import { EditProfileModal } from './components/modals/EditProfileModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
 import { TripMapView } from './components/views/TripMapView';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -53,6 +53,8 @@ export default function App() {
           return {
             ...preset,
             avatarUrl: existing?.avatarUrl || preset.avatarUrl,
+            flightDetails: existing?.flightDetails || preset.flightDetails,
+            accommodations: existing?.accommodations || preset.accommodations,
           };
         });
       } catch (e) {
@@ -301,6 +303,31 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
     }
   } catch (err) {
     console.error('Failed to persist avatar to Supabase:', err);
+  }
+};
+
+const handleSaveProfile = async (
+  profileId: string,
+  updates: {
+    avatarUrl?: string;
+    flightDetails?: FlightDetails;
+    accommodations?: AccommodationItem[];
+  }
+) => {
+  setProfiles((prev) =>
+    prev.map((p) => {
+      if (p.id !== profileId) return p;
+      return {
+        ...p,
+        avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : p.avatarUrl,
+        flightDetails: updates.flightDetails !== undefined ? updates.flightDetails : p.flightDetails,
+        accommodations: updates.accommodations !== undefined ? updates.accommodations : p.accommodations,
+      };
+    })
+  );
+
+  if (updates.avatarUrl !== undefined) {
+    await handleSaveAvatar(profileId, updates.avatarUrl);
   }
 };
 
@@ -728,6 +755,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
                 onDeleteActivity={handleDeleteActivity}
                 onAddActivityForDay={(date) => handleOpenAddModal(date)}
                 onViewFullCalendar={() => setActiveTab('calendar')}
+                onEditProfile={handleOpenPhotoModal}
               />
             </motion.div>
           )}
@@ -839,12 +867,15 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         canDismiss={hasPickedInitialProfile}
       />
 
-      {/* Change Profile Picture Modal */}
-      <ChangeProfilePictureModal
+      {/* Edit Profile Modal (Photo, Flight Details & Accommodations) */}
+      <EditProfileModal
         isOpen={isPhotoModalOpen}
-        onClose={() => setIsPhotoModalOpen(false)}
+        onClose={() => {
+          setIsPhotoModalOpen(false);
+          setTargetProfileForPhoto(null);
+        }}
         profile={targetProfileForPhoto}
-        onSaveAvatar={handleSaveAvatar}
+        onSaveProfile={handleSaveProfile}
       />
 
       {/* Standalone Expense Modal */}

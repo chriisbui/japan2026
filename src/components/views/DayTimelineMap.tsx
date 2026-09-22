@@ -23,6 +23,7 @@ interface DayTimelineMapProps {
   date: string;
   activities: Activity[];
   profiles: Profile[];
+  activeProfileId?: string;
   onEditActivity: (activity: Activity) => void;
   onAddActivityWithTime?: (date: string) => void;
 }
@@ -107,17 +108,66 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
   date,
   activities,
   profiles,
+  activeProfileId,
   onEditActivity,
 }) => {
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
-  // Filter activities for this day that have a location specified
-  const locatedActivities = useMemo(() => {
-    return activities.filter((a) => Boolean(a.location && a.location.trim()));
-  }, [activities]);
-
   // Determine city fallback for this date
   const cityInfo = useMemo(() => getCityForDate(date), [date]);
+
+  // Find relevant accommodation for this specific date
+  const relevantAccommodations = useMemo(() => {
+    const activeProfile = profiles.find((p) => p.id === activeProfileId);
+    const targetProfiles = activeProfile?.accommodations?.length
+      ? [activeProfile]
+      : profiles;
+
+    const seen = new Set<string>();
+    const accomActs: Activity[] = [];
+
+    targetProfiles.forEach((p) => {
+      (p?.accommodations || []).forEach((item) => {
+        if (!item.location || !item.location.trim()) return;
+        // Check date range or city leg
+        const inDateRange =
+          (item.checkInDate && item.checkOutDate && date >= item.checkInDate && date <= item.checkOutDate) ||
+          item.city.toLowerCase() === cityInfo.name.toLowerCase();
+
+        if (inDateRange && !seen.has(item.id)) {
+          seen.add(item.id);
+          accomActs.push({
+            id: `accom-${item.id}`,
+            title: item.name ? item.name : `Accommodation: ${item.label}`,
+            category: 'Accommodation',
+            location: item.location,
+            lat: item.lat,
+            lng: item.lng,
+            placeId: item.placeId,
+            date: date,
+            startTime: '15:00',
+            endTime: '11:00',
+            description: `Stay in ${item.city} (${item.label}). Check-in: ${item.checkInDate}, Check-out: ${item.checkOutDate}`,
+            taggedProfileIds: p ? [p.id] : [],
+            costPerPerson: 0,
+            whoPaidId: p?.id || '',
+            hostProfileId: p?.id || '',
+            bookingStatus: 'Booked',
+            createdAt: new Date().toISOString(),
+            isIdea: false,
+          });
+        }
+      });
+    });
+
+    return accomActs;
+  }, [profiles, activeProfileId, date, cityInfo]);
+
+  // Combined activities for this day that have a location specified
+  const locatedActivities = useMemo(() => {
+    const acts = activities.filter((a) => Boolean(a.location && a.location.trim()));
+    return [...acts, ...relevantAccommodations];
+  }, [activities, relevantAccommodations]);
 
   // Find matching default center based on the day's city
   const defaultArea = useMemo(() => {
@@ -238,7 +288,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                       style={{ backgroundColor: meta.color.accent }}
                     />
                     <span
-                      className={`truncate max-w-[120px] text-stone-900 text-[11px] ${
+                      className={`truncate max-w-[120px] ${meta.color.text || 'text-stone-900'} text-[11px] ${
                         isIdea ? 'font-normal italic' : 'font-semibold'
                       }`}
                     >
@@ -325,13 +375,19 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => onEditActivity(selectedActivity)}
-                    className="flex-1 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-semibold text-center transition-colors text-xs"
-                  >
-                    Edit Activity
-                  </button>
+                  {selectedActivity.category === 'Accommodation' ? (
+                    <span className="flex-1 py-1.5 bg-stone-100 text-stone-700 rounded-lg font-semibold text-center text-xs">
+                      Accommodation Stay
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onEditActivity(selectedActivity)}
+                      className="flex-1 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-semibold text-center transition-colors text-xs cursor-pointer"
+                    >
+                      Edit Activity
+                    </button>
+                  )}
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                       `${selectedActivity.title} ${selectedActivity.location}`

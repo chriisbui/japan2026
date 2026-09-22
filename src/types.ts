@@ -1,3 +1,24 @@
+export interface FlightDetails {
+  arrivalDate?: string; // YYYY-MM-DD
+  arrivalTime?: string; // HH:mm
+  departureDate?: string; // YYYY-MM-DD
+  departureTime?: string; // HH:mm
+}
+
+export interface AccommodationItem {
+  id: string; // e.g. 'tokyo_1' | 'fuji' | 'kyoto' | 'osaka' | 'tokyo_2'
+  city: string; // 'Tokyo' | 'Fuji' | 'Kyoto' | 'Osaka'
+  label: string;
+  name: string;
+  location: string;
+  lat?: number;
+  lng?: number;
+  placeId?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  notes?: string;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -12,6 +33,8 @@ export interface Profile {
     badge: string;
   };
   avatarUrl?: string;
+  flightDetails?: FlightDetails;
+  accommodations?: AccommodationItem[];
 }
 
 export type ActivityCategory =
@@ -23,7 +46,8 @@ export type ActivityCategory =
   | 'Transit'
   | 'Relaxation'
   | 'Nightlife'
-  | 'Shopping';
+  | 'Shopping'
+  | 'Accommodation';
 
 export type BookingStatus = 'Booked' | 'Needs Booking' | 'No Booking Needed';
 

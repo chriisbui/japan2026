@@ -5,7 +5,7 @@ import {
   InfoWindow,
   useMap,
 } from '@vis.gl/react-google-maps';
-import { Activity, Profile } from '../../types';
+import { Activity, Profile, AccommodationItem } from '../../types';
 import { CATEGORIES_META, CATEGORY_LIST, normalizeCategory } from '../../data/categories';
 import {
   MapPin,
@@ -139,10 +139,55 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
     [selectedAreaId]
   );
 
-  // All activities/ideas that have a location specified
+  // Synthesize accommodation locations from profiles
+  const accommodationActivities = useMemo(() => {
+    const activeProfile = profiles.find((p) => p.id === activeProfileId);
+    const accomList = activeProfile?.accommodations?.length
+      ? activeProfile.accommodations
+      : profiles.flatMap((p) => p.accommodations || []);
+
+    const uniqueAccom: AccommodationItem[] = [];
+    const seenIds = new Set<string>();
+    accomList.forEach((a) => {
+      if (a.location && a.location.trim() && !seenIds.has(a.id)) {
+        seenIds.add(a.id);
+        uniqueAccom.push(a);
+      }
+    });
+
+    return uniqueAccom.map((a: AccommodationItem): Activity => {
+      return {
+        id: `accom-${a.id}`,
+        title: a.name ? a.name : `Accommodation: ${a.label}`,
+        category: 'Accommodation',
+        location: a.location,
+        lat: a.lat,
+        lng: a.lng,
+        placeId: a.placeId,
+        date: a.checkInDate,
+        startTime: '15:00',
+        endTime: '11:00',
+        city: a.city,
+        description: `Stay in ${a.city} (${a.label}). Check-in: ${a.checkInDate}, Check-out: ${a.checkOutDate}`,
+        taggedProfileIds: [activeProfileId],
+        costPerPerson: 0,
+        whoPaidId: activeProfileId,
+        hostProfileId: activeProfileId,
+        bookingStatus: 'Booked',
+        createdAt: new Date().toISOString(),
+        isIdea: false,
+      };
+    });
+  }, [profiles, activeProfileId]);
+
+  const allCombinedActivities = useMemo(() => {
+    return [...activities, ...accommodationActivities];
+  }, [activities, accommodationActivities]);
+
+  // All activities/ideas/accommodations that have a location specified
   const locatedActivities = useMemo(() => {
-    return activities.filter((a) => Boolean(a.location && a.location.trim()));
-  }, [activities]);
+    return allCombinedActivities.filter((a) => Boolean(a.location && a.location.trim()));
+  }, [allCombinedActivities]);
 
   // Filtered by scope (All vs Confirmed vs Ideas)
   // 'all' shows both activities and ideas
@@ -326,6 +371,9 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                     {cat}
                   </option>
                 ))}
+                {accommodationActivities.length > 0 && (
+                  <option value="Accommodation">Accommodation</option>
+                )}
               </select>
               {selectedCategory !== 'all' && (
                 <button

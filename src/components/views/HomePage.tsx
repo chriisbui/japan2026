@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Activity, Profile, TripInfo, ActivityCategory } from '../../types';
 import { getDaysArray, getCityForDate } from '../../utils/dateUtils';
 import { normalizeCategory, CATEGORIES_META } from '../../data/categories';
-import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane, MapPin, UserCheck, Sparkles } from 'lucide-react';
+import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane, MapPin, UserCheck, Sparkles, Pencil } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 
 export const CATEGORY_CALENDAR_STYLES: Record<
@@ -93,6 +93,7 @@ interface HomePageProps {
   onRequestDeleteActivity?: (activity: Activity) => void;
   onAddActivityForDay: (date: string) => void;
   onViewFullCalendar: () => void;
+  onEditProfile?: (profile: Profile) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -108,9 +109,23 @@ export const HomePage: React.FC<HomePageProps> = ({
   onRequestDeleteActivity,
   onAddActivityForDay,
   onViewFullCalendar,
+  onEditProfile,
 }) => {
-  const days = getDaysArray(trip.startDate, trip.endDate);
+  const allTripDays = useMemo(() => getDaysArray(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const flightDetails = activeProfile?.flightDetails;
+
+  // Personal schedule: starts at arrival date and ends at departure date
+  // By default, when no flight details are entered, keep the current full date view
+  const days = useMemo(() => {
+    if (!flightDetails?.arrivalDate && !flightDetails?.departureDate) {
+      return allTripDays;
+    }
+    const arrival = flightDetails.arrivalDate || trip.startDate;
+    const departure = flightDetails.departureDate || trip.endDate;
+    const filtered = allTripDays.filter((d) => d >= arrival && d <= departure);
+    return filtered.length > 0 ? filtered : allTripDays;
+  }, [allTripDays, flightDetails, trip.startDate, trip.endDate]);
 
   // Filter activities to only those the active profile is tagged to
   const scheduledActivities = activities.filter(
@@ -232,9 +247,22 @@ export const HomePage: React.FC<HomePageProps> = ({
             </p>
           </div>
           {activeProfile && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-800 shrink-0 self-start sm:self-auto">
-              <ProfileAvatar profile={activeProfile} size="xs" />
-              <span>Showing {activeProfile.name}&apos;s schedule ({scheduledActivities.length} activities)</span>
+            <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-800">
+                <ProfileAvatar profile={activeProfile} size="xs" />
+                <span>Showing {activeProfile.name}&apos;s schedule ({scheduledActivities.length} activities)</span>
+              </div>
+              {onEditProfile && (
+                <button
+                  type="button"
+                  onClick={() => onEditProfile(activeProfile)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 cursor-pointer"
+                  title="Edit flight arrival/departure dates and accommodation stays"
+                >
+                  <Pencil className="w-3 h-3 text-stone-500" />
+                  <span>Edit Flights & Stays</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -270,6 +298,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           const dayActs = activitiesByDate[dateStr] || [];
           const hasActs = dayActs.length > 0;
           const city = getCityForDate(dateStr);
+          const dayNumber = allTripDays.indexOf(dateStr) + 1;
 
           return (
             <div
@@ -290,7 +319,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     {dayName}
                   </span>
                   <span className="text-[10px] text-stone-400 font-normal leading-none shrink-0">
-                    Day {index + 1}
+                    Day {dayNumber}
                   </span>
                 </div>
 

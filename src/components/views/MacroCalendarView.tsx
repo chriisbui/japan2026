@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
 import { getDaysArray, formatDatePretty, parseMinutes, getCityForDate } from '../../utils/dateUtils';
 import { CATEGORIES_META, normalizeCategory } from '../../data/categories';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { ProfileAvatar } from '../common/ProfileAvatar';
-import { Calendar, Plus, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, Trash2, Plane } from 'lucide-react';
 
 interface MacroCalendarViewProps {
   trip: TripInfo;
@@ -29,7 +29,21 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
   onDeleteActivity,
   onRequestDeleteActivity,
 }) => {
-  const days = getDaysArray(trip.startDate, trip.endDate);
+  const allTripDays = useMemo(() => getDaysArray(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const flightDetails = activeProfile?.flightDetails;
+
+  // Personal schedule: starts at arrival date and ends at departure date
+  // By default, when no flight details are entered, keep the current full date view
+  const days = useMemo(() => {
+    if (!flightDetails?.arrivalDate && !flightDetails?.departureDate) {
+      return allTripDays;
+    }
+    const arrival = flightDetails.arrivalDate || trip.startDate;
+    const departure = flightDetails.departureDate || trip.endDate;
+    const filtered = allTripDays.filter((d) => d >= arrival && d <= departure);
+    return filtered.length > 0 ? filtered : allTripDays;
+  }, [allTripDays, flightDetails, trip.startDate, trip.endDate]);
 
   // Group activities by date
   const activitiesByDay: Record<string, Activity[]> = {};
@@ -119,7 +133,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
-                        Day {idx + 1}
+                        Day {allTripDays.indexOf(dateStr) + 1}
                       </span>
                       <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold border ${city.badgeClass}`}>
                         <MapPin className="w-2.5 h-2.5 shrink-0" />

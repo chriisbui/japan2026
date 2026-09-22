@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Activity, Profile, TripInfo } from '../../types';
 import {
   getDaysArray,
@@ -28,6 +28,7 @@ import {
   Users,
   User,
   Sparkles,
+  Bed,
 } from 'lucide-react';
 
 interface MicroTimelineViewProps {
@@ -60,13 +61,46 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   const daysScrollContainerRef = useRef<HTMLDivElement>(null);
   const dayButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  const days = getDaysArray(trip.startDate, trip.endDate);
+  const allTripDays = useMemo(() => getDaysArray(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const flightDetails = activeProfile?.flightDetails;
+
+  // View starts at arrival and ends at departure when flight details are set
+  const days = useMemo(() => {
+    if (!flightDetails?.arrivalDate && !flightDetails?.departureDate) {
+      return allTripDays;
+    }
+    const arrival = flightDetails.arrivalDate || trip.startDate;
+    const departure = flightDetails.departureDate || trip.endDate;
+    const filtered = allTripDays.filter((d) => d >= arrival && d <= departure);
+    return filtered.length > 0 ? filtered : allTripDays;
+  }, [allTripDays, flightDetails, trip.startDate, trip.endDate]);
+
   const currentDayIndex = days.indexOf(selectedDate);
+  const synchronizedDayNumber = allTripDays.indexOf(selectedDate) + 1;
 
   const prevDay = currentDayIndex > 0 ? days[currentDayIndex - 1] : null;
   const nextDay = currentDayIndex < days.length - 1 ? days[currentDayIndex + 1] : null;
 
-  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  // Find relevant accommodation for tonight/this date
+  const tonightAccommodation = useMemo(() => {
+    const targetProfiles = activeProfile?.accommodations?.length
+      ? [activeProfile]
+      : profiles;
+
+    for (const p of targetProfiles) {
+      const match = (p?.accommodations || []).find((item) => {
+        if (!item.location && !item.name) return false;
+        return (
+          (item.checkInDate && item.checkOutDate && selectedDate >= item.checkInDate && selectedDate <= item.checkOutDate) ||
+          item.city.toLowerCase() === getCityForDate(selectedDate).name.toLowerCase()
+        );
+      });
+      if (match) return match;
+    }
+    return null;
+  }, [activeProfile, profiles, selectedDate]);
+
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
 
   // Auto-scroll the day selector on mobile/desktop so the selected day is always visible
@@ -164,7 +198,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             <div className="text-center min-w-0 flex-1">
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
-                  Day {currentDayIndex + 1} of {days.length}
+                  Day {synchronizedDayNumber} of {allTripDays.length}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityForDate(selectedDate).badgeClass}`}
@@ -219,7 +253,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                   }`}
                   title={`${dateStr} (${chipCity.name})`}
                 >
-                  <span>D{idx + 1}</span>
+                  <span>D{allTripDays.indexOf(dateStr) + 1}</span>
                   <span className={`text-[10px] ${isSelected ? 'text-indigo-200' : 'text-stone-400'}`}>•</span>
                   <span className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-stone-500 font-normal'}`}>
                     {chipCity.name}
@@ -298,6 +332,50 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
           >
             Show All
           </button>
+        </div>
+      )}
+
+      {/* Accommodation for Tonight (if entered) */}
+      {tonightAccommodation && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-stone-900 text-stone-100 shadow-xs border border-stone-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center shrink-0 text-stone-300">
+              <Bed className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
+                  Accommodation · {tonightAccommodation.city}
+                </span>
+                <span className="text-xs text-stone-400">
+                  {tonightAccommodation.label}
+                </span>
+              </div>
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate mt-0.5">
+                {tonightAccommodation.name || `Stay in ${tonightAccommodation.city}`}
+              </h4>
+              {tonightAccommodation.location && (
+                <div className="flex items-center gap-1 text-[11px] text-stone-400 truncate mt-0.5">
+                  <MapPin className="w-3 h-3 text-stone-500 shrink-0" />
+                  <span className="truncate">{tonightAccommodation.location}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {tonightAccommodation.location && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                `${tonightAccommodation.name || ''} ${tonightAccommodation.location}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium border border-stone-700 transition-colors ml-3 shrink-0"
+              title="Open accommodation in Google Maps"
+            >
+              <MapPin className="w-3 h-3 text-stone-400" />
+              <span>Map</span>
+            </a>
+          )}
         </div>
       )}
 
@@ -517,6 +595,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
         date={selectedDate}
         activities={displayedActivities}
         profiles={profiles}
+        activeProfileId={activeProfileId}
         onEditActivity={onEditActivity}
         onAddActivityWithTime={(d) => onAddActivityWithTime(d)}
       />
