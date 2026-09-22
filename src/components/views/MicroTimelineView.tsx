@@ -15,6 +15,7 @@ import {
 import { CategoryBadge } from '../common/CategoryBadge';
 import { BookingStatusBadge } from '../common/BookingStatusBadge';
 import { ProfileAvatar } from '../common/ProfileAvatar';
+import { DayTimelineMap } from './DayTimelineMap';
 import {
   Clock,
   MapPin,
@@ -510,6 +511,15 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Day Activity Locations Map */}
+      <DayTimelineMap
+        date={selectedDate}
+        activities={displayedActivities}
+        profiles={profiles}
+        onEditActivity={onEditActivity}
+        onAddActivityWithTime={(d) => onAddActivityWithTime(d)}
+      />
     </div>
   );
 };

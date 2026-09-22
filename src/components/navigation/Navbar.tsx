@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'map', label: 'Map', icon: MapPin },
     { id: 'calendar', label: 'Calendar Grid', icon: Calendar },
     { id: 'timeline', label: 'Day Timeline', icon: Clock },
-    { id: 'ideas', label: 'Idea Bucket', icon: Lightbulb, badge: ideasCount },
+    { id: 'ideas', label: 'Idea Bucket', icon: Lightbulb },
     { id: 'ledger', label: 'Expenses', icon: DollarSign },
   ];
 

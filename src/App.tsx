@@ -666,17 +666,22 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         supabaseConnected={isSupabaseLive}
       />
 
-      {/* Map View or Standard Main Container */}
-      {activeTab === 'map' ? (
-        <TripMapView
-          activities={activities}
-          profiles={profiles}
-          activeProfileId={activeProfileId}
-          onEditActivity={handleOpenEditModal}
-          onAddActivity={(date) => handleOpenAddModal(date)}
-        />
-      ) : (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8">
+      {/* Map View - Kept continuously mounted to prevent Google Maps from re-initializing */}
+      <TripMapView
+        activities={activities}
+        profiles={profiles}
+        activeProfileId={activeProfileId}
+        onEditActivity={handleOpenEditModal}
+        onAddActivity={(date) => handleOpenAddModal(date)}
+        isActive={activeTab === 'map'}
+      />
+
+      {/* Standard Main Container for non-map tabs */}
+      <main
+        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8 ${
+          activeTab === 'map' ? 'hidden' : 'block'
+        }`}
+      >
         {/* Supabase Status Alert Banner */}
         {activityError && (
           <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm shadow-sm">
@@ -822,7 +827,6 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
           )}
         </AnimatePresence>
       </main>
-      )}
 
       {/* Profile Selection Modal (launch screen & instant switcher) */}
       <ProfileSelectionModal

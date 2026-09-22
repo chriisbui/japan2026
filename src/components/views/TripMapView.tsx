@@ -6,7 +6,7 @@ import {
   useMap,
 } from '@vis.gl/react-google-maps';
 import { Activity, Profile } from '../../types';
-import { CATEGORIES_META, CATEGORY_EMOJIS, normalizeCategory } from '../../data/categories';
+import { CATEGORIES_META, CATEGORY_LIST, normalizeCategory } from '../../data/categories';
 import {
   MapPin,
   Compass,
@@ -19,159 +19,81 @@ import {
   Plus,
   Users,
   Tag,
-  Palette,
-  Smile,
   Eye,
   User,
+  Lightbulb,
   ChevronRight,
+  Filter,
+  X,
+  ChevronDown,
+  List,
 } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { formatDatePretty } from '../../utils/dateUtils';
+import {
+  AreaId,
+  AreaConfig,
+  AREAS,
+  getCoordinatesForActivity,
+  getActivityArea,
+} from '../../utils/mapUtils';
 
-type AreaId = 'Tokyo' | 'Mt Fuji' | 'Kyoto' | 'Osaka' | 'All';
+type ScopeType = 'all' | 'mine' | 'ideas';
 
-interface AreaConfig {
-  id: AreaId;
-  name: string;
-  icon: string;
-  center: { lat: number; lng: number };
-  zoom: number;
-  description: string;
-}
-
-const AREAS: AreaConfig[] = [
-  {
-    id: 'Tokyo',
-    name: 'Tokyo',
-    icon: '🗼',
-    center: { lat: 35.6812, lng: 139.7671 },
-    zoom: 12,
-    description: 'Metropolis, Shibuya, Shinjuku, Ginza',
-  },
-  {
-    id: 'Mt Fuji',
-    name: 'Mt Fuji',
-    icon: '🗻',
-    center: { lat: 35.3606, lng: 138.7274 },
-    zoom: 11,
-    description: 'Lake Kawaguchiko, 5th Station, Hakone',
-  },
-  {
-    id: 'Kyoto',
-    name: 'Kyoto',
-    icon: '⛩️',
-    center: { lat: 35.0116, lng: 135.7681 },
-    zoom: 13,
-    description: 'Temples, Gion, Arashiyama, Shrines',
-  },
-  {
-    id: 'Osaka',
-    name: 'Osaka',
-    icon: '🏯',
-    center: { lat: 34.6937, lng: 135.5023 },
-    zoom: 13,
-    description: 'Dotonbori, Namba, Castle, Street Food',
-  },
-  {
-    id: 'All',
-    name: 'All Japan',
-    icon: '🇯🇵',
-    center: { lat: 35.2, lng: 137.5 },
-    zoom: 7,
-    description: 'Full trip country overview',
-  },
-];
-
-// Helper to estimate coordinates if not yet saved
-function getCoordinatesForActivity(act: Activity, areaFallback: AreaId): { lat: number; lng: number } {
-  if (act.lat !== undefined && act.lng !== undefined && !isNaN(act.lat) && !isNaN(act.lng)) {
-    return { lat: act.lat, lng: act.lng };
-  }
-
-  // Known landmark coordinates for instant placement
-  const locLower = `${act.location} ${act.title} ${act.city || ''}`.toLowerCase();
-
-  if (locLower.includes('shibuya')) return { lat: 35.6595, lng: 139.7005 };
-  if (locLower.includes('shinjuku')) return { lat: 35.6938, lng: 139.7034 };
-  if (locLower.includes('akihabara')) return { lat: 35.6983, lng: 139.7731 };
-  if (locLower.includes('sensoji') || locLower.includes('asakusa')) return { lat: 35.7148, lng: 139.7967 };
-  if (locLower.includes('ginza')) return { lat: 35.6719, lng: 139.7640 };
-  if (locLower.includes('roppongi')) return { lat: 35.6628, lng: 139.7314 };
-  if (locLower.includes('tokyo station') || locLower.includes('marunouchi')) return { lat: 35.6812, lng: 139.7671 };
-  if (locLower.includes('disney')) return { lat: 35.6329, lng: 139.8804 };
-
-  if (locLower.includes('kawaguchiko') || locLower.includes('lake kawaguchi')) return { lat: 35.5171, lng: 138.7518 };
-  if (locLower.includes('chureito') || locLower.includes('arakurayama')) return { lat: 35.5015, lng: 138.8016 };
-  if (locLower.includes('hakone')) return { lat: 35.2323, lng: 139.1069 };
-  if (locLower.includes('fuji') || locLower.includes('5th station')) return { lat: 35.3606, lng: 138.7274 };
-
-  if (locLower.includes('fushimi inari')) return { lat: 34.9671, lng: 135.7727 };
-  if (locLower.includes('kinkaku') || locLower.includes('golden pavilion')) return { lat: 35.0394, lng: 135.7292 };
-  if (locLower.includes('arashiyama') || locLower.includes('bamboo')) return { lat: 35.0166, lng: 135.6712 };
-  if (locLower.includes('gion') || locLower.includes('kiyomizu')) return { lat: 34.9949, lng: 135.7850 };
-  if (locLower.includes('kyoto station')) return { lat: 34.9858, lng: 135.7588 };
-
-  if (locLower.includes('dotonbori') || locLower.includes('namba')) return { lat: 34.6687, lng: 135.5013 };
-  if (locLower.includes('universal') || locLower.includes('usj')) return { lat: 34.6654, lng: 135.4323 };
-  if (locLower.includes('osaka castle')) return { lat: 34.6873, lng: 135.5262 };
-  if (locLower.includes('umeda')) return { lat: 34.7025, lng: 135.4959 };
-
-  // Fallback to area center with deterministic slight scatter
-  let base = AREAS.find((a) => a.id === areaFallback)?.center || AREAS[0].center;
-  if (locLower.includes('kyoto')) base = AREAS[2].center;
-  else if (locLower.includes('osaka')) base = AREAS[3].center;
-  else if (locLower.includes('fuji')) base = AREAS[1].center;
-  else if (locLower.includes('tokyo')) base = AREAS[0].center;
-
-  // Small optical hash offset to prevent exact pin overlap
-  let hash = 0;
-  for (let i = 0; i < act.id.length; i++) {
-    hash = (hash << 5) - hash + act.id.charCodeAt(i);
-    hash |= 0;
-  }
-  const deltaLat = ((hash % 100) / 10000) * 1.5;
-  const deltaLng = (((hash >> 3) % 100) / 10000) * 1.5;
-
-  return {
-    lat: base.lat + deltaLat,
-    lng: base.lng + deltaLng,
-  };
-}
-
-// Check which area an activity belongs to
-function getActivityArea(act: Activity): AreaId {
-  const c = (act.city || '').toLowerCase();
-  const l = (act.location || '').toLowerCase();
-  const t = (act.title || '').toLowerCase();
-  const full = `${c} ${l} ${t}`;
-
-  if (full.includes('kyoto') || full.includes('gion') || full.includes('arashiyama') || full.includes('fushimi')) return 'Kyoto';
-  if (full.includes('osaka') || full.includes('dotonbori') || full.includes('namba') || full.includes('umeda') || full.includes('usj')) return 'Osaka';
-  if (full.includes('fuji') || full.includes('kawaguchiko') || full.includes('hakone') || full.includes('yamanashi')) return 'Mt Fuji';
-  return 'Tokyo';
-}
-
-// Controller to smoothly pan/zoom map on area changes
+// Controller to smoothly pan/zoom map on area changes and handle tab resize/re-pan
 function MapCameraController({
   targetArea,
   targetActivity,
+  isActive = true,
 }: {
   targetArea: AreaConfig;
   targetActivity: Activity | null;
+  isActive?: boolean;
 }) {
   const map = useMap();
 
+  // Trigger google.maps.event.trigger(map, 'resize') and re-pan whenever the map becomes active
   useEffect(() => {
-    if (!map) return;
-    if (targetActivity) {
-      const coords = getCoordinatesForActivity(targetActivity, targetArea.id);
-      map.panTo(coords);
-      map.setZoom(15);
-    } else {
-      map.panTo(targetArea.center);
-      map.setZoom(targetArea.zoom);
-    }
-  }, [map, targetArea, targetActivity]);
+    if (!map || !isActive) return;
+
+    const triggerResizeAndRepan = () => {
+      try {
+        const googleObj = (window as any).google;
+        if (googleObj?.maps?.event?.trigger) {
+          googleObj.maps.event.trigger(map, 'resize');
+        }
+      } catch (err) {
+        console.warn('Google Maps resize trigger error:', err);
+      }
+
+      if (targetActivity) {
+        const coords = getCoordinatesForActivity(targetActivity, targetArea.id);
+        map.panTo(coords);
+        map.setZoom(15);
+      } else {
+        map.panTo(targetArea.center);
+        map.setZoom(targetArea.zoom);
+      }
+    };
+
+    // Immediate recalculation
+    triggerResizeAndRepan();
+
+    // Invocation after requestAnimationFrame for accurate layout dimensions
+    const rafId = requestAnimationFrame(() => {
+      triggerResizeAndRepan();
+    });
+
+    // Timeout fallback ensuring full-screen map tiles render without grey glitch
+    const timerId = setTimeout(() => {
+      triggerResizeAndRepan();
+    }, 100);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timerId);
+    };
+  }, [map, isActive, targetArea, targetActivity]);
 
   return null;
 }
@@ -182,6 +104,7 @@ interface TripMapViewProps {
   activeProfileId: string;
   onEditActivity: (activity: Activity) => void;
   onAddActivity: (date?: string) => void;
+  isActive?: boolean;
 }
 
 export const TripMapView: React.FC<TripMapViewProps> = ({
@@ -190,13 +113,19 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
   activeProfileId,
   onEditActivity,
   onAddActivity,
+  isActive = true,
 }) => {
   const [selectedAreaId, setSelectedAreaId] = useState<AreaId>('Tokyo');
-  const [pinStyle, setPinStyle] = useState<'color' | 'emoji'>('emoji');
-  const [scope, setScope] = useState<'all' | 'mine'>('all');
+  const [scope, setScope] = useState<ScopeType>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
 
   // Listen for Google Maps Platform quota exceeded events
   useEffect(() => {
@@ -215,38 +144,53 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
     return activities.filter((a) => Boolean(a.location && a.location.trim()));
   }, [activities]);
 
-  // Filtered by scope (All vs Mine)
+  // Filtered by scope (All vs Mine vs Ideas) - EXCLUDING ideas from 'all' and 'mine'
   const scopedActivities = useMemo(() => {
     if (scope === 'mine') {
-      return locatedActivities.filter((a) => a.taggedProfileIds.includes(activeProfileId));
+      return locatedActivities.filter((a) => !a.isIdea && a.taggedProfileIds.includes(activeProfileId));
     }
-    return locatedActivities;
+    if (scope === 'ideas') {
+      return locatedActivities.filter((a) => Boolean(a.isIdea));
+    }
+    // 'all' excludes ideas from standard scheduled activities
+    return locatedActivities.filter((a) => !a.isIdea);
   }, [locatedActivities, scope, activeProfileId]);
+
+  // Filtered by category (if specified)
+  const categorizedActivities = useMemo(() => {
+    if (selectedCategory === 'all') return scopedActivities;
+    return scopedActivities.filter((a) => normalizeCategory(a.category) === selectedCategory);
+  }, [scopedActivities, selectedCategory]);
 
   // Filtered for current selected area (or all)
   const areaActivities = useMemo(() => {
-    if (selectedAreaId === 'All') return scopedActivities;
-    return scopedActivities.filter((a) => getActivityArea(a) === selectedAreaId);
-  }, [scopedActivities, selectedAreaId]);
+    if (selectedAreaId === 'All') return categorizedActivities;
+    return categorizedActivities.filter((a) => getActivityArea(a) === selectedAreaId);
+  }, [categorizedActivities, selectedAreaId]);
 
-  // Counts per area
+  // Counts per area (reflecting current scope and category filters)
   const areaCounts = useMemo(() => {
     const counts: Record<AreaId, number> = {
       Tokyo: 0,
       'Mt Fuji': 0,
       Kyoto: 0,
       Osaka: 0,
-      All: scopedActivities.length,
+      All: categorizedActivities.length,
     };
-    scopedActivities.forEach((a) => {
+    categorizedActivities.forEach((a) => {
       const area = getActivityArea(a);
       counts[area] = (counts[area] || 0) + 1;
     });
     return counts;
-  }, [scopedActivities]);
+  }, [categorizedActivities]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-stone-100 relative">
+    <div
+      id="trip-map-view-container"
+      className={`flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-stone-100 relative ${
+        isActive ? 'flex' : 'hidden'
+      }`}
+    >
       {/* Quota Defense Banner (GMP Mandatory Attribution & Quota) */}
       {isQuotaExceeded && (
         <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
@@ -266,11 +210,11 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
       )}
 
       {/* Top Controls Header Bar */}
-      <div className="bg-white border-b border-stone-200 px-4 py-3 z-20 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          {/* Area Selector Tabs: Tokyo, Mt Fuji, Kyoto, Osaka, All */}
+      <div className="bg-white border-b border-stone-200 px-3 sm:px-4 py-2.5 z-20 shadow-xs">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+          {/* Area Selector Tabs: Tokyo, Mt Fuji, Kyoto, Osaka, All (Emojis removed for clean design) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            <div className="text-xs font-semibold text-stone-500 mr-1 hidden sm:flex items-center gap-1">
+            <div className="text-xs font-semibold text-stone-500 mr-1 hidden sm:flex items-center gap-1 shrink-0">
               <Compass className="w-3.5 h-3.5 text-emerald-600" />
               <span>Area:</span>
             </div>
@@ -292,7 +236,6 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                       : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200/80'
                   }`}
                 >
-                  <span className="text-sm">{area.icon}</span>
                   <span>{area.name}</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
@@ -308,80 +251,115 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
             })}
           </div>
 
-          {/* Right Toolbar: Scope toggle & Pin style toggle */}
-          <div className="flex items-center justify-between md:justify-end gap-2 shrink-0">
-            {/* Scope Toggle: All vs Mine */}
-            <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
+          {/* Right Toolbar: Scope toggle, Category filter, & Always-visible List toggle */}
+          <div className="flex items-center flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 justify-between md:justify-end shrink-0">
+            {/* Scope Toggle: All vs Mine vs Idea Bucket */}
+            <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs shrink-0">
               <button
                 type="button"
-                onClick={() => setScope('all')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                onClick={() => {
+                  setScope('all');
+                  setSelectedActivity(null);
+                }}
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all ${
                   scope === 'all'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                All Activities
+                All
               </button>
               <button
                 type="button"
-                onClick={() => setScope('mine')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
+                onClick={() => {
+                  setScope('mine');
+                  setSelectedActivity(null);
+                }}
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
                   scope === 'mine'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 <User className="w-3 h-3 text-emerald-600" />
-                <span>My Activities</span>
+                <span className="hidden sm:inline">My Activities</span>
+                <span className="sm:hidden">Mine</span>
               </button>
-            </div>
-
-            {/* Pin Style Toggle: Color vs Emoji */}
-            <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs">
               <button
                 type="button"
-                onClick={() => setPinStyle('emoji')}
-                title="Display pins with Category Emojis"
-                className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
-                  pinStyle === 'emoji'
+                onClick={() => {
+                  setScope('ideas');
+                  setSelectedActivity(null);
+                }}
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
+                  scope === 'ideas'
                     ? 'bg-white text-stone-900 shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <Smile className="w-3 h-3 text-amber-500" />
-                <span className="hidden sm:inline">Emoji Pins</span>
-                <span className="sm:hidden">Emoji</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPinStyle('color')}
-                title="Display pins with Color Badges"
-                className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
-                  pinStyle === 'color'
-                    ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <Palette className="w-3 h-3 text-indigo-500" />
-                <span className="hidden sm:inline">Color Pins</span>
-                <span className="sm:hidden">Color</span>
+                <Lightbulb className="w-3 h-3 text-amber-500" />
+                <span className="hidden sm:inline">Idea Bucket</span>
+                <span className="sm:hidden">Ideas</span>
               </button>
             </div>
 
-            {/* Toggle Sidebar button on desktop */}
+            {/* Category Filter Dropdown */}
+            <div className="flex items-center gap-1 bg-stone-100 px-2 py-1 rounded-lg border border-stone-200 text-xs shrink-0">
+              <Filter className="w-3 h-3 text-stone-500 shrink-0" />
+              <select
+                id="map-category-filter"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setSelectedActivity(null);
+                }}
+                aria-label="Filter by category"
+                className="bg-transparent text-xs font-medium text-stone-800 focus:outline-none cursor-pointer pr-1 max-w-[110px] sm:max-w-[130px] truncate"
+              >
+                <option value="all">All Categories</option>
+                {CATEGORY_LIST.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {selectedCategory !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSelectedActivity(null);
+                  }}
+                  className="text-stone-400 hover:text-stone-700 ml-0.5"
+                  title="Clear category filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Toggle List button - ALWAYS VISIBLE on both mobile and desktop */}
             <button
               type="button"
+              id="map-toggle-list-btn"
               onClick={() => setIsSidebarOpen((prev) => !prev)}
-              className={`p-1.5 rounded-lg border text-xs font-medium transition-colors hidden lg:flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs ${
                 isSidebarOpen
-                  ? 'bg-stone-100 text-stone-700 border-stone-300'
-                  : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                  ? 'bg-stone-900 text-white border-stone-900'
+                  : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
               }`}
-              title="Toggle activity sidebar"
+              title={isSidebarOpen ? 'Hide activity list' : 'Show activity list'}
             >
               <Eye className="w-3.5 h-3.5" />
-              <span>List ({areaActivities.length})</span>
+              <span className="hidden sm:inline">{isSidebarOpen ? 'Hide List' : 'Show List'}</span>
+              <span className="sm:hidden">{isSidebarOpen ? 'Hide' : 'List'}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isSidebarOpen ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-700'
+                }`}
+              >
+                {areaActivities.length}
+              </span>
             </button>
           </div>
         </div>
@@ -405,14 +383,14 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
             <MapCameraController
               targetArea={currentArea}
               targetActivity={selectedActivity}
+              isActive={isActive}
             />
 
-            {/* Pins for activities in the current area */}
+            {/* Pins for activities in the current area: clean color pins */}
             {areaActivities.map((act) => {
               const coords = getCoordinatesForActivity(act, selectedAreaId);
               const category = normalizeCategory(act.category);
               const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
-              const emoji = CATEGORY_EMOJIS[category] || '📍';
               const isSelected = selectedActivity?.id === act.id;
 
               return (
@@ -422,55 +400,33 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                   title={`${act.title} - ${act.location}`}
                   onClick={() => setSelectedActivity(act)}
                 >
-                  {/* Pin customization based on toggle: Emoji Pin vs Color Pin */}
-                  {pinStyle === 'emoji' ? (
+                  <div
+                    className={`relative flex flex-col items-center cursor-pointer transition-transform duration-200 ${
+                      isSelected ? 'scale-125 z-40' : 'hover:scale-110 z-10'
+                    }`}
+                  >
                     <div
-                      className={`relative flex flex-col items-center cursor-pointer transition-transform duration-200 ${
-                        isSelected ? 'scale-125 z-40' : 'hover:scale-110 z-10'
+                      className={`px-2.5 py-1 rounded-full shadow-md text-xs font-bold border flex items-center gap-1.5 transition-shadow ${
+                        meta.color.badgeBg
+                      } ${
+                        isSelected
+                          ? 'ring-2 ring-stone-900 shadow-xl scale-105'
+                          : 'hover:shadow-lg'
                       }`}
                     >
-                      <div
-                        className={`w-9 h-9 rounded-full shadow-lg flex items-center justify-center text-lg border-2 bg-white transition-shadow ${
-                          isSelected
-                            ? 'border-stone-900 ring-3 ring-emerald-500/40 shadow-xl'
-                            : 'border-stone-300 hover:border-emerald-600'
-                        }`}
-                      >
-                        <span>{emoji}</span>
-                      </div>
-                      {/* Downward triangle pointer */}
-                      <div
-                        className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] -mt-[1px] ${
-                          isSelected ? 'border-t-stone-900' : 'border-t-stone-400'
-                        }`}
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: meta.color.accent }}
                       />
+                      <span className="truncate max-w-[120px] text-stone-900 font-semibold text-[11px]">
+                        {act.title}
+                      </span>
                     </div>
-                  ) : (
                     <div
-                      className={`relative flex flex-col items-center cursor-pointer transition-transform duration-200 ${
-                        isSelected ? 'scale-125 z-40' : 'hover:scale-110 z-10'
-                      }`}
-                    >
-                      <div
-                        className={`px-2.5 py-1 rounded-full shadow-md text-xs font-bold border flex items-center gap-1.5 transition-shadow ${
-                          meta.color.badgeBg
-                        } ${
-                          isSelected
-                            ? 'ring-3 ring-stone-900 shadow-xl scale-105'
-                            : 'hover:shadow-lg'
-                        }`}
-                      >
-                        <span className="text-xs">{emoji}</span>
-                        <span className="truncate max-w-[100px] text-stone-900 font-semibold text-[11px]">
-                          {act.title}
-                        </span>
-                      </div>
-                      <div
-                        className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] -mt-[1px]"
-                        style={{ borderTopColor: meta.color.accent }}
-                      />
-                    </div>
-                  )}
+                      className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] -mt-[1px]"
+                      style={{ borderTopColor: meta.color.accent }}
+                    />
+                  </div>
                 </AdvancedMarker>
               );
             })}
@@ -481,8 +437,14 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                 position={getCoordinatesForActivity(selectedActivity, selectedAreaId)}
                 onCloseClick={() => setSelectedActivity(null)}
                 headerContent={
-                  <div className="font-bold text-stone-900 text-sm flex items-center gap-1.5">
-                    <span>{CATEGORY_EMOJIS[normalizeCategory(selectedActivity.category)] || '📍'}</span>
+                  <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor:
+                          (CATEGORIES_META[normalizeCategory(selectedActivity.category)] || CATEGORIES_META['Sightseeing']).color.accent,
+                      }}
+                    />
                     <span className="truncate">{selectedActivity.title}</span>
                   </div>
                 }
@@ -562,52 +524,91 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
               </InfoWindow>
             )}
           </Map>
+
+          {/* Floating Mobile Toggle Button when list is closed */}
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-stone-900 text-white rounded-full text-xs font-semibold shadow-lg flex items-center gap-2 border border-stone-700 active:scale-95 transition-all hover:bg-stone-800"
+            >
+              <List className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Show List ({areaActivities.length})</span>
+            </button>
+          )}
         </div>
 
-        {/* Collapsible Sidebar Listing Activities in Selected Area */}
+        {/* Activity List: Responsive Bottom Sheet on Mobile (<lg:), Docked Sidebar on Desktop (lg:) */}
         {isSidebarOpen && (
-          <div className="w-80 lg:w-96 bg-white border-l border-stone-200 flex flex-col h-full z-10 shadow-lg">
+          <div className="fixed lg:static inset-x-0 bottom-0 z-30 lg:z-10 max-h-[58vh] sm:max-h-[60vh] lg:max-h-none h-auto lg:h-full w-full lg:w-80 xl:w-96 bg-white border-t lg:border-t-0 lg:border-l border-stone-200 rounded-t-2xl lg:rounded-none flex flex-col shadow-2xl lg:shadow-none animate-in slide-in-from-bottom duration-200">
+            {/* Mobile Drag Indicator Bar */}
+            <div className="w-10 h-1 bg-stone-300 rounded-full mx-auto my-2 lg:hidden shrink-0" />
+
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-stone-200 bg-stone-50 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                  <span>{currentArea.icon}</span>
+                  <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{currentArea.name} Activities</span>
                 </h3>
                 <p className="text-xs text-stone-500">{currentArea.description}</p>
               </div>
-              <span className="px-2 py-0.5 bg-stone-200 text-stone-800 text-xs font-bold rounded-full">
-                {areaActivities.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-stone-200 text-stone-800 text-xs font-bold rounded-full">
+                  {areaActivities.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                  title="Hide activity list"
+                >
+                  <ChevronDown className="w-4 h-4 lg:hidden" />
+                  <X className="w-4 h-4 hidden lg:block" />
+                  <span className="lg:hidden text-[11px]">Hide</span>
+                </button>
+              </div>
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[38vh] sm:max-h-[44vh] lg:max-h-none">
               {areaActivities.length === 0 ? (
-                <div className="text-center py-10 px-4">
+                <div className="text-center py-8 px-4">
                   <div className="w-12 h-12 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center mx-auto mb-3 text-stone-400">
                     <MapPin className="w-6 h-6 text-stone-400" />
                   </div>
                   <h4 className="text-sm font-semibold text-stone-800 mb-1">
-                    No activities with locations in {currentArea.name} yet
+                    No matching activities found
                   </h4>
                   <p className="text-xs text-stone-500 mb-4 max-w-xs mx-auto">
-                    Add an activity or edit an existing one to attach a Google Maps location.
+                    {selectedCategory !== 'all'
+                      ? `No ${selectedCategory} activities located in ${currentArea.name}.`
+                      : `No activities with locations in ${currentArea.name} yet.`}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => onAddActivity()}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Activity with Location</span>
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    {selectedCategory !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory('all')}
+                        className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-lg border border-stone-300 transition-colors"
+                      >
+                        Reset Category
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onAddActivity()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Activity</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 areaActivities.map((act) => {
                   const category = normalizeCategory(act.category);
                   const meta = CATEGORIES_META[category] || CATEGORIES_META['Sightseeing'];
-                  const emoji = CATEGORY_EMOJIS[category] || '📍';
                   const isSelected = selectedActivity?.id === act.id;
 
                   return (
@@ -621,8 +622,11 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <span className="text-base shrink-0 mt-0.5">{emoji}</span>
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                            style={{ backgroundColor: meta.color.accent }}
+                          />
                           <div className="min-w-0">
                             <h4 className="text-xs font-bold text-stone-900 truncate">
                               {act.title}
@@ -670,7 +674,7 @@ export const TripMapView: React.FC<TripMapViewProps> = ({
             </div>
 
             {/* Footer Quick Add */}
-            <div className="p-3 border-t border-stone-200 bg-stone-50">
+            <div className="p-3 border-t border-stone-200 bg-stone-50 shrink-0">
               <button
                 type="button"
                 onClick={() => onAddActivity()}
