@@ -1,6 +1,6 @@
 {
   "name": "Japan 2026",
-  "description": "Collaborative group trip planner for Japan 2026 with countdown, itinerary, and booking deadlines.",
+  "description": "Collaborative group trip planner for Japan 2026 with Google Maps integration, area navigation, countdown, itinerary, and booking deadlines.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -13,6 +13,8 @@ import { ConfirmDeleteModal } from './components/modals/ConfirmDeleteModal';
 import { ProfileSelectionModal } from './components/modals/ProfileSelectionModal';
 import { ChangeProfilePictureModal } from './components/modals/ChangeProfilePictureModal';
 import { BookingDeadlinesDrawer } from './components/drawers/BookingDeadlinesDrawer';
+import { TripMapView } from './components/views/TripMapView';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateBookingDate, getDefaultTimesForDate, addHoursToTime, getCityForDate } from './utils/dateUtils';
 import {
@@ -24,7 +26,13 @@ import {
   updateActivityInSupabase,
   subscribeToActivitiesRealtime,
   generateUUID,
+  clearAllExistingLocationsFromSupabase,
 } from './supabase';
+
+const GOOGLE_MAPS_API_KEY =
+  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) ||
+  ((globalThis as any).GOOGLE_MAPS_API_KEY as string) ||
+  'AIzaSyBdPkAGqNcJBuN7oLpMJ0J_FTLhEVKHE4g';
 
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
 const STORAGE_KEY_ACTIVE_PROFILE = 'group_travel_active_profile_v2';
@@ -102,7 +110,26 @@ export default function App() {
     setActivityError(null);
     try {
       const items = await fetchActivitiesFromSupabase();
-      setActivities(items);
+
+      // Clear all existing values in location (user requirement)
+      const hasCleared = localStorage.getItem('gmp_has_cleared_initial_locations') === 'true';
+      if (!hasCleared) {
+        const cleared = items.map((a) => ({
+          ...a,
+          location: '',
+          lat: undefined,
+          lng: undefined,
+          placeId: undefined,
+          formattedAddress: undefined,
+        }));
+        setActivities(cleared);
+        clearAllExistingLocationsFromSupabase().catch((err) =>
+          console.warn('Failed to clear remote locations:', err)
+        );
+        localStorage.setItem('gmp_has_cleared_initial_locations', 'true');
+      } else {
+        setActivities(items);
+      }
       setIsSupabaseLive(true);
     } catch (err: any) {
       console.error('[Supabase select error]:', err);
@@ -620,7 +647,8 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['places', 'marker']}>
+      <div className="min-h-screen bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Navigation Header */}
       <Navbar
         trip={trip}
@@ -638,8 +666,17 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
         supabaseConnected={isSupabaseLive}
       />
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8">
+      {/* Map View or Standard Main Container */}
+      {activeTab === 'map' ? (
+        <TripMapView
+          activities={activities}
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          onEditActivity={handleOpenEditModal}
+          onAddActivity={(date) => handleOpenAddModal(date)}
+        />
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8">
         {/* Supabase Status Alert Banner */}
         {activityError && (
           <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm shadow-sm">
@@ -785,6 +822,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
           )}
         </AnimatePresence>
       </main>
+      )}
 
       {/* Profile Selection Modal (launch screen & instant switcher) */}
       <ProfileSelectionModal
@@ -865,6 +903,7 @@ const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined
           handleOpenEditModal(act);
         }}
       />
-    </div>
+      </div>
+    </APIProvider>
   );
 }

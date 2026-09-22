@@ -168,6 +168,18 @@ export const CATEGORY_LIST: ActivityCategory[] = [
   'Shopping',
 ];
 
+export const CATEGORY_EMOJIS: Record<ActivityCategory, string> = {
+  'Food & Drink': '🍜',
+  Sightseeing: '🏯',
+  Experiences: '🎨',
+  'Theme Parks': '🎢',
+  Nature: '🌲',
+  Transit: '🚅',
+  Relaxation: '♨️',
+  Nightlife: '🍸',
+  Shopping: '🛍️',
+};
+
 /**
  * Normalizes legacy category strings to current categories
  */

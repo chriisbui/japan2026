@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ActivityCategory, BookingStatus, Profile } from '../../types';
 import { CATEGORY_LIST, CATEGORIES_META, normalizeCategory } from '../../data/categories';
+import { GooglePlacesAutocompleteInput, PlaceSelection } from '../common/GooglePlacesAutocompleteInput';
 import {
   X,
   Calendar,
@@ -67,6 +68,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
+  const [lat, setLat] = useState<number | undefined>(undefined);
+  const [lng, setLng] = useState<number | undefined>(undefined);
+  const [placeId, setPlaceId] = useState<string | undefined>(undefined);
+  const [formattedAddress, setFormattedAddress] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState('');
   const [costPerPerson, setCostPerPerson] = useState<number>(0);
   const [whoPaidId, setWhoPaidId] = useState<string>(activeProfileId);
@@ -95,6 +100,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setStartTime(activityToEdit.startTime || '');
         setEndTime(activityToEdit.endTime || '');
         setLocation(activityToEdit.location || '');
+        setLat(activityToEdit.lat);
+        setLng(activityToEdit.lng);
+        setPlaceId(activityToEdit.placeId);
+        setFormattedAddress(activityToEdit.formattedAddress);
         setDescription(activityToEdit.description || '');
         setCostPerPerson(activityToEdit.costPerPerson || 0);
         setWhoPaidId(activityToEdit.whoPaidId || activeProfileId);
@@ -187,6 +196,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setStartTime(initialStart || (isIdeaBucketMode ? '' : '10:00'));
         setEndTime(initialEnd || (isIdeaBucketMode ? '' : '11:00'));
         setLocation('');
+        setLat(undefined);
+        setLng(undefined);
+        setPlaceId(undefined);
+        setFormattedAddress(undefined);
         setDescription('');
         setCostPerPerson(0);
         setWhoPaidId(activeProfileId);
@@ -316,6 +329,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       startTime: isIdea ? undefined : startTime,
       endTime: isIdea ? undefined : endTime,
       location: location.trim(),
+      lat,
+      lng,
+      placeId,
+      formattedAddress,
       description: description.trim(),
       costPerPerson: finalCost,
       whoPaidId,
@@ -564,20 +581,47 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </div>
           )}
 
-          {/* Location */}
+          {/* Location with Google Maps Places Autocomplete */}
           <div>
-            <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-stone-500" />
-              Location
-            </label>
-            <input
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Location</span>
+              </label>
+              <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">
+                Google Maps Search
+              </span>
+            </div>
+            <GooglePlacesAutocompleteInput
               id="activity-location-input"
-              type="text"
-              placeholder="e.g. Shibuya Scramble Square 47F, Tokyo"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              onChange={(val) => setLocation(val)}
+              onSelectPlace={(place) => {
+                setLocation(place.location);
+                setLat(place.lat);
+                setLng(place.lng);
+                setPlaceId(place.placeId);
+                setFormattedAddress(place.formattedAddress);
+
+                // If city is not explicitly selected yet, infer from place address
+                if (!city) {
+                  const combined = `${place.location} ${place.formattedAddress || ''}`.toLowerCase();
+                  if (combined.includes('tokyo') || combined.includes('shibuya') || combined.includes('shinjuku') || combined.includes('chiyoda')) {
+                    setCity('Tokyo');
+                  } else if (combined.includes('fuji') || combined.includes('kawaguchiko') || combined.includes('hakone') || combined.includes('yamanashi') || combined.includes('shizuoka')) {
+                    setCity('Fuji');
+                  } else if (combined.includes('kyoto') || combined.includes('gion') || combined.includes('arashiyama')) {
+                    setCity('Kyoto');
+                  } else if (combined.includes('osaka') || combined.includes('namba') || combined.includes('dotonbori') || combined.includes('umeda')) {
+                    setCity('Osaka');
+                  }
+                }
+              }}
+              placeholder="Search place, attraction, or address (e.g. Shibuya Sky, Fushimi Inari, Dotonbori)..."
             />
+            <p className="mt-1 text-[11px] text-stone-400">
+              Start typing to search Google Maps and link location pins.
+            </p>
           </div>
 
           {/* Description / Notes */}

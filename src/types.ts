@@ -36,6 +36,10 @@ export interface Activity {
   startTime?: string; // HH:mm (24-hour)
   endTime?: string; // HH:mm
   location: string;
+  lat?: number;
+  lng?: number;
+  placeId?: string;
+  formattedAddress?: string;
   description: string;
   costPerPerson: number; // in USD
   whoPaidId: string; // profileId or 'unpaid'

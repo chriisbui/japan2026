@@ -229,6 +229,18 @@ export function rowToActivity(row: any): Activity {
     city = cityMatch[1].trim();
   }
 
+  let lat: number | undefined = row.lat !== undefined && row.lat !== null ? Number(row.lat) : undefined;
+  let lng: number | undefined = row.lng !== undefined && row.lng !== null ? Number(row.lng) : undefined;
+  let placeId: string | undefined = row.place_id || row.placeId || undefined;
+  let formattedAddress: string | undefined = row.formatted_address || row.formattedAddress || undefined;
+
+  const geoMatch = rawStatus.match(/geo:([0-9.-]+),([0-9.-]+)(?:,([^\]\|]+))?/i);
+  if (geoMatch) {
+    if (lat === undefined || isNaN(lat)) lat = parseFloat(geoMatch[1]);
+    if (lng === undefined || isNaN(lng)) lng = parseFloat(geoMatch[2]);
+    if (!placeId && geoMatch[3]) placeId = geoMatch[3];
+  }
+
   return {
     id: String(row.id),
     title: row.title || 'Untitled Activity',
@@ -238,6 +250,10 @@ export function rowToActivity(row: any): Activity {
     startTime,
     endTime,
     location: row.location || '',
+    lat,
+    lng,
+    placeId,
+    formattedAddress,
     description: row.description || '',
     costPerPerson: Number(row.cost_per_person ?? row.costPerPerson ?? 0),
     whoPaidId: row.who_paid ?? row.who_paid_id ?? row.whoPaidId ?? 'user-1',
@@ -341,6 +357,10 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
       tags.push(`city:${activity.city.trim()}`);
     }
 
+    if (activity.lat !== undefined && activity.lng !== undefined) {
+      tags.push(`geo:${activity.lat},${activity.lng}${activity.placeId ? ',' + activity.placeId : ''}`);
+    }
+
     if (tags.length > 0) {
       row.booking_status = `${status} [${tags.join('|')}]`;
     } else {
@@ -350,6 +370,19 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
 
   if (activity.city !== undefined) {
     row.city = activity.city || null;
+  }
+
+  if (activity.lat !== undefined) {
+    row.lat = activity.lat;
+  }
+  if (activity.lng !== undefined) {
+    row.lng = activity.lng;
+  }
+  if (activity.placeId !== undefined) {
+    row.place_id = activity.placeId;
+  }
+  if (activity.formattedAddress !== undefined) {
+    row.formatted_address = activity.formattedAddress;
   }
 
   if (activity.category !== undefined) {
@@ -493,3 +526,24 @@ export function subscribeToActivitiesRealtime(
     supabase.removeChannel(channel);
   };
 }
+
+/**
+ * Clear all existing location strings from the database (as requested by user)
+ */
+export async function clearAllExistingLocationsFromSupabase(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase
+      .from('activities')
+      .update({ location: '' })
+      .neq('location', '');
+    if (error) {
+      console.warn('[Supabase] Could not bulk-clear locations (column check):', error.message);
+    } else {
+      console.log('[Supabase] Successfully cleared all existing locations');
+    }
+  } catch (err) {
+    console.warn('[Supabase] Error clearing locations:', err);
+  }
+}
+

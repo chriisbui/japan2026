@@ -15,9 +15,10 @@ import {
   Compass,
   Check,
   Camera,
+  MapPin,
 } from 'lucide-react';
 
-export type ActiveTab = 'home' | 'calendar' | 'timeline' | 'my-schedule' | 'ideas' | 'ledger';
+export type ActiveTab = 'home' | 'calendar' | 'timeline' | 'my-schedule' | 'ideas' | 'ledger' | 'map';
 
 interface NavbarProps {
   trip: TripInfo;
@@ -55,6 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const tabs: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'map', label: 'Map', icon: MapPin },
     { id: 'calendar', label: 'Calendar Grid', icon: Calendar },
     { id: 'timeline', label: 'Day Timeline', icon: Clock },
     { id: 'ideas', label: 'Idea Bucket', icon: Lightbulb, badge: ideasCount },
