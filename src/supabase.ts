@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Activity, BookingStatus } from './types';
+import { Activity, BookingStatus, FlightDetails, AccommodationItem, Profile } from './types';
 import { normalizeCategory } from './data/categories';
 import { isValidCoordinate } from './utils/mapUtils';
 
@@ -577,5 +577,238 @@ export function subscribeToActivitiesRealtime(
 export async function clearAllExistingLocationsFromSupabase(): Promise<void> {
   // Intentionally no-op to preserve all user-entered locations across sessions
   return;
+}
+
+/**
+ * Parses a Supabase profiles database row into typed Profile data:
+ * Extracts avatar_url, flightDetails, and accommodations.
+ * Safely handles direct columns or JSON payload stored in color.
+ */
+export function parseProfileDbRow(row: any): {
+  id: string;
+  name?: string;
+  avatarUrl?: string;
+  flightDetails?: FlightDetails;
+  accommodations?: AccommodationItem[];
+} {
+  const id = String(row.id || '');
+  const name = row.name || undefined;
+  const avatarUrl = row.avatar_url || row.avatarUrl || undefined;
+  let flightDetails: FlightDetails | undefined = undefined;
+  let accommodations: AccommodationItem[] | undefined = undefined;
+
+  // 1. Check direct table columns if present
+  if (row.flight_details && typeof row.flight_details === 'object') {
+    flightDetails = row.flight_details;
+  } else if (row.flightDetails && typeof row.flightDetails === 'object') {
+    flightDetails = row.flightDetails;
+  }
+
+  if (Array.isArray(row.accommodations)) {
+    accommodations = row.accommodations;
+  } else if (Array.isArray(row.accommodation)) {
+    accommodations = row.accommodation;
+  }
+
+  // 2. Check JSON payload stored in color column
+  if (row.color && typeof row.color === 'string' && row.color.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(row.color);
+      if (parsed && typeof parsed === 'object') {
+        if (!flightDetails && parsed.flightDetails && typeof parsed.flightDetails === 'object') {
+          flightDetails = parsed.flightDetails;
+        }
+        if (!accommodations && Array.isArray(parsed.accommodations)) {
+          accommodations = parsed.accommodations;
+        }
+      }
+    } catch {
+      // Plain text color string, ignore parse error
+    }
+  }
+
+  return { id, name, avatarUrl, flightDetails, accommodations };
+}
+
+/**
+ * Fetches all profiles from Supabase and merges them into current application profiles.
+ * Preserves existing local state if DB does not have flight details or accommodations,
+ * and backfills Supabase if local state has newer details.
+ */
+export async function fetchProfilesFromSupabase(currentProfiles: Profile[]): Promise<Profile[]> {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*');
+    if (error) {
+      console.error('[Supabase profiles select error]:', error.message);
+      return currentProfiles;
+    }
+
+    if (!data || data.length === 0) {
+      return currentProfiles;
+    }
+
+    const updatedProfiles = currentProfiles.map((current) => {
+      // Match by ID or Name
+      const matches = data.filter(
+        (p: any) =>
+          p.id === current.id ||
+          (p.name && current.name && p.name.toLowerCase() === current.name.toLowerCase())
+      );
+
+      if (matches.length === 0) return current;
+
+      let combinedAvatarUrl = current.avatarUrl;
+      let combinedFlightDetails = current.flightDetails;
+      let combinedAccommodations = current.accommodations;
+
+      for (const row of matches) {
+        const parsed = parseProfileDbRow(row);
+        if (parsed.avatarUrl) {
+          combinedAvatarUrl = parsed.avatarUrl;
+        }
+        if (
+          parsed.flightDetails &&
+          (parsed.flightDetails.arrivalDate || parsed.flightDetails.departureDate)
+        ) {
+          combinedFlightDetails = parsed.flightDetails;
+        }
+        if (
+          parsed.accommodations &&
+          parsed.accommodations.some((a) => a.location || a.name)
+        ) {
+          combinedAccommodations = parsed.accommodations;
+        }
+      }
+
+      return {
+        ...current,
+        avatarUrl: combinedAvatarUrl,
+        flightDetails: combinedFlightDetails,
+        accommodations: combinedAccommodations,
+      };
+    });
+
+    // Auto-backfill: if local profiles had flight details or accommodations that were missing from DB,
+    // persist them to Supabase so they are permanently saved across sessions.
+    for (const current of currentProfiles) {
+      const hasLocalFlights = Boolean(
+        current.flightDetails?.arrivalDate || current.flightDetails?.departureDate
+      );
+      const hasLocalAccommodations = Boolean(
+        current.accommodations?.some((a) => a.location || a.name)
+      );
+
+      const dbMatch = data.find(
+        (p: any) =>
+          p.id === current.id ||
+          (p.name && current.name && p.name.toLowerCase() === current.name.toLowerCase())
+      );
+      const parsedDb = dbMatch ? parseProfileDbRow(dbMatch) : null;
+      const dbHasFlights = Boolean(
+        parsedDb?.flightDetails?.arrivalDate || parsedDb?.flightDetails?.departureDate
+      );
+      const dbHasAccommodations = Boolean(
+        parsedDb?.accommodations?.some((a) => a.location || a.name)
+      );
+
+      if ((hasLocalFlights && !dbHasFlights) || (hasLocalAccommodations && !dbHasAccommodations)) {
+        saveProfileToSupabase(current).catch((err) =>
+          console.warn('[Supabase auto-backfill notice]:', err)
+        );
+      }
+    }
+
+    return updatedProfiles;
+  } catch (err) {
+    console.error('Failed to fetch profiles from Supabase:', err);
+    return currentProfiles;
+  }
+}
+
+/**
+ * Persists profile changes (avatar, flight details, accommodations) to Supabase.
+ * Keeps both the primary id and lowercase name in sync.
+ */
+export async function saveProfileToSupabase(profile: Profile): Promise<boolean> {
+  try {
+    const colorPayload = JSON.stringify({
+      color: profile.color,
+      flightDetails: profile.flightDetails,
+      accommodations: profile.accommodations,
+    });
+
+    const payload: any = {
+      id: profile.id,
+      name: profile.name,
+      avatar_url: profile.avatarUrl ?? null,
+      color: colorPayload,
+    };
+
+    // 1. Save primary record (e.g. 'user-1')
+    const { error: err1 } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (err1) {
+      console.error('[Supabase saveProfile primary error]:', err1.message);
+    }
+
+    // 2. Also keep named lowercase record in sync if present (e.g. 'chris')
+    if (profile.name && profile.name.toLowerCase() !== profile.id.toLowerCase()) {
+      const namedPayload: any = {
+        ...payload,
+        id: profile.name.toLowerCase(),
+      };
+      const { error: err2 } = await supabase
+        .from('profiles')
+        .upsert(namedPayload, { onConflict: 'id' });
+
+      if (err2) {
+        console.warn('[Supabase saveProfile named record notice]:', err2.message);
+      }
+    }
+
+    return !err1;
+  } catch (err) {
+    console.error('Failed to save profile to Supabase:', err);
+    return false;
+  }
+}
+
+/**
+ * Subscribes in real-time to profile table changes (avatar, flight details, accommodations).
+ */
+export function subscribeToProfilesRealtime(
+  onProfileUpdate: (updatedData: {
+    id: string;
+    name?: string;
+    avatarUrl?: string;
+    flightDetails?: FlightDetails;
+    accommodations?: AccommodationItem[];
+  }) => void
+) {
+  const channel = supabase
+    .channel('profiles_realtime_sync')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+      },
+      (payload) => {
+        if (payload.new && typeof payload.new === 'object') {
+          const parsed = parseProfileDbRow(payload.new);
+          onProfileUpdate(parsed);
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log(`[Supabase Realtime] Profiles channel status: ${status}`);
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 

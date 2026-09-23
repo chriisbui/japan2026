@@ -25,6 +25,9 @@ import {
   updateActivityInSupabase,
   subscribeToActivitiesRealtime,
   generateUUID,
+  fetchProfilesFromSupabase,
+  saveProfileToSupabase,
+  subscribeToProfilesRealtime,
 } from './supabase';
 
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
@@ -147,70 +150,50 @@ export default function App() {
     };
   }, [loadActivities]);
 
-// Fetch persistent profile pictures from Supabase on load and subscribe to real-time changes
-useEffect(() => {
-  const loadProfilesFromSupabase = async () => {
-    try {
-      const { data, error } = await supabase.from('profiles').select('*');
-      if (error) {
-        console.error('Error fetching profiles from Supabase:', error.message);
-        return;
+  // Fetch persistent profiles (avatar, flight details, accommodations) from Supabase on load and subscribe to real-time changes
+  useEffect(() => {
+    let isMounted = true;
+    const syncProfiles = async () => {
+      try {
+        setProfiles((prev) => {
+          fetchProfilesFromSupabase(prev).then((synced) => {
+            if (isMounted) {
+              setProfiles(synced);
+            }
+          });
+          return prev;
+        });
+      } catch (err) {
+        console.error('Failed to load profiles from Supabase:', err);
       }
+    };
 
-      if (data && data.length > 0) {
-        setProfiles((prevProfiles) =>
-          prevProfiles.map((preset) => {
-            const matches = data.filter(
-              (p: any) =>
-                p.id === preset.id ||
-                (p.name && preset.name && p.name.toLowerCase() === preset.name.toLowerCase())
-            );
-            const dbProfile = matches.find((p: any) => p.avatar_url || p.avatarUrl) || matches[0];
-            return {
-              ...preset,
-              // Check both avatar_url and avatarUrl depending on DB column naming
-              avatarUrl: dbProfile?.avatar_url || dbProfile?.avatarUrl || preset.avatarUrl,
-            };
-          })
-        );
-      }
-    } catch (err) {
-      console.error('Failed to load profiles:', err);
-    }
-  };
+    syncProfiles();
 
-  loadProfilesFromSupabase();
+    // Real-time listener for profiles across devices
+    const unsubscribe = subscribeToProfilesRealtime((incoming) => {
+      setProfiles((prev) =>
+        prev.map((p) => {
+          const isMatch =
+            p.id === incoming.id ||
+            (incoming.name && p.name && p.name.toLowerCase() === incoming.name.toLowerCase());
+          if (!isMatch) return p;
 
-  // Real-time listener for profiles across devices
-  const profileChannel = supabase
-    .channel('profiles_realtime_sync')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'profiles' },
-      (payload) => {
-        if (payload.new && typeof payload.new === 'object') {
-          const updated = payload.new as any;
-          const updatedAvatar = updated.avatar_url || updated.avatarUrl;
-          setProfiles((prev) =>
-            prev.map((preset) => {
-              const isMatch =
-                preset.id === updated.id ||
-                (updated.name && preset.name && updated.name.toLowerCase() === preset.name.toLowerCase());
-              if (isMatch && updatedAvatar !== undefined) {
-                return { ...preset, avatarUrl: updatedAvatar || undefined };
-              }
-              return preset;
-            })
-          );
-        }
-      }
-    )
-    .subscribe();
+          return {
+            ...p,
+            avatarUrl: incoming.avatarUrl !== undefined ? incoming.avatarUrl : p.avatarUrl,
+            flightDetails: incoming.flightDetails !== undefined ? incoming.flightDetails : p.flightDetails,
+            accommodations: incoming.accommodations !== undefined ? incoming.accommodations : p.accommodations,
+          };
+        })
+      );
+    });
 
-  return () => {
-    supabase.removeChannel(profileChannel);
-  };
-}, []);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Save profiles to localStorage
   useEffect(() => {
@@ -233,77 +216,54 @@ useEffect(() => {
     setIsPhotoModalOpen(true);
   };
 
-const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
-  // 1. Find the target profile to get its name
-  const targetProfile = profiles.find((p) => p.id === profileId);
+  const handleSaveAvatar = async (profileId: string, avatarUrl: string | undefined) => {
+    let targetProfileToSave: Profile | null = null;
 
-  // 2. Update React state locally for instant UI feedback
-  setProfiles((prev) =>
-    prev.map((p) => (p.id === profileId ? { ...p, avatarUrl } : p))
-  );
+    setProfiles((prev) =>
+      prev.map((p) => {
+        if (p.id !== profileId) return p;
+        const updated: Profile = {
+          ...p,
+          avatarUrl,
+        };
+        targetProfileToSave = updated;
+        return updated;
+      })
+    );
 
-  // 3. Upsert to Supabase profiles table, including the name
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(
-        { 
-          id: profileId, 
-          name: targetProfile?.name || profileId, // Guarantees name is never null
-          avatar_url: avatarUrl ?? null 
-        }, 
-        { onConflict: 'id' }
-      )
-      .select();
-
-    if (error) {
-      console.error('❌ Supabase profile update error:', error.message, error.details);
-    } else {
-      console.log('✅ Supabase profile updated successfully:', data);
+    if (targetProfileToSave) {
+      await saveProfileToSupabase(targetProfileToSave);
     }
+  };
 
-    // Also keep the lowercase named record in sync if present in the database
-    if (targetProfile?.name && targetProfile.name.toLowerCase() !== profileId.toLowerCase()) {
-      await supabase
-        .from('profiles')
-        .upsert(
-          { 
-            id: targetProfile.name.toLowerCase(), 
-            name: targetProfile.name,
-            avatar_url: avatarUrl ?? null 
-          }, 
-          { onConflict: 'id' }
-        );
+  const handleSaveProfile = async (
+    profileId: string,
+    updates: {
+      avatarUrl?: string;
+      flightDetails?: FlightDetails;
+      accommodations?: AccommodationItem[];
     }
-  } catch (err) {
-    console.error('Failed to persist avatar to Supabase:', err);
-  }
-};
+  ) => {
+    let targetProfileToSave: Profile | null = null;
 
-const handleSaveProfile = async (
-  profileId: string,
-  updates: {
-    avatarUrl?: string;
-    flightDetails?: FlightDetails;
-    accommodations?: AccommodationItem[];
-  }
-) => {
-  setProfiles((prev) =>
-    prev.map((p) => {
-      if (p.id !== profileId) return p;
-      return {
-        ...p,
-        avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : p.avatarUrl,
-        flightDetails: updates.flightDetails !== undefined ? updates.flightDetails : p.flightDetails,
-        accommodations: updates.accommodations !== undefined ? updates.accommodations : p.accommodations,
-      };
-    })
-  );
+    setProfiles((prev) =>
+      prev.map((p) => {
+        if (p.id !== profileId) return p;
+        const updated: Profile = {
+          ...p,
+          avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : p.avatarUrl,
+          flightDetails: updates.flightDetails !== undefined ? updates.flightDetails : p.flightDetails,
+          accommodations: updates.accommodations !== undefined ? updates.accommodations : p.accommodations,
+        };
+        targetProfileToSave = updated;
+        return updated;
+      })
+    );
 
-  if (updates.avatarUrl !== undefined) {
-    await handleSaveAvatar(profileId, updates.avatarUrl);
-  }
-};
+    if (targetProfileToSave) {
+      await saveProfileToSupabase(targetProfileToSave);
+    }
+  };
 
   // Activity actions
   const handleOpenAddModal = (
