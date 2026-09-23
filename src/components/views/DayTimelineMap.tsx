@@ -217,9 +217,15 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
     return AREAS[0];
   }, [cityInfo]);
 
-  // Activities with location
+  // Activities with location or coordinates
   const locatedActivities = useMemo(() => {
-    return activities.filter((a) => Boolean(a.location && a.location.trim()));
+    return activities.filter((a) =>
+      Boolean(
+        (a.location && a.location.trim()) ||
+        (a.formattedAddress && a.formattedAddress.trim()) ||
+        isValidCoordinate(a.lat, a.lng)
+      )
+    );
   }, [activities]);
 
   // Filter out invalid or zeroed-out coordinates (Null Island defense)
@@ -345,10 +351,10 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                       {act.category}
                     </span>
                     <h4 className="font-bold text-stone-900 leading-tight">{act.title}</h4>
-                    {act.location && (
+                    {(act.location || act.formattedAddress) && (
                       <p className="text-[11px] text-stone-600 flex items-start gap-1">
                         <MapPin className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
-                        <span className="break-words">{act.location}</span>
+                        <span className="break-words">{act.location || act.formattedAddress}</span>
                       </p>
                     )}
                     {act.startTime && (

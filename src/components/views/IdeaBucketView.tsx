@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Check,
   Info,
+  Users,
 } from 'lucide-react';
 
 interface IdeaBucketViewProps {
@@ -34,7 +35,13 @@ interface IdeaBucketViewProps {
   onAddNewIdea: () => void;
   onEditIdea: (idea: Activity) => void;
   onDeleteIdea: (ideaId: string) => void;
-  onScheduleIdea: (ideaId: string, targetDate: string, startTime?: string, endTime?: string) => void;
+  onScheduleIdea: (
+    ideaId: string,
+    targetDate: string,
+    startTime?: string,
+    endTime?: string,
+    taggedProfileIds?: string[]
+  ) => void;
   onToggleVote: (ideaId: string) => void;
   onUpdateIdeaCity?: (ideaId: string, city: string | undefined) => void;
 }
@@ -58,6 +65,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
   const [targetDate, setTargetDate] = useState<string>(days[0] || '2026-10-26');
   const [targetStartTime, setTargetStartTime] = useState<string>('14:00');
   const [targetEndTime, setTargetEndTime] = useState<string>('16:00');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
   const handleOpenSchedule = (idea: Activity) => {
     const validDays = getValidDaysForCity(idea.city, days);
@@ -66,10 +74,11 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
     setTargetDate(validDays[0] || days[0]);
     setTargetStartTime('14:00');
     setTargetEndTime('16:00');
+    setSelectedMemberIds(profiles.map((p) => p.id));
   };
 
   const handleConfirmSchedule = (idea: Activity) => {
-    onScheduleIdea(idea.id, targetDate, targetStartTime, targetEndTime);
+    onScheduleIdea(idea.id, targetDate, targetStartTime, targetEndTime, selectedMemberIds);
     setSchedulingIdeaId(null);
   };
 
@@ -104,7 +113,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-amber-500" />
-            <h2 className="text-lg font-bold text-stone-900">Unscheduled Idea Bucket</h2>
+            <h2 className="text-lg font-bold text-stone-900">Idea Bucket</h2>
             <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
               {ideas.length} ideas
             </span>
@@ -300,10 +309,10 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
                   {/* Location & Cost */}
                   <div className="space-y-1 my-3 text-xs text-stone-500">
-                    {idea.location && (
+                    {(idea.location || idea.formattedAddress) && (
                       <div className="flex items-center gap-1.5 truncate">
                         <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                        <span className="truncate">{idea.location}</span>
+                        <span className="truncate">{idea.location || idea.formattedAddress}</span>
                       </div>
                     )}
                     {idea.costPerPerson > 0 && (
@@ -356,18 +365,18 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                       onClick={() => handleOpenSchedule(idea)}
                       className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-stone-100 hover:bg-indigo-50 text-stone-700 hover:text-indigo-700 text-xs font-semibold rounded-lg border border-stone-200 hover:border-indigo-200 transition-colors cursor-pointer"
                     >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Schedule to Calendar</span>
+                      <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Add to Schedule</span>
                     </button>
                   ) : (
-                    <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-2 animate-in fade-in">
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-2.5 animate-in fade-in">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-indigo-950">
-                          Schedule to Calendar
+                          Add to Schedule
                         </span>
                         <button
                           onClick={() => setSchedulingIdeaId(null)}
-                          className="text-stone-400 hover:text-stone-600 text-[11px]"
+                          className="text-stone-400 hover:text-stone-600 text-[11px] cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -398,7 +407,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                           <button
                             type="button"
                             onClick={() => setEditingCityIdeaId(idea.id)}
-                            className="font-bold text-indigo-600 hover:underline shrink-0"
+                            className="font-bold text-indigo-600 hover:underline shrink-0 cursor-pointer"
                           >
                             Assign city
                           </button>
@@ -449,12 +458,55 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                         </div>
                       </div>
 
+                      {/* Member Assignment on Schedule */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-semibold text-stone-700 flex items-center gap-1">
+                            <Users className="w-3 h-3 text-stone-500" />
+                            <span>Assign Members ({selectedMemberIds.length} of {profiles.length})</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMemberIds(profiles.map((p) => p.id))}
+                            className="text-[10px] text-indigo-600 hover:underline font-semibold cursor-pointer"
+                          >
+                            Select All
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {profiles.map((p) => {
+                            const isSelected = selectedMemberIds.includes(p.id);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedMemberIds((prev) =>
+                                    prev.includes(p.id)
+                                      ? (prev.length > 1 ? prev.filter((id) => id !== p.id) : prev)
+                                      : [...prev, p.id]
+                                  );
+                                }}
+                                className={`px-1.5 py-1 rounded text-[11px] font-medium border text-center transition-colors cursor-pointer truncate ${
+                                  isSelected
+                                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
+                                    : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'
+                                }`}
+                                title={p.name}
+                              >
+                                {p.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <button
                         onClick={() => handleConfirmSchedule(idea)}
-                        className="w-full mt-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded text-xs shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                        className="w-full mt-1.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
                       >
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>Move into Itinerary</span>
+                        <span>Add to Schedule</span>
                       </button>
                     </div>
                   )}

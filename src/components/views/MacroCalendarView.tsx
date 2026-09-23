@@ -75,10 +75,10 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
         <div>
           <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-indigo-600" />
-            Macro Calendar Grid
+            Calendar
           </h2>
           <p className="text-xs text-stone-500">
-            {days.length}-day journey overview. Click any day card to expand its hour-by-hour timeline.
+            {days.length}-day journey overview. Click any day card to expand its hour-by-hour schedule.
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-stone-600">
@@ -224,10 +224,10 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                           {act.title}
                         </h4>
 
-                        {act.location && (
+                        {(act.location || act.formattedAddress) && (
                           <p className="text-[10px] text-stone-500 truncate flex items-center gap-0.5 mt-0.5">
                             <MapPin className="w-2.5 h-2.5 shrink-0" />
-                            <span className="truncate">{act.location}</span>
+                            <span className="truncate">{act.location || act.formattedAddress}</span>
                           </p>
                         )}
 

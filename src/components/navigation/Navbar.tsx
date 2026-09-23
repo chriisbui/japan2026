@@ -18,7 +18,7 @@ import {
   Pencil,
 } from 'lucide-react';
 
-export type ActiveTab = 'home' | 'calendar' | 'timeline' | 'my-schedule' | 'ideas' | 'ledger' | 'map';
+export type ActiveTab = 'home' | 'map' | 'calendar' | 'schedule' | 'ideas' | 'expenses';
 
 interface NavbarProps {
   trip: TripInfo;
@@ -57,10 +57,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'map', label: 'Map', icon: MapPin },
-    { id: 'calendar', label: 'Calendar Grid', icon: Calendar },
-    { id: 'timeline', label: 'Day Timeline', icon: Clock },
-    { id: 'ideas', label: 'Idea Bucket', icon: Lightbulb },
-    { id: 'ledger', label: 'Expenses', icon: DollarSign },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'schedule', label: 'Schedule', icon: Clock },
+    { id: 'ideas', label: 'Ideas', icon: Lightbulb },
+    { id: 'expenses', label: 'Expenses', icon: DollarSign },
   ];
 
   return (

@@ -25,7 +25,6 @@ import {
   updateActivityInSupabase,
   subscribeToActivitiesRealtime,
   generateUUID,
-  clearAllExistingLocationsFromSupabase,
 } from './supabase';
 
 const STORAGE_KEY_PROFILES = 'group_travel_profiles_v2';
@@ -106,26 +105,7 @@ export default function App() {
     setActivityError(null);
     try {
       const items = await fetchActivitiesFromSupabase();
-
-      // Clear all existing values in location (user requirement)
-      const hasCleared = localStorage.getItem('gmp_has_cleared_initial_locations') === 'true';
-      if (!hasCleared) {
-        const cleared = items.map((a) => ({
-          ...a,
-          location: '',
-          lat: undefined,
-          lng: undefined,
-          placeId: undefined,
-          formattedAddress: undefined,
-        }));
-        setActivities(cleared);
-        clearAllExistingLocationsFromSupabase().catch((err) =>
-          console.warn('Failed to clear remote locations:', err)
-        );
-        localStorage.setItem('gmp_has_cleared_initial_locations', 'true');
-      } else {
-        setActivities(items);
-      }
+      setActivities(items);
       setIsSupabaseLive(true);
     } catch (err: any) {
       console.error('[Supabase select error]:', err);
@@ -503,7 +483,8 @@ const handleSaveProfile = async (
     ideaId: string,
     targetDate: string,
     startTime?: string,
-    endTime?: string
+    endTime?: string,
+    taggedProfileIds?: string[]
   ) => {
     setActivityError(null);
     const existing = activities.find((a) => a.id === ideaId);
@@ -519,12 +500,20 @@ const handleSaveProfile = async (
       }
     }
 
+    const assignedMembers =
+      taggedProfileIds && taggedProfileIds.length > 0
+        ? taggedProfileIds
+        : existing?.taggedProfileIds && existing.taggedProfileIds.length > 0
+        ? existing.taggedProfileIds
+        : profiles.map((p) => p.id);
+
     const updates = {
       isIdea: false,
       date: targetDate,
       startTime: startTime || '10:00',
       endTime: endTime || '12:00',
       city: existing?.city || getCityForDate(targetDate).name,
+      taggedProfileIds: assignedMembers,
       ...(nextDeadline ? { bookingDeadline: nextDeadline } : {}),
     };
     try {
@@ -533,7 +522,7 @@ const handleSaveProfile = async (
         prev.map((a) => (a.id === ideaId ? { ...a, ...updates } : a))
       );
       setSelectedTimelineDate(targetDate);
-      setActiveTab('timeline');
+      setActiveTab('schedule');
     } catch (err: any) {
       console.error('[Supabase schedule error]:', err);
       setActivityError(err?.message || 'Failed to schedule idea in Supabase');
@@ -700,7 +689,7 @@ const handleSaveProfile = async (
 
   const handleSelectDay = (date: string) => {
     setSelectedTimelineDate(date);
-    setActiveTab('timeline');
+    setActiveTab('schedule');
   };
 
   // Lists of activities
@@ -821,9 +810,9 @@ const handleSaveProfile = async (
             </motion.div>
           )}
 
-          {(activeTab === 'timeline' || activeTab === 'my-schedule') && (
+          {activeTab === 'schedule' && (
             <motion.div
-              key="timeline"
+              key="schedule"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
@@ -841,7 +830,7 @@ const handleSaveProfile = async (
                 onAddActivityWithTime={(date, start, end) =>
                   handleOpenAddModal(date, start, end)
                 }
-                initialScope={activeTab === 'my-schedule' ? 'mine' : 'all'}
+                initialScope="mine"
               />
             </motion.div>
           )}
@@ -869,9 +858,9 @@ const handleSaveProfile = async (
             </motion.div>
           )}
 
-          {activeTab === 'ledger' && (
+          {activeTab === 'expenses' && (
             <motion.div
-              key="ledger"
+              key="expenses"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}

@@ -252,10 +252,10 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                         )}
 
                         {/* Location row */}
-                        {act.location && (
+                        {(act.location || act.formattedAddress) && (
                           <div className="flex items-center gap-1.5 text-xs text-stone-600 mt-1.5">
                             <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                            <span className="truncate">{act.location}</span>
+                            <span className="truncate">{act.location || act.formattedAddress}</span>
                           </div>
                         )}
 

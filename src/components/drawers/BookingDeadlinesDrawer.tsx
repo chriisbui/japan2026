@@ -200,10 +200,10 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
                         </span>
                       </div>
                     )}
-                    {activity.location && (
+                    {(activity.location || activity.formattedAddress) && (
                       <div className="flex items-center gap-1.5 truncate col-span-2">
                         <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                        <span className="truncate">{activity.location}</span>
+                        <span className="truncate">{activity.location || activity.formattedAddress}</span>
                       </div>
                     )}
                   </div>

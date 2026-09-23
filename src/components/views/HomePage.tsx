@@ -172,7 +172,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
             >
               <Calendar className="w-4 h-4" />
-              <span>Detailed Calendar Grid</span>
+              <span>Calendar</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

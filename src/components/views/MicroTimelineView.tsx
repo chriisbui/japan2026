@@ -54,7 +54,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   onEditActivity,
   onDeleteActivity,
   onAddActivityWithTime,
-  initialScope = 'all',
+  initialScope = 'mine',
 }) => {
   const [scope, setScope] = useState<'all' | 'mine'>(initialScope);
 
@@ -263,9 +263,29 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             })}
           </div>
 
-          {/* Scope Toggle: All Activities vs. My (Active Profile) Activities */}
+          {/* Scope Toggle: My Schedule vs All Activities */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100">
             <div className="inline-flex p-0.5 bg-stone-100 rounded-lg border border-stone-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setScope('mine')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  scope === 'mine'
+                    ? 'bg-white text-stone-900 shadow-2xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                <User className="w-3.5 h-3.5 text-indigo-600" />
+                <span>My Schedule</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    scope === 'mine' ? 'bg-indigo-100 text-indigo-800' : 'text-stone-400'
+                  }`}
+                >
+                  {myDayActivities.length}
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setScope('all')}
@@ -283,26 +303,6 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                   }`}
                 >
                   {allDayActivities.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScope('mine')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
-                  scope === 'mine'
-                    ? 'bg-white text-stone-900 shadow-2xs'
-                    : 'text-stone-500 hover:text-stone-900'
-                }`}
-              >
-                <User className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Only My Schedule</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    scope === 'mine' ? 'bg-indigo-100 text-indigo-800' : 'text-stone-400'
-                  }`}
-                >
-                  {myDayActivities.length}
                 </span>
               </button>
             </div>
@@ -385,7 +385,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-600" />
             <h3 className="text-sm font-bold text-stone-900">
-              {scope === 'mine' ? `${activeProfile?.name || 'My'} Schedule` : 'Day Timeline'}
+              {scope === 'mine' ? `${activeProfile?.name || 'My'} Schedule` : 'Schedule'}
             </h3>
           </div>
           <button
@@ -537,10 +537,10 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                       )}
 
                       {/* Location row */}
-                      {act.location && (
+                      {(act.location || act.formattedAddress) && (
                         <div className="flex items-center gap-1.5 text-xs text-stone-600 mt-1.5">
                           <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                          <span className="truncate">{act.location}</span>
+                          <span className="truncate">{act.location || act.formattedAddress}</span>
                         </div>
                       )}
 

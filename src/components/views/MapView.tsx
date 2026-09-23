@@ -247,9 +247,15 @@ export const MapView: React.FC<MapViewProps> = ({
     return [...activities, ...accommodationActivities];
   }, [activities, accommodationActivities]);
 
-  // Filter activities with a specified location
+  // Filter activities with a specified location or valid coordinates
   const locatedActivities = useMemo(() => {
-    return allCombinedActivities.filter((a) => Boolean(a.location && a.location.trim()));
+    return allCombinedActivities.filter((a) =>
+      Boolean(
+        (a.location && a.location.trim()) ||
+        (a.formattedAddress && a.formattedAddress.trim()) ||
+        isValidCoordinate(a.lat, a.lng)
+      )
+    );
   }, [allCombinedActivities]);
 
   // Scope filter (All vs Confirmed vs Ideas)
@@ -525,11 +531,11 @@ export const MapView: React.FC<MapViewProps> = ({
 
                       <h4 className="font-bold text-stone-900 text-sm leading-tight">{act.title}</h4>
 
-                      {act.location && (
+                      {(act.location || act.formattedAddress) && (
                         <div className="text-stone-600 flex items-start gap-1 bg-stone-50 p-1.5 rounded-lg border border-stone-200/60">
                           <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                           <span className="text-[11px] leading-snug break-words">
-                            {act.location}
+                            {act.location || act.formattedAddress}
                           </span>
                         </div>
                       )}
@@ -688,10 +694,10 @@ export const MapView: React.FC<MapViewProps> = ({
                         ) : null}
                       </div>
 
-                      {act.location && (
+                      {(act.location || act.formattedAddress) && (
                         <p className="text-[11px] text-stone-500 truncate flex items-center gap-1 mb-1.5">
                           <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                          <span>{act.location}</span>
+                          <span>{act.location || act.formattedAddress}</span>
                         </p>
                       )}
 

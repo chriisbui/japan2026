@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Activity, BookingStatus } from './types';
 import { normalizeCategory } from './data/categories';
+import { isValidCoordinate } from './utils/mapUtils';
 
 /**
  * Fallback credentials to prevent client initialization crash
@@ -246,16 +247,32 @@ export function rowToActivity(row: any): Activity {
     city = cityMatch[1].trim();
   }
 
-  let lat: number | undefined = row.lat !== undefined && row.lat !== null ? Number(row.lat) : undefined;
-  let lng: number | undefined = row.lng !== undefined && row.lng !== null ? Number(row.lng) : undefined;
+  let rawLat = row.lat !== undefined && row.lat !== null && row.lat !== '' ? Number(row.lat) : undefined;
+  let rawLng = row.lng !== undefined && row.lng !== null && row.lng !== '' ? Number(row.lng) : undefined;
   let placeId: string | undefined = row.place_id || row.placeId || undefined;
-  let formattedAddress: string | undefined = row.formatted_address || row.formattedAddress || undefined;
+  let formattedAddress: string | undefined = (row.formatted_address || row.formattedAddress || '').trim() || undefined;
+
+  let lat: number | undefined = isValidCoordinate(rawLat, rawLng) ? rawLat : undefined;
+  let lng: number | undefined = isValidCoordinate(rawLat, rawLng) ? rawLng : undefined;
 
   const geoMatch = rawStatus.match(/geo:([0-9.-]+),([0-9.-]+)(?:,([^\]\|]+))?/i);
   if (geoMatch) {
-    if (lat === undefined || isNaN(lat)) lat = parseFloat(geoMatch[1]);
-    if (lng === undefined || isNaN(lng)) lng = parseFloat(geoMatch[2]);
-    if (!placeId && geoMatch[3]) placeId = geoMatch[3];
+    const parsedLat = parseFloat(geoMatch[1]);
+    const parsedLng = parseFloat(geoMatch[2]);
+    if (isValidCoordinate(parsedLat, parsedLng)) {
+      if (lat === undefined) lat = parsedLat;
+      if (lng === undefined) lng = parsedLng;
+      if (!placeId && geoMatch[3]) placeId = geoMatch[3];
+    }
+  }
+
+  // Resolve location string: prefer explicit location, fall back to formatted_address
+  let location: string = (row.location ?? '').trim();
+  if (!location && formattedAddress) {
+    location = formattedAddress;
+  }
+  if (!formattedAddress && location) {
+    formattedAddress = location;
   }
 
   return {
@@ -266,7 +283,7 @@ export function rowToActivity(row: any): Activity {
     date: row.date || undefined,
     startTime,
     endTime,
-    location: row.location || '',
+    location,
     lat,
     lng,
     placeId,
@@ -380,8 +397,12 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
       tags.push(`city:${activity.city.trim()}`);
     }
 
-    if (activity.lat !== undefined && activity.lng !== undefined) {
-      tags.push(`geo:${activity.lat},${activity.lng}${activity.placeId ? ',' + activity.placeId : ''}`);
+    if (
+      activity.lat !== undefined &&
+      activity.lng !== undefined &&
+      isValidCoordinate(activity.lat, activity.lng)
+    ) {
+      tags.push(`geo:${Number(activity.lat)},${Number(activity.lng)}${activity.placeId ? ',' + activity.placeId : ''}`);
     }
 
     if (tags.length > 0) {
@@ -396,16 +417,16 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
   }
 
   if (activity.lat !== undefined) {
-    row.lat = activity.lat;
+    row.lat = isValidCoordinate(activity.lat, activity.lng) ? Number(activity.lat) : null;
   }
   if (activity.lng !== undefined) {
-    row.lng = activity.lng;
+    row.lng = isValidCoordinate(activity.lat, activity.lng) ? Number(activity.lng) : null;
   }
   if (activity.placeId !== undefined) {
-    row.place_id = activity.placeId;
+    row.place_id = activity.placeId ? String(activity.placeId).trim() : null;
   }
   if (activity.formattedAddress !== undefined) {
-    row.formatted_address = activity.formattedAddress;
+    row.formatted_address = activity.formattedAddress ? String(activity.formattedAddress).trim() : null;
   }
 
   if (activity.category !== undefined) {
@@ -551,22 +572,10 @@ export function subscribeToActivitiesRealtime(
 }
 
 /**
- * Clear all existing location strings from the database (as requested by user)
+ * Deprecated: Kept for backwards compatibility, safely no-op so locations are never wiped.
  */
 export async function clearAllExistingLocationsFromSupabase(): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  try {
-    const { error } = await supabase
-      .from('activities')
-      .update({ location: '' })
-      .neq('location', '');
-    if (error) {
-      console.warn('[Supabase] Could not bulk-clear locations (column check):', error.message);
-    } else {
-      console.log('[Supabase] Successfully cleared all existing locations');
-    }
-  } catch (err) {
-    console.warn('[Supabase] Error clearing locations:', err);
-  }
+  // Intentionally no-op to preserve all user-entered locations across sessions
+  return;
 }
 

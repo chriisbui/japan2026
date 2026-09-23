@@ -34,7 +34,7 @@ import {
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { geocodeLocationText } from '../../utils/nominatim';
-import { isValidCoordinate } from '../../utils/mapUtils';
+import { isValidCoordinate, getCoordinatesForActivity } from '../../utils/mapUtils';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -130,11 +130,12 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setDate(initialDate);
         setStartTime(activityToEdit.startTime || '');
         setEndTime(activityToEdit.endTime || '');
-        setLocation(activityToEdit.location || '');
+        const initialLoc = activityToEdit.location || activityToEdit.formattedAddress || '';
+        setLocation(initialLoc);
         setLat(activityToEdit.lat);
         setLng(activityToEdit.lng);
         setPlaceId(activityToEdit.placeId);
-        setFormattedAddress(activityToEdit.formattedAddress);
+        setFormattedAddress(activityToEdit.formattedAddress || (initialLoc ? initialLoc : undefined));
         setDescription(activityToEdit.description || '');
         setCostPerPerson(activityToEdit.costPerPerson || 0);
         setWhoPaidId(activityToEdit.whoPaidId || activeProfileId);
@@ -234,7 +235,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setDescription('');
         setCostPerPerson(0);
         setWhoPaidId(activeProfileId);
-        setTaggedProfileIds(profiles.map((p) => p.id));
+        setTaggedProfileIds(isIdeaBucketMode ? [] : profiles.map((p) => p.id));
         setHostProfileId(activeProfileId);
         setBookingStatus('No Booking Needed');
         setLeadTimeMode('relative');
@@ -351,24 +352,68 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     // If location is provided, ensure latitude and longitude are valid and non-zero before saving to Supabase
     if (location.trim()) {
       if (!isValidCoordinate(finalLat, finalLng)) {
-        setIsGeocoding(true);
-        const resolved = await geocodeLocationText(location.trim());
-        setIsGeocoding(false);
-        if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
-          finalLat = resolved.lat;
-          finalLng = resolved.lng;
-          finalPlaceId = resolved.placeId;
-          finalFormattedAddress = resolved.formattedAddress;
-          setLat(resolved.lat);
-          setLng(resolved.lng);
-          setPlaceId(resolved.placeId);
-          setFormattedAddress(resolved.formattedAddress);
-        } else {
-          newErrors.location =
-            'Please select a location from OpenStreetMap suggestions or ensure coordinates are valid non-zero numbers before saving.';
+        try {
+          setIsGeocoding(true);
+          const resolved = await geocodeLocationText(location.trim());
+          if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
+            finalLat = resolved.lat;
+            finalLng = resolved.lng;
+            finalPlaceId = resolved.placeId;
+            finalFormattedAddress = resolved.formattedAddress;
+            setLat(resolved.lat);
+            setLng(resolved.lng);
+            setPlaceId(resolved.placeId);
+            setFormattedAddress(resolved.formattedAddress);
+          } else {
+            // Fallback estimation based on landmark, city, or destination
+            const estimated = getCoordinatesForActivity(
+              {
+                id: activityToEdit?.id || 'temp',
+                title: title.trim(),
+                location: location.trim(),
+                city: city || undefined,
+              } as Activity,
+              (city as any) || 'Tokyo'
+            );
+            if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
+              finalLat = estimated.lat;
+              finalLng = estimated.lng;
+            }
+          }
+        } catch {
+          const estimated = getCoordinatesForActivity(
+            {
+              id: activityToEdit?.id || 'temp',
+              title: title.trim(),
+              location: location.trim(),
+              city: city || undefined,
+            } as Activity,
+            (city as any) || 'Tokyo'
+          );
+          if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
+            finalLat = estimated.lat;
+            finalLng = estimated.lng;
+          }
+        } finally {
+          setIsGeocoding(false);
         }
       } else if (Math.abs(finalLat!) < 0.0001 && Math.abs(finalLng!) < 0.0001) {
-        newErrors.location = 'Coordinates cannot be zero (0, 0 / Null Island). Please provide a valid location.';
+        const estimated = getCoordinatesForActivity(
+          {
+            id: activityToEdit?.id || 'temp',
+            title: title.trim(),
+            location: location.trim(),
+            city: city || undefined,
+          } as Activity,
+          (city as any) || 'Tokyo'
+        );
+        if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
+          finalLat = estimated.lat;
+          finalLng = estimated.lng;
+        } else {
+          finalLat = undefined;
+          finalLng = undefined;
+        }
       }
     }
 
@@ -392,11 +437,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       lat: finalLat,
       lng: finalLng,
       placeId: finalPlaceId,
-      formattedAddress: finalFormattedAddress,
+      formattedAddress: finalFormattedAddress || (location.trim() ? location.trim() : undefined),
       description: description.trim(),
       costPerPerson: finalCost,
       whoPaidId,
-      taggedProfileIds,
+      taggedProfileIds: isIdea ? [] : taggedProfileIds,
       hostProfileId,
       bookingStatus,
       bookingDeadline: bookingStatus === 'Needs Booking' ? bookingDeadline : undefined,
@@ -418,15 +463,37 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/60">
           <div>
             <h2 className="text-lg font-semibold text-stone-900">
-              {activityToEdit ? 'Edit Activity' : isIdea ? 'Add to Idea Bucket' : 'Add Activity to Itinerary'}
+              {activityToEdit ? (isIdea ? 'Edit Idea' : 'Edit Activity') : isIdea ? 'Add to Idea Bucket' : 'Add Activity to Itinerary'}
             </h2>
             <p className="text-xs text-stone-500">
               {isIdea
-                ? 'Backlog idea without fixed schedule — can be planned into calendar anytime.'
+                ? 'Backlog idea without fixed schedule — can be added to schedule anytime.'
                 : 'Plan an event with timing, budget, booking requirements, and attendees.'}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
+            {isIdea && (
+              <button
+                type="button"
+                id="activity-add-to-schedule-header-btn"
+                onClick={() => {
+                  setIsIdea(false);
+                  const chosenDate = date || defaultDate || '2026-10-26';
+                  setDate(chosenDate);
+                  if (!startTime) setStartTime('10:00');
+                  if (!endTime) setEndTime('12:00');
+                  if (!city && chosenDate) setCity(getCityForDate(chosenDate).name);
+                  if (!taggedProfileIds || taggedProfileIds.length === 0) {
+                    setTaggedProfileIds(profiles.map((p) => p.id));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer mr-1"
+                title="Add this idea to schedule"
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Add to Schedule</span>
+              </button>
+            )}
             {activityToEdit && onDelete && (
               <button
                 type="button"
@@ -449,33 +516,6 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-          {/* Idea vs Scheduled Switcher */}
-          <div className="flex items-center justify-between p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              <div>
-                <p className="font-medium text-stone-900">Unscheduled Idea Bucket Item?</p>
-                <p className="text-[11px] text-stone-500">
-                  {isIdea
-                    ? 'Saved in Idea Bucket backlog for later scheduling'
-                    : 'Scheduled directly onto the trip calendar grid'}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="toggle-idea-bucket-btn"
-              onClick={() => setIsIdea(!isIdea)}
-              className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
-                isIdea
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
-              }`}
-            >
-              {isIdea ? 'Bucket Idea' : 'Scheduled Event'}
-            </button>
-          </div>
-
           {/* Title */}
           <div>
             <label className="block font-semibold text-stone-700 mb-1">
@@ -1068,54 +1108,56 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </div>
           )}
 
-          {/* Tagged Profiles (Attendees) */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="font-semibold text-stone-700 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-stone-500" />
-                Tagged Members ({taggedProfileIds.length} of {profiles.length})
-              </label>
-              <div className="flex gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={selectAllProfiles}
-                  className="text-indigo-600 hover:text-indigo-800 font-medium"
-                >
-                  All (6)
-                </button>
-                <span className="text-stone-300">|</span>
-                <button
-                  type="button"
-                  onClick={selectOnlyMe}
-                  className="text-indigo-600 hover:text-indigo-800 font-medium"
-                >
-                  Only Me
-                </button>
+          {/* Tagged Profiles (Attendees) - Only shown once scheduled onto calendar */}
+          {!isIdea && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-semibold text-stone-700 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-stone-500" />
+                  Tagged Members ({taggedProfileIds.length} of {profiles.length})
+                </label>
+                <div className="flex gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={selectAllProfiles}
+                    className="text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+                  >
+                    All ({profiles.length})
+                  </button>
+                  <span className="text-stone-300">|</span>
+                  <button
+                    type="button"
+                    onClick={selectOnlyMe}
+                    className="text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+                  >
+                    Only Me
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {profiles.map((profile) => {
+                  const isTagged = taggedProfileIds.includes(profile.id);
+                  return (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() => toggleTaggedProfile(profile.id)}
+                      className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-colors cursor-pointer ${
+                        isTagged
+                          ? 'bg-stone-50 border-indigo-400 ring-1 ring-indigo-300'
+                          : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'
+                      }`}
+                    >
+                      <ProfileAvatar profile={profile} size="sm" />
+                      <span className="font-medium text-stone-800 truncate">{profile.name}</span>
+                      {isTagged && <Check className="w-3.5 h-3.5 text-indigo-600 ml-auto shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {profiles.map((profile) => {
-                const isTagged = taggedProfileIds.includes(profile.id);
-                return (
-                  <button
-                    key={profile.id}
-                    type="button"
-                    onClick={() => toggleTaggedProfile(profile.id)}
-                    className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-colors cursor-pointer ${
-                      isTagged
-                        ? 'bg-stone-50 border-indigo-400 ring-1 ring-indigo-300'
-                        : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'
-                    }`}
-                  >
-                    <ProfileAvatar profile={profile} size="sm" />
-                    <span className="font-medium text-stone-800 truncate">{profile.name}</span>
-                    {isTagged && <Check className="w-3.5 h-3.5 text-indigo-600 ml-auto shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </form>
 
         {/* Footer */}
@@ -1166,6 +1208,27 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             >
               Cancel
             </button>
+            {isIdea && (
+              <button
+                type="button"
+                id="activity-add-to-schedule-btn"
+                onClick={() => {
+                  setIsIdea(false);
+                  const chosenDate = date || defaultDate || '2026-10-26';
+                  setDate(chosenDate);
+                  if (!startTime) setStartTime('10:00');
+                  if (!endTime) setEndTime('12:00');
+                  if (!city && chosenDate) setCity(getCityForDate(chosenDate).name);
+                  if (!taggedProfileIds || taggedProfileIds.length === 0) {
+                    setTaggedProfileIds(profiles.map((p) => p.id));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Add to Schedule</span>
+              </button>
+            )}
             <button
               type="button"
               id="activity-save-submit-btn"

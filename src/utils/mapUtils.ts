@@ -69,7 +69,7 @@ export function getCoordinatesForActivity(act: Activity, areaFallback: AreaId = 
   }
 
   // Known landmark coordinates for instant placement
-  const locLower = `${act.location || ''} ${act.title || ''} ${act.city || ''}`.toLowerCase();
+  const locLower = `${act.location || ''} ${act.formattedAddress || ''} ${act.title || ''} ${act.city || ''}`.toLowerCase();
 
   if (locLower.includes('shibuya')) return { lat: 35.6595, lng: 139.7005 };
   if (locLower.includes('shinjuku')) return { lat: 35.6938, lng: 139.7034 };
@@ -129,8 +129,9 @@ export function getCoordinatesForActivity(act: Activity, areaFallback: AreaId = 
 export function getActivityArea(act: Activity): AreaId {
   const c = (act.city || '').toLowerCase();
   const l = (act.location || '').toLowerCase();
+  const a = (act.formattedAddress || '').toLowerCase();
   const t = (act.title || '').toLowerCase();
-  const full = `${c} ${l} ${t}`;
+  const full = `${c} ${l} ${a} ${t}`;
 
   if (full.includes('kyoto') || full.includes('gion') || full.includes('arashiyama') || full.includes('fushimi')) return 'Kyoto';
   if (full.includes('osaka') || full.includes('dotonbori') || full.includes('namba') || full.includes('umeda') || full.includes('usj')) return 'Osaka';
