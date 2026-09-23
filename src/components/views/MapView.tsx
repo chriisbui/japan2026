@@ -574,7 +574,7 @@ export const MapView: React.FC<MapViewProps> = ({
                             'Free / No cost'
                           )}
                         </span>
-                        <div className="flex -space-x-1.5">
+                        <div className="flex -space-x-1.5 py-0.5 px-0.5">
                           {act.taggedProfileIds.slice(0, 3).map((pid) => {
                             const p = profiles.find((prof) => prof.id === pid);
                             return p ? <ProfileAvatar key={p.id} profile={p} size="xs" /> : null;

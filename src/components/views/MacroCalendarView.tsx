@@ -233,7 +233,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
 
                         {/* Tagged profile avatars */}
                         <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-stone-100">
-                          <div className="flex -space-x-1.5 overflow-hidden">
+                          <div className="flex -space-x-1.5 py-0.5 px-0.5">
                             {act.taggedProfileIds.slice(0, 4).map((pid) => (
                               <ProfileAvatar key={pid} profile={getProfile(pid)} size="xs" />
                             ))}

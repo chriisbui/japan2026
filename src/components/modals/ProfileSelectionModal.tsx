@@ -77,18 +77,11 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
                 >
                   <ProfileAvatar profile={profile} size="lg" isActive={isSelected} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-stone-900 truncate">{profile.name}</span>
-                      {isSelected && (
-                        <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-indigo-600 text-white shadow-2xs">
-                          <Check className="w-3 h-3 mr-0.5" /> Active
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-bold text-sm text-stone-900 truncate block">{profile.name}</span>
                   </div>
                 </button>
 
-                {/* Edit profile button */}
+                {/* Edit profile button: icon only */}
                 {handleEdit && (
                   <button
                     type="button"
@@ -96,11 +89,11 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
                       e.stopPropagation();
                       handleEdit(profile);
                     }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-indigo-600 bg-stone-100 hover:bg-indigo-50 rounded-lg transition-colors border border-stone-200 hover:border-indigo-200 ml-2 shrink-0 cursor-pointer"
+                    className="p-2 text-stone-600 hover:text-indigo-600 bg-stone-100 hover:bg-indigo-50 rounded-lg transition-colors border border-stone-200 hover:border-indigo-200 ml-2 shrink-0 cursor-pointer"
                     title={`Edit profile, flights, and accommodations for ${profile.name}`}
+                    aria-label={`Edit ${profile.name}`}
                   >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Edit</span>
+                    <Pencil className="w-4 h-4" />
                   </button>
                 )}
               </div>

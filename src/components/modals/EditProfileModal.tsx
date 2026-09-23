@@ -3,6 +3,7 @@ import { Profile, FlightDetails, AccommodationItem } from '../../types';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { supabase } from '../../lib/supabase';
 import { GooglePlacesAutocompleteInput, PlaceSelection } from '../common/GooglePlacesAutocompleteInput';
+import { formatDatePretty } from '../../utils/dateUtils';
 import {
   Upload,
   X,
@@ -15,6 +16,9 @@ import {
   MapPin,
   CheckCircle2,
   Calendar,
+  Link2,
+  Users,
+  ArrowRight,
 } from 'lucide-react';
 
 export const DEFAULT_ACCOMMODATION_SEGMENTS = [
@@ -69,6 +73,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: Profile | null;
+  profiles?: Profile[];
   onSaveProfile: (
     profileId: string,
     updates: {
@@ -83,6 +88,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   isOpen,
   onClose,
   profile,
+  profiles = [],
   onSaveProfile,
 }) => {
   if (!isOpen || !profile) return null;
@@ -98,6 +104,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [arrivalTime, setArrivalTime] = useState<string>(profile.flightDetails?.arrivalTime || '');
   const [departureDate, setDepartureDate] = useState<string>(profile.flightDetails?.departureDate || '');
   const [departureTime, setDepartureTime] = useState<string>(profile.flightDetails?.departureTime || '');
+  const [arrivalLinkedProfileId, setArrivalLinkedProfileId] = useState<string | undefined>(
+    profile.flightDetails?.arrivalLinkedProfileId
+  );
+  const [departureLinkedProfileId, setDepartureLinkedProfileId] = useState<string | undefined>(
+    profile.flightDetails?.departureLinkedProfileId
+  );
+
+  // Link picker modal / popover state
+  const [linkTarget, setLinkTarget] = useState<{
+    type: 'arrival' | 'departure' | 'accommodation';
+    segmentId?: string;
+    segmentLabel?: string;
+    segmentCity?: string;
+  } | null>(null);
 
   // Accommodation details state
   const [accommodations, setAccommodations] = useState<AccommodationItem[]>(() => {
@@ -117,6 +137,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           placeId: undefined,
           checkInDate: seg.checkInDate,
           checkOutDate: seg.checkOutDate,
+          linkedProfileId: undefined,
         }
       );
     });
@@ -129,6 +150,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setArrivalTime(profile.flightDetails?.arrivalTime || '');
     setDepartureDate(profile.flightDetails?.departureDate || '');
     setDepartureTime(profile.flightDetails?.departureTime || '');
+    setArrivalLinkedProfileId(profile.flightDetails?.arrivalLinkedProfileId);
+    setDepartureLinkedProfileId(profile.flightDetails?.departureLinkedProfileId);
 
     setAccommodations(
       DEFAULT_ACCOMMODATION_SEGMENTS.map((seg) => {
@@ -147,6 +170,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             placeId: undefined,
             checkInDate: seg.checkInDate,
             checkOutDate: seg.checkOutDate,
+            linkedProfileId: undefined,
           }
         );
       })
@@ -255,9 +279,70 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               lat: undefined,
               lng: undefined,
               placeId: undefined,
+              linkedProfileId: undefined,
             }
           : item
       )
+    );
+  };
+
+  const getLinkedProfile = (profileId?: string) => {
+    if (!profileId || !profiles) return undefined;
+    return profiles.find((p) => p.id === profileId);
+  };
+
+  const handleApplyLink = (
+    traveler: Profile,
+    flight?: FlightDetails,
+    accom?: AccommodationItem
+  ) => {
+    if (!linkTarget) return;
+
+    if (linkTarget.type === 'arrival') {
+      if (flight) {
+        if (flight.arrivalDate) setArrivalDate(flight.arrivalDate);
+        if (flight.arrivalTime) setArrivalTime(flight.arrivalTime);
+        setArrivalLinkedProfileId(traveler.id);
+      }
+    } else if (linkTarget.type === 'departure') {
+      if (flight) {
+        if (flight.departureDate) setDepartureDate(flight.departureDate);
+        if (flight.departureTime) setDepartureTime(flight.departureTime);
+        setDepartureLinkedProfileId(traveler.id);
+      }
+    } else if (linkTarget.type === 'accommodation' && linkTarget.segmentId) {
+      if (accom) {
+        setAccommodations((prev) =>
+          prev.map((item) => {
+            if (item.id !== linkTarget.segmentId) return item;
+            return {
+              ...item,
+              name: accom.name || item.name,
+              location: accom.location || item.location,
+              lat: accom.lat !== undefined ? accom.lat : item.lat,
+              lng: accom.lng !== undefined ? accom.lng : item.lng,
+              placeId: accom.placeId || item.placeId,
+              linkedProfileId: traveler.id,
+            };
+          })
+        );
+      }
+    }
+
+    setLinkTarget(null);
+  };
+
+  const handleUnlinkArrival = () => {
+    setArrivalLinkedProfileId(undefined);
+  };
+
+  const handleUnlinkDeparture = () => {
+    setDepartureLinkedProfileId(undefined);
+  };
+
+  const handleUnlinkAccommodation = (id: string) => {
+    setAccommodations((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, linkedProfileId: undefined } : item))
     );
   };
 
@@ -267,6 +352,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       arrivalTime: arrivalTime.trim() || undefined,
       departureDate: departureDate.trim() || undefined,
       departureTime: departureTime.trim() || undefined,
+      arrivalLinkedProfileId,
+      departureLinkedProfileId,
     };
 
     onSaveProfile(profile.id, {
@@ -397,25 +484,54 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Box 1: Arrival Date & Time */}
               <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/60 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
                       <PlaneLanding className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-bold text-stone-900">Arrival in Japan</span>
                   </div>
-                  {(arrivalDate || arrivalTime) && (
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {arrivalLinkedProfileId && getLinkedProfile(arrivalLinkedProfileId) && (
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-md text-[11px] text-indigo-700 font-medium">
+                        <Link2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                        <span>Linked to {getLinkedProfile(arrivalLinkedProfileId)?.name}</span>
+                        <button
+                          type="button"
+                          onClick={handleUnlinkArrival}
+                          className="text-stone-400 hover:text-rose-600 ml-0.5 cursor-pointer"
+                          title="Unlink"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => {
-                        setArrivalDate('');
-                        setArrivalTime('');
-                      }}
-                      className="text-[11px] text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      onClick={() => setLinkTarget({ type: 'arrival' })}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-stone-200 hover:border-indigo-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                      title="Link arrival flight to another traveler"
                     >
-                      Clear
+                      <Link2 className="w-3 h-3 text-indigo-600" />
+                      <span>Link to traveler</span>
                     </button>
-                  )}
+
+                    {(arrivalDate || arrivalTime) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setArrivalDate('');
+                          setArrivalTime('');
+                          setArrivalLinkedProfileId(undefined);
+                        }}
+                        className="text-[11px] text-stone-400 hover:text-rose-600 transition-colors cursor-pointer px-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -426,7 +542,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <input
                       type="date"
                       value={arrivalDate}
-                      onChange={(e) => setArrivalDate(e.target.value)}
+                      onChange={(e) => {
+                        setArrivalDate(e.target.value);
+                        setArrivalLinkedProfileId(undefined);
+                      }}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
@@ -437,7 +556,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <input
                       type="time"
                       value={arrivalTime}
-                      onChange={(e) => setArrivalTime(e.target.value)}
+                      onChange={(e) => {
+                        setArrivalTime(e.target.value);
+                        setArrivalLinkedProfileId(undefined);
+                      }}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
@@ -446,25 +568,54 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
               {/* Box 2: Departure Date & Time */}
               <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/60 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
                       <PlaneTakeoff className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-bold text-stone-900">Departure from Japan</span>
                   </div>
-                  {(departureDate || departureTime) && (
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {departureLinkedProfileId && getLinkedProfile(departureLinkedProfileId) && (
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-md text-[11px] text-indigo-700 font-medium">
+                        <Link2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                        <span>Linked to {getLinkedProfile(departureLinkedProfileId)?.name}</span>
+                        <button
+                          type="button"
+                          onClick={handleUnlinkDeparture}
+                          className="text-stone-400 hover:text-rose-600 ml-0.5 cursor-pointer"
+                          title="Unlink"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => {
-                        setDepartureDate('');
-                        setDepartureTime('');
-                      }}
-                      className="text-[11px] text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      onClick={() => setLinkTarget({ type: 'departure' })}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-stone-200 hover:border-indigo-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                      title="Link departure flight to another traveler"
                     >
-                      Clear
+                      <Link2 className="w-3 h-3 text-indigo-600" />
+                      <span>Link to traveler</span>
                     </button>
-                  )}
+
+                    {(departureDate || departureTime) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDepartureDate('');
+                          setDepartureTime('');
+                          setDepartureLinkedProfileId(undefined);
+                        }}
+                        className="text-[11px] text-stone-400 hover:text-rose-600 transition-colors cursor-pointer px-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -475,7 +626,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <input
                       type="date"
                       value={departureDate}
-                      onChange={(e) => setDepartureDate(e.target.value)}
+                      onChange={(e) => {
+                        setDepartureDate(e.target.value);
+                        setDepartureLinkedProfileId(undefined);
+                      }}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
@@ -486,7 +640,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <input
                       type="time"
                       value={departureTime}
-                      onChange={(e) => setDepartureTime(e.target.value)}
+                      onChange={(e) => {
+                        setDepartureTime(e.target.value);
+                        setDepartureLinkedProfileId(undefined);
+                      }}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
@@ -543,12 +700,46 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                         </span>
                       </div>
 
-                      {hasLocation && (
-                        <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Location Set</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {item.linkedProfileId && getLinkedProfile(item.linkedProfileId) && (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-md text-[11px] text-indigo-700 font-medium">
+                            <Link2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                            <span>Linked to {getLinkedProfile(item.linkedProfileId)?.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleUnlinkAccommodation(seg.id)}
+                              className="text-stone-400 hover:text-rose-600 ml-0.5 cursor-pointer"
+                              title="Unlink"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLinkTarget({
+                              type: 'accommodation',
+                              segmentId: seg.id,
+                              segmentLabel: seg.label,
+                              segmentCity: seg.city,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-stone-200 hover:border-indigo-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                          title={`Link ${seg.label} to another traveler`}
+                        >
+                          <Link2 className="w-3 h-3 text-indigo-600" />
+                          <span>Link to traveler</span>
+                        </button>
+
+                        {hasLocation && (
+                          <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Location Set</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Accommodation Name & Google Maps Place Autocomplete */}
@@ -630,6 +821,178 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Link to Traveler Dialog */}
+      {linkTarget && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]"
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/80 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                  {linkTarget.type === 'arrival' ? (
+                    <PlaneLanding className="w-4 h-4" />
+                  ) : linkTarget.type === 'departure' ? (
+                    <PlaneTakeoff className="w-4 h-4" />
+                  ) : (
+                    <Bed className="w-4 h-4" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-stone-900 leading-tight">
+                    {linkTarget.type === 'arrival'
+                      ? 'Link Arrival Flight'
+                      : linkTarget.type === 'departure'
+                      ? 'Link Departure Flight'
+                      : `Link ${linkTarget.segmentLabel || 'Stay'}`}
+                  </h4>
+                  <p className="text-[11px] text-stone-500">
+                    Select a traveler who has filled in their details to link
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLinkTarget(null)}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                aria-label="Close link dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Travelers list */}
+            <div className="p-4 overflow-y-auto space-y-2">
+              {(() => {
+                const otherProfiles = (profiles || []).filter((p) => p.id !== profile.id);
+                const eligible = otherProfiles
+                  .map((traveler) => {
+                    if (linkTarget.type === 'arrival') {
+                      const flight = traveler.flightDetails;
+                      const hasDetail = Boolean(flight && (flight.arrivalDate || flight.arrivalTime));
+                      return { traveler, flight, accom: undefined, hasDetail };
+                    }
+                    if (linkTarget.type === 'departure') {
+                      const flight = traveler.flightDetails;
+                      const hasDetail = Boolean(flight && (flight.departureDate || flight.departureTime));
+                      return { traveler, flight, accom: undefined, hasDetail };
+                    }
+                    if (linkTarget.type === 'accommodation') {
+                      const accom = (traveler.accommodations || []).find(
+                        (a) =>
+                          a.id === linkTarget.segmentId ||
+                          (a.city === linkTarget.segmentCity && (a.name?.trim() || a.location?.trim()))
+                      );
+                      const hasDetail = Boolean(accom && (accom.name?.trim() || accom.location?.trim()));
+                      return { traveler, flight: undefined, accom, hasDetail };
+                    }
+                    return { traveler, flight: undefined, accom: undefined, hasDetail: false };
+                  })
+                  .filter((item) => item.hasDetail);
+
+                if (eligible.length === 0) {
+                  return (
+                    <div className="py-8 px-4 text-center">
+                      <div className="w-10 h-10 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-2.5">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-stone-800">No travelers with details yet</p>
+                      <p className="text-[11px] text-stone-500 mt-1 max-w-xs mx-auto">
+                        No other travelers have filled in{' '}
+                        {linkTarget.type === 'accommodation'
+                          ? `${linkTarget.segmentLabel || 'this stay'}'s location`
+                          : `${linkTarget.type} flight details`}{' '}
+                        yet. You can enter them manually here or link once another traveler adds them.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 px-1">
+                      Available Travelers ({eligible.length})
+                    </p>
+                    {eligible.map(({ traveler, flight, accom }) => (
+                      <button
+                        key={traveler.id}
+                        type="button"
+                        onClick={() => handleApplyLink(traveler, flight, accom)}
+                        className="w-full text-left p-3 rounded-xl border border-stone-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-all flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <ProfileAvatar profile={traveler} size="md" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-stone-900 group-hover:text-indigo-900 truncate">
+                              {traveler.name}
+                            </p>
+                            {linkTarget.type === 'arrival' && flight && (
+                              <p className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-1.5 truncate">
+                                <span className="font-medium text-stone-700">
+                                  {flight.arrivalDate ? formatDatePretty(flight.arrivalDate) : 'Date unset'}
+                                </span>
+                                {flight.arrivalTime && (
+                                  <>
+                                    <span className="text-stone-300">•</span>
+                                    <span>{flight.arrivalTime}</span>
+                                  </>
+                                )}
+                              </p>
+                            )}
+                            {linkTarget.type === 'departure' && flight && (
+                              <p className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-1.5 truncate">
+                                <span className="font-medium text-stone-700">
+                                  {flight.departureDate ? formatDatePretty(flight.departureDate) : 'Date unset'}
+                                </span>
+                                {flight.departureTime && (
+                                  <>
+                                    <span className="text-stone-300">•</span>
+                                    <span>{flight.departureTime}</span>
+                                  </>
+                                )}
+                              </p>
+                            )}
+                            {linkTarget.type === 'accommodation' && accom && (
+                              <div className="text-[11px] text-stone-500 mt-0.5 truncate">
+                                {accom.name && (
+                                  <span className="font-medium text-stone-800 mr-1.5">{accom.name}</span>
+                                )}
+                                {accom.location && (
+                                  <span className="text-stone-400">{accom.location}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white group-hover:bg-indigo-700 shadow-2xs shrink-0 ml-2">
+                          <span>Link</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 bg-stone-50 border-t border-stone-100 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setLinkTarget(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

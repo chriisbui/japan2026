@@ -863,7 +863,12 @@ export default function App() {
           setIsPhotoModalOpen(false);
           setTargetProfileForPhoto(null);
         }}
-        profile={targetProfileForPhoto}
+        profile={
+          targetProfileForPhoto
+            ? profiles.find((p) => p.id === targetProfileForPhoto.id) || targetProfileForPhoto
+            : null
+        }
+        profiles={profiles}
         onSaveProfile={handleSaveProfile}
       />
 

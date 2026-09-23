@@ -7,6 +7,7 @@ interface ProfileAvatarProps {
   showName?: boolean;
   isActive?: boolean;
   className?: string;
+  hasOutline?: boolean;
 }
 
 export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
@@ -15,6 +16,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   showName = false,
   isActive = false,
   className = '',
+  hasOutline = true,
 }) => {
   if (!profile) return null;
 
@@ -26,12 +28,23 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
     xl: 'w-14 h-14 text-base font-bold',
   };
 
+  const ringClasses = {
+    xs: 'ring-2 ring-offset-1',
+    sm: 'ring-2 ring-offset-1',
+    md: 'ring-2 ring-offset-1',
+    lg: 'ring-2 ring-offset-2',
+    xl: 'ring-2 ring-offset-2',
+  };
+
+  const ringColor = profile.color?.ring || 'ring-indigo-400';
+  const bgColor = profile.color?.bg || 'bg-indigo-600';
+
   return (
     <div className={`inline-flex items-center gap-1.5 ${className}`} title={profile.name}>
       <div
-        className={`${sizeClasses[size]} ${profile.color.bg} text-white rounded-full flex items-center justify-center shrink-0 tracking-tight font-medium shadow-xs overflow-hidden relative ${
-          isActive ? `ring-2 ring-offset-1 ${profile.color.ring}` : ''
-        }`}
+        className={`${sizeClasses[size]} ${bgColor} text-white rounded-full flex items-center justify-center shrink-0 tracking-tight font-medium shadow-xs overflow-hidden relative ${
+          hasOutline ? `${ringClasses[size]} ring-offset-white ${ringColor}` : ''
+        } ${isActive ? 'ring-offset-2' : ''}`}
       >
         {profile.avatarUrl ? (
           <img

@@ -570,7 +570,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           {act.taggedProfileIds && act.taggedProfileIds.length > 0 && (
                             <div className="flex items-center gap-1">
                               <span className="text-[11px] text-stone-400 mr-1">Attendees:</span>
-                              <div className="flex -space-x-1.5 overflow-hidden">
+                              <div className="flex -space-x-1.5 py-0.5 px-0.5">
                                 {act.taggedProfileIds.map((pid) => (
                                   <ProfileAvatar key={pid} profile={getProfile(pid)} size="xs" />
                                 ))}

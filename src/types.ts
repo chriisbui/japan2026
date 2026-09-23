@@ -3,6 +3,8 @@ export interface FlightDetails {
   arrivalTime?: string; // HH:mm
   departureDate?: string; // YYYY-MM-DD
   departureTime?: string; // HH:mm
+  arrivalLinkedProfileId?: string;
+  departureLinkedProfileId?: string;
 }
 
 export interface AccommodationItem {
@@ -17,6 +19,7 @@ export interface AccommodationItem {
   checkInDate: string;
   checkOutDate: string;
   notes?: string;
+  linkedProfileId?: string;
 }
 
 export interface Profile {
