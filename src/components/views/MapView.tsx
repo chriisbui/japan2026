@@ -56,12 +56,16 @@ function createCustomPin(
   isAccommodation = false
 ): L.DivIcon {
   const meta = CATEGORIES_META[normalizeCategory(category)] || CATEGORIES_META['Sightseeing'];
-  const accentColor = isAccommodation ? '#4f46e5' : meta.color.accent;
-  const badgeBg = isAccommodation ? '#eef2ff' : '#ffffff';
-  const borderStyle = isIdea ? 'border: 1.5px dashed #d97706;' : `border: 1.5px solid ${accentColor};`;
+  const accentColor = isAccommodation ? '#374151' : meta.color.accent;
+  const badgeBg = isAccommodation ? '#f3f4f6' : '#ffffff';
+  const borderStyle = isAccommodation
+    ? 'border: 1.5px solid #374151;'
+    : isIdea
+    ? 'border: 1.5px dashed #d97706;'
+    : `border: 1.5px solid ${accentColor};`;
   const ringStyle = isSelected
-    ? 'box-shadow: 0 0 0 3px #1c1917, 0 10px 15px -3px rgba(0,0,0,0.35); transform: scale(1.12);'
-    : 'box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);';
+    ? 'box-shadow: 0 0 0 3px #111827, 0 10px 15px -3px rgba(0,0,0,0.4); transform: scale(1.12);'
+    : 'box-shadow: 0 4px 6px -1px rgba(0,0,0,0.18);';
 
   const cleanTitle = (title || 'Activity').replace(/[<>&"]/g, (c) => {
     switch (c) {
@@ -82,7 +86,7 @@ function createCustomPin(
     <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s ease; ${ringStyle}">
       <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: ${badgeBg}; ${borderStyle}">
         <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: ${accentColor}; flex-shrink: 0; display: inline-block;"></span>
-        <span style="font-size: 11px; font-weight: ${isIdea ? '400' : '600'}; font-style: ${isIdea ? 'italic' : 'normal'}; color: #1c1917; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, sans-serif;">
+        <span style="font-size: 11px; font-weight: ${isAccommodation ? '600' : isIdea ? '400' : '600'}; font-style: ${isIdea ? 'italic' : 'normal'}; color: ${isAccommodation ? '#111827' : '#1c1917'}; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, sans-serif;">
           ${cleanTitle}
         </span>
       </div>
@@ -214,33 +218,47 @@ export const MapView: React.FC<MapViewProps> = ({
   // Generate accommodation items for the active traveler
   const accommodationActivities: Activity[] = useMemo(() => {
     const activeProfile = profiles.find((p) => p.id === activeProfileId);
-    if (!activeProfile || !activeProfile.accommodations) return [];
+    const targetProfiles = activeProfile?.accommodations?.some((a) => a.location || a.name)
+      ? [activeProfile]
+      : profiles;
 
-    return activeProfile.accommodations.map((acc: AccommodationItem) => {
-      const hotelName = acc.name || acc.location || 'Accommodation Stay';
-      const city = acc.city || 'Tokyo';
+    const items: Activity[] = [];
+    for (const p of targetProfiles) {
+      if (!p.accommodations) continue;
+      for (const acc of p.accommodations) {
+        if (!acc.location && !acc.name) continue;
+        const rawCity = acc.city || 'Tokyo';
+        const cleanCity = rawCity.replace(/\s*\(.*\)/g, '').trim() || 'Tokyo';
+        const formattedCity =
+          cleanCity.toLowerCase() === 'mt fuji'
+            ? 'Fuji'
+            : cleanCity.charAt(0).toUpperCase() + cleanCity.slice(1);
+        const pinTitle = `${formattedCity} accommodation`;
 
-      return {
-        id: `acc-${acc.id}`,
-        title: `${hotelName} (${acc.label || city})`,
-        category: 'Accommodation' as any,
-        city,
-        date: acc.checkInDate || undefined,
-        location: acc.location || acc.name || '',
-        lat: acc.lat,
-        lng: acc.lng,
-        placeId: acc.placeId,
-        formattedAddress: acc.location,
-        description: `Accommodation stay: ${acc.checkInDate} to ${acc.checkOutDate}${acc.notes ? ` · ${acc.notes}` : ''}`,
-        costPerPerson: 0,
-        whoPaidId: activeProfile.id,
-        taggedProfileIds: [activeProfile.id],
-        hostProfileId: activeProfile.id,
-        bookingStatus: 'Booked',
-        isIdea: false,
-        createdAt: new Date().toISOString(),
-      };
-    });
+        items.push({
+          id: `acc-${acc.id}`,
+          title: pinTitle,
+          category: 'Accommodation' as any,
+          city: formattedCity,
+          date: acc.checkInDate || undefined,
+          location: acc.location || acc.name || `${formattedCity} accommodation`,
+          lat: acc.lat,
+          lng: acc.lng,
+          placeId: acc.placeId,
+          formattedAddress: acc.location || acc.name,
+          description: `Accommodation stay: ${acc.checkInDate} to ${acc.checkOutDate}${acc.notes ? ` · ${acc.notes}` : ''}`,
+          costPerPerson: 0,
+          whoPaidId: p.id,
+          taggedProfileIds: [p.id],
+          hostProfileId: p.id,
+          bookingStatus: 'Booked',
+          isIdea: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      if (items.length > 0) break;
+    }
+    return items;
   }, [profiles, activeProfileId]);
 
   const allCombinedActivities = useMemo(() => {
@@ -507,10 +525,12 @@ export const MapView: React.FC<MapViewProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            (
-                              CATEGORIES_META[normalizeCategory(act.category)] ||
-                              CATEGORIES_META['Sightseeing']
-                            ).color.badgeBg
+                            isAccommodation
+                              ? 'bg-stone-800 text-stone-100 border-stone-900'
+                              : (
+                                  CATEGORIES_META[normalizeCategory(act.category)] ||
+                                  CATEGORIES_META['Sightseeing']
+                                ).color.badgeBg
                           }`}
                         >
                           {act.category}
@@ -571,6 +591,11 @@ export const MapView: React.FC<MapViewProps> = ({
                           >
                             Edit Activity
                           </button>
+                        )}
+                        {act.id.startsWith('acc-') && (
+                          <span className="flex-1 py-1 text-[11px] text-stone-500 font-medium italic">
+                            Linked Accommodation Stay
+                          </span>
                         )}
                         <a
                           href={`https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=16/${coords.lat}/${coords.lng}`}
@@ -668,7 +693,7 @@ export const MapView: React.FC<MapViewProps> = ({
                       <div className="flex items-start justify-between gap-1.5 mb-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           {isAccommodation ? (
-                            <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-stone-700 shrink-0" />
                           ) : (
                             <span
                               className="w-2 h-2 rounded-full shrink-0"
@@ -696,7 +721,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
                       {(act.location || act.formattedAddress) && (
                         <p className="text-[11px] text-stone-500 truncate flex items-center gap-1 mb-1.5">
-                          <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <MapPin className="w-3 h-3 text-stone-500 shrink-0" />
                           <span>{act.location || act.formattedAddress}</span>
                         </p>
                       )}
@@ -716,6 +741,9 @@ export const MapView: React.FC<MapViewProps> = ({
                           >
                             Edit
                           </button>
+                        )}
+                        {isAccommodation && (
+                          <span className="text-stone-500 font-medium">Accommodation</span>
                         )}
                       </div>
                     </div>

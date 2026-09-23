@@ -38,15 +38,20 @@ function createDayPin(
   title: string,
   category: string,
   isIdea: boolean,
-  isSelected: boolean
+  isSelected: boolean,
+  isAccommodation = false
 ): L.DivIcon {
   const meta = CATEGORIES_META[normalizeCategory(category)] || CATEGORIES_META['Sightseeing'];
-  const accentColor = meta.color.accent;
-  const badgeBg = '#ffffff';
-  const borderStyle = isIdea ? 'border: 1.5px dashed #d97706;' : `border: 1.5px solid ${accentColor};`;
+  const accentColor = isAccommodation ? '#374151' : meta.color.accent;
+  const badgeBg = isAccommodation ? '#f3f4f6' : '#ffffff';
+  const borderStyle = isAccommodation
+    ? 'border: 1.5px solid #374151;'
+    : isIdea
+    ? 'border: 1.5px dashed #d97706;'
+    : `border: 1.5px solid ${accentColor};`;
   const ringStyle = isSelected
-    ? 'box-shadow: 0 0 0 3px #1c1917, 0 10px 15px -3px rgba(0,0,0,0.35); transform: scale(1.12);'
-    : 'box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);';
+    ? 'box-shadow: 0 0 0 3px #111827, 0 10px 15px -3px rgba(0,0,0,0.4); transform: scale(1.12);'
+    : 'box-shadow: 0 4px 6px -1px rgba(0,0,0,0.18);';
 
   const cleanTitle = (title || 'Activity').replace(/[<>&"]/g, (c) => {
     switch (c) {
@@ -67,7 +72,7 @@ function createDayPin(
     <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s ease; ${ringStyle}">
       <div style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: ${badgeBg}; ${borderStyle}">
         <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: ${accentColor}; flex-shrink: 0; display: inline-block;"></span>
-        <span style="font-size: 11px; font-weight: ${isIdea ? '400' : '600'}; font-style: ${isIdea ? 'italic' : 'normal'}; color: #1c1917; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, sans-serif;">
+        <span style="font-size: 11px; font-weight: ${isAccommodation ? '600' : isIdea ? '400' : '600'}; font-style: ${isIdea ? 'italic' : 'normal'}; color: ${isAccommodation ? '#111827' : '#1c1917'}; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, sans-serif;">
           ${cleanTitle}
         </span>
       </div>
@@ -78,8 +83,8 @@ function createDayPin(
   return L.divIcon({
     html,
     className: 'custom-osm-day-pin',
-    iconSize: [130, 36],
-    iconAnchor: [65, 36],
+    iconSize: [140, 36],
+    iconAnchor: [70, 36],
     popupAnchor: [0, -36],
   });
 }
@@ -206,6 +211,71 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
   // Inferred city for this specific day
   const cityInfo = useMemo(() => getCityForDate(date), [date]);
 
+  // Find linked accommodation for active profile on this day
+  const dayAccommodationActivity: Activity | null = useMemo(() => {
+    const activeProfile = profiles.find((p) => p.id === activeProfileId);
+    const targetProfiles = activeProfile?.accommodations?.some((a) => a.location || a.name)
+      ? [activeProfile]
+      : profiles;
+
+    for (const p of targetProfiles) {
+      const match = (p?.accommodations || []).find((item) => {
+        if (!item.location && !item.name) return false;
+        // 1. Date match: date falls between checkInDate and checkOutDate
+        if (item.checkInDate && item.checkOutDate) {
+          if (date >= item.checkInDate && date <= item.checkOutDate) return true;
+        }
+        // 2. City fallback match for date
+        if (item.city && cityInfo?.name && item.city.toLowerCase() === cityInfo.name.toLowerCase()) {
+          return true;
+        }
+        return false;
+      });
+
+      if (match) {
+        const rawCity = match.city || cityInfo.name || 'Tokyo';
+        const cleanCity = rawCity.replace(/\s*\(.*\)/g, '').trim() || 'Tokyo';
+        const formattedCity =
+          cleanCity.toLowerCase() === 'mt fuji'
+            ? 'Fuji'
+            : cleanCity.charAt(0).toUpperCase() + cleanCity.slice(1);
+        const pinTitle = `${formattedCity} accommodation`;
+
+        const accAct: Activity = {
+          id: `acc-${match.id || formattedCity.toLowerCase()}`,
+          title: pinTitle,
+          category: 'Accommodation' as any,
+          city: formattedCity,
+          date,
+          location: match.location || match.name || `${formattedCity} accommodation`,
+          lat: match.lat,
+          lng: match.lng,
+          placeId: match.placeId,
+          formattedAddress: match.location || match.name,
+          description: `Accommodation stay: ${match.checkInDate || date} to ${match.checkOutDate || date}${match.notes ? ` · ${match.notes}` : ''}`,
+          costPerPerson: 0,
+          whoPaidId: p.id,
+          taggedProfileIds: [p.id],
+          hostProfileId: p.id,
+          bookingStatus: 'Booked',
+          isIdea: false,
+          createdAt: new Date().toISOString(),
+        };
+        return accAct;
+      }
+    }
+    return null;
+  }, [profiles, activeProfileId, date, cityInfo]);
+
+  // Combine daily activities with the active profile's linked accommodation
+  const allDailyActivities = useMemo(() => {
+    if (!dayAccommodationActivity) return activities;
+    if (activities.some((a) => a.id === dayAccommodationActivity.id)) {
+      return activities;
+    }
+    return [dayAccommodationActivity, ...activities];
+  }, [dayAccommodationActivity, activities]);
+
   // Determine regional area
   const defaultArea = useMemo(() => {
     const cityName = cityInfo.name.toLowerCase();
@@ -219,14 +289,14 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
 
   // Activities with location or coordinates
   const locatedActivities = useMemo(() => {
-    return activities.filter((a) =>
+    return allDailyActivities.filter((a) =>
       Boolean(
         (a.location && a.location.trim()) ||
         (a.formattedAddress && a.formattedAddress.trim()) ||
         isValidCoordinate(a.lat, a.lng)
       )
     );
-  }, [activities]);
+  }, [allDailyActivities]);
 
   // Filter out invalid or zeroed-out coordinates (Null Island defense)
   const renderablePins = useMemo(() => {
@@ -327,7 +397,8 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
           {renderablePins.map(({ activity: act, coords }) => {
             const isSelected = selectedActivity?.id === act.id;
             const isIdea = Boolean(act.isIdea || !act.date);
-            const pinIcon = createDayPin(act.title, act.category, isIdea, isSelected);
+            const isAccommodation = act.id.startsWith('acc-') || act.category === 'Accommodation';
+            const pinIcon = createDayPin(act.title, act.category, isIdea, isSelected, isAccommodation);
 
             return (
               <Marker
@@ -342,10 +413,12 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                   <div className="p-1 max-w-[240px] space-y-1.5 text-xs font-sans">
                     <span
                       className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                        (
-                          CATEGORIES_META[normalizeCategory(act.category)] ||
-                          CATEGORIES_META['Sightseeing']
-                        ).color.badgeBg
+                        isAccommodation
+                          ? 'bg-stone-800 text-stone-100 border-stone-900'
+                          : (
+                              CATEGORIES_META[normalizeCategory(act.category)] ||
+                              CATEGORIES_META['Sightseeing']
+                            ).color.badgeBg
                       }`}
                     >
                       {act.category}
@@ -353,7 +426,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                     <h4 className="font-bold text-stone-900 leading-tight">{act.title}</h4>
                     {(act.location || act.formattedAddress) && (
                       <p className="text-[11px] text-stone-600 flex items-start gap-1">
-                        <MapPin className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                        <MapPin className="w-3 h-3 text-stone-500 shrink-0 mt-0.5" />
                         <span className="break-words">{act.location || act.formattedAddress}</span>
                       </p>
                     )}
@@ -363,14 +436,26 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                         <span>{formatTimeRange(act.startTime, act.endTime)}</span>
                       </p>
                     )}
+                    {isAccommodation && act.description && (
+                      <p className="text-[11px] text-stone-500 italic">
+                        {act.description}
+                      </p>
+                    )}
                     <div className="pt-1 flex items-center justify-between border-t border-stone-100">
-                      <button
-                        type="button"
-                        onClick={() => onEditActivity(act)}
-                        className="text-emerald-700 hover:text-emerald-800 font-semibold text-xs cursor-pointer"
-                      >
-                        Edit Activity
-                      </button>
+                      {!isAccommodation && (
+                        <button
+                          type="button"
+                          onClick={() => onEditActivity(act)}
+                          className="text-emerald-700 hover:text-emerald-800 font-semibold text-xs cursor-pointer"
+                        >
+                          Edit Activity
+                        </button>
+                      )}
+                      {isAccommodation && (
+                        <span className="text-[10px] text-stone-400 font-medium">
+                          Linked Accommodation
+                        </span>
+                      )}
                       <a
                         href={`https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=16/${coords.lat}/${coords.lng}`}
                         target="_blank"
@@ -395,6 +480,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
           <span className="text-xs font-semibold text-stone-500 shrink-0">Stops:</span>
           {renderablePins.map(({ activity: act }) => {
             const isSelected = selectedActivity?.id === act.id;
+            const isAccommodation = act.id.startsWith('acc-') || act.category === 'Accommodation';
             return (
               <button
                 key={act.id}
@@ -409,14 +495,15 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
                 <span
                   className="w-1.5 h-1.5 rounded-full"
                   style={{
-                    backgroundColor:
-                      (
-                        CATEGORIES_META[normalizeCategory(act.category)] ||
-                        CATEGORIES_META['Sightseeing']
-                      ).color.accent,
+                    backgroundColor: isAccommodation
+                      ? '#374151'
+                      : (
+                          CATEGORIES_META[normalizeCategory(act.category)] ||
+                          CATEGORIES_META['Sightseeing']
+                        ).color.accent,
                   }}
                 />
-                <span className="truncate max-w-[120px]">{act.title}</span>
+                <span className="truncate max-w-[140px]">{act.title}</span>
               </button>
             );
           })}
