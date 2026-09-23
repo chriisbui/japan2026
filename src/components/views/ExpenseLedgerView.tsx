@@ -130,7 +130,11 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   // What active user owes across all activities
   let totalIOweOthers = 0;
   unpaidActivitiesIOwe.forEach((act) => {
-    totalIOweOthers += Number(act.costPerPerson) || 0;
+    const myShare =
+      act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+        ? act.customSplitAmounts[activeProfileId]
+        : Number(act.costPerPerson) || 0;
+    totalIOweOthers += myShare;
   });
 
   // Simple overview of who the active user owes
@@ -141,7 +145,11 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
     if (!oweBreakdownByPayer[payerId]) {
       oweBreakdownByPayer[payerId] = { amount: 0, count: 0 };
     }
-    oweBreakdownByPayer[payerId].amount += Number(act.costPerPerson) || 0;
+    const myShare =
+      act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+        ? act.customSplitAmounts[activeProfileId]
+        : Number(act.costPerPerson) || 0;
+    oweBreakdownByPayer[payerId].amount += myShare;
     oweBreakdownByPayer[payerId].count += 1;
   });
   const owedPayersList = Object.entries(oweBreakdownByPayer).map(([payerId, data]) => ({
@@ -507,7 +515,9 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                             <Users className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Who Owes You (${bd.costPerPerson} each)</span>
+                            <span>
+                              Who Owes You {act.isNonEvenSplit ? '(Custom Split)' : `($${bd.costPerPerson} each)`}
+                            </span>
                           </div>
 
                           {bd.unpaidDebtorIds.length > 0 && onSettleAllDebtors && (
@@ -547,7 +557,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                       {debtor?.name || 'Traveler'}
                                     </span>
                                     <span className="text-[11px] text-stone-500">
-                                      Share: ${bd.costPerPerson}
+                                      Share: $
+                                      {act.isNonEvenSplit && act.customSplitAmounts?.[debtorId] !== undefined
+                                        ? act.customSplitAmounts[debtorId]
+                                        : bd.costPerPerson}
                                     </span>
                                   </div>
                                 </div>
@@ -814,7 +827,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 </div>
                                 <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
                                   <CheckCircle2 className="w-3 h-3" />
-                                  Paid ${bd.costPerPerson}
+                                  Paid $
+                                  {act.isNonEvenSplit && act.customSplitAmounts?.[debtorId] !== undefined
+                                    ? act.customSplitAmounts[debtorId]
+                                    : bd.costPerPerson}
                                 </span>
                               </div>
                             );
@@ -951,7 +967,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                     <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto">
                       <div className="text-right">
                         <span className="text-xs font-bold text-stone-900 block">
-                          Your share: ${act.costPerPerson}
+                          Your share: $
+                          {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+                            ? act.customSplitAmounts[activeProfileId]
+                            : act.costPerPerson}
                         </span>
                         <span className="text-[10px] text-stone-400">
                           {hasPaid ? 'Recorded by payer' : 'Awaiting reimbursement'}

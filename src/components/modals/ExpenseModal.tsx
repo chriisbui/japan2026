@@ -1,21 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Activity, ActivityCategory, Profile } from '../../types';
 import { CATEGORY_LIST, normalizeCategory } from '../../data/categories';
 import {
   X,
-  DollarSign,
   Users,
-  Calendar,
   Receipt,
   Trash2,
   Check,
-  Tag,
-  FileText,
-  CreditCard,
   AlertCircle,
+  Scale,
+  RefreshCw,
 } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
-import { formatDatePretty } from '../../utils/dateUtils';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -28,15 +24,13 @@ interface ExpenseModalProps {
   defaultDate?: string;
 }
 
-const COMMON_EXPENSE_PRESETS = [
-  { label: '🚖 Taxi / Rideshare', title: 'Taxi / Rideshare', category: 'Transit' as ActivityCategory },
-  { label: '🍱 Group Meal', title: 'Group Dinner / Lunch', category: 'Food & Drink' as ActivityCategory },
-  { label: '🛒 Snacks & Drinks', title: 'Convenience Store Snacks', category: 'Food & Drink' as ActivityCategory },
-  { label: '🧳 Luggage Delivery', title: 'Luggage Transport Service', category: 'Transit' as ActivityCategory },
-  { label: '📶 Pocket WiFi / SIM', title: 'Pocket WiFi Rental', category: 'Experiences' as ActivityCategory },
-  { label: '🎟️ Metro / Transit Passes', title: 'Metro / Transit Passes', category: 'Transit' as ActivityCategory },
-  { label: '🍻 Drinks & Bar', title: 'Drinks & Bar Tab', category: 'Nightlife' as ActivityCategory },
-];
+const getTodayDateString = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   isOpen,
@@ -46,13 +40,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   expenseToEdit,
   profiles,
   activeProfileId,
-  defaultDate = new Date().toISOString().split('T')[0],
 }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ActivityCategory>('Food & Drink');
-  const [date, setDate] = useState<string>(defaultDate);
+  const [date, setDate] = useState<string>(getTodayDateString());
   const [costPerPerson, setCostPerPerson] = useState<number>(0);
-  const [inputMode, setInputMode] = useState<'perPerson' | 'total'>('perPerson');
   const [totalAmountInput, setTotalAmountInput] = useState<number>(0);
   const whoPaidId = activeProfileId;
   const [taggedProfileIds, setTaggedProfileIds] = useState<string[]>([activeProfileId]);
@@ -60,43 +52,198 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Currency & Exchange Rate State (AUD vs JPY)
+  const [currency, setCurrency] = useState<'AUD' | 'JPY'>('AUD');
+  const [jpyToAudRate, setJpyToAudRate] = useState<number>(0.00895);
+  const [rateDate, setRateDate] = useState<string>('');
+  const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
+
+  // Non-even split state
+  const [isNonEvenSplit, setIsNonEvenSplit] = useState<boolean>(false);
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+
+  // Fetch exchange rate from Frankfurter API
+  const fetchExchangeRate = useCallback(async () => {
+    setIsLoadingRate(true);
+    try {
+      const urls = [
+        'https://api.frankfurter.dev/v1/latest?base=JPY&symbols=AUD',
+        'https://api.frankfurter.app/latest?from=JPY&to=AUD',
+        'https://api.frankfurter.dev/latest?from=JPY&to=AUD',
+      ];
+      let fetched = false;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            const rate = data?.rates?.AUD;
+            if (typeof rate === 'number' && rate > 0) {
+              setJpyToAudRate(rate);
+              setRateDate(data.date || '');
+              fetched = true;
+              break;
+            }
+          }
+        } catch {
+          // try next url
+        }
+      }
+      if (!fetched) {
+        setJpyToAudRate((prev) => prev || 0.00895);
+      }
+    } catch {
+      // Keep fallback
+    } finally {
+      setIsLoadingRate(false);
+    }
+  }, []);
+
+  // Fetch rate on mount or when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchExchangeRate();
+    }
+  }, [isOpen, fetchExchangeRate]);
+
+  // Convert an amount to AUD if current currency is JPY
+  const toAud = useCallback(
+    (amount: number): number => {
+      if (currency === 'AUD') return amount;
+      return Math.round(amount * jpyToAudRate * 100) / 100;
+    },
+    [currency, jpyToAudRate]
+  );
+
   // Initialize or reset form state
   useEffect(() => {
     if (isOpen) {
       setIsConfirmingDelete(false);
       setErrorMessage(null);
+      setCurrency('AUD');
 
       if (expenseToEdit) {
         setTitle(expenseToEdit.title || '');
         setCategory(normalizeCategory(expenseToEdit.category));
-        setDate(expenseToEdit.date || defaultDate);
+        setDate(expenseToEdit.date || getTodayDateString());
+
         const cpp = Number(expenseToEdit.costPerPerson) || 0;
         setCostPerPerson(cpp);
-        const tagged = expenseToEdit.taggedProfileIds && expenseToEdit.taggedProfileIds.length > 0
-          ? expenseToEdit.taggedProfileIds
-          : [activeProfileId];
+
+        const tagged =
+          expenseToEdit.taggedProfileIds && expenseToEdit.taggedProfileIds.length > 0
+            ? expenseToEdit.taggedProfileIds
+            : [activeProfileId];
         setTaggedProfileIds(tagged);
-        setTotalAmountInput(Math.round(cpp * tagged.length * 100) / 100);
+
+        const hasCustom = Boolean(
+          expenseToEdit.isNonEvenSplit &&
+          expenseToEdit.customSplitAmounts &&
+          Object.keys(expenseToEdit.customSplitAmounts).length > 0
+        );
+        setIsNonEvenSplit(hasCustom);
+
+        if (hasCustom && expenseToEdit.customSplitAmounts) {
+          const splitObj: Record<string, string> = {};
+          let totalSum = 0;
+          tagged.forEach((pid) => {
+            const val = expenseToEdit.customSplitAmounts?.[pid];
+            const num = val !== undefined ? Number(val) : cpp;
+            splitObj[pid] = num ? String(num) : '';
+            totalSum += num || 0;
+          });
+          setCustomSplits(splitObj);
+          setTotalAmountInput(Math.round(totalSum * 100) / 100);
+        } else {
+          setCustomSplits({});
+          setTotalAmountInput(Math.round(cpp * tagged.length * 100) / 100);
+        }
+
         setNotes(expenseToEdit.description || '');
-        setInputMode('perPerson');
       } else {
+        // Adding a new expense: default expense date is ALWAYS today's date
         setTitle('');
         setCategory('Food & Drink');
-        setDate(defaultDate);
+        setDate(getTodayDateString());
         setCostPerPerson(0);
         setTotalAmountInput(0);
-        // Default to all travelers in the group being part of the transaction for ease of use
-        setTaggedProfileIds(profiles.map((p) => p.id));
+        const allProfileIds = profiles.map((p) => p.id);
+        setTaggedProfileIds(allProfileIds);
         setNotes('');
-        setInputMode('perPerson');
+        setIsNonEvenSplit(false);
+        setCustomSplits({});
       }
     }
-  }, [isOpen, expenseToEdit, activeProfileId, defaultDate, profiles]);
+  }, [isOpen, expenseToEdit, activeProfileId, profiles]);
+
+  // Derived financial calculations for non-even split
+  const sumOfInputAmounts = useMemo(() => {
+    return Math.round(
+      taggedProfileIds.reduce((sum, pid) => {
+        const val = parseFloat(customSplits[pid] || '0') || 0;
+        return sum + val;
+      }, 0) * 100
+    ) / 100;
+  }, [taggedProfileIds, customSplits]);
+
+  // Total expense cost target
+  const totalExpenseCost = useMemo(() => {
+    if (isNonEvenSplit) {
+      return Math.round(totalAmountInput * 100) / 100;
+    }
+    return Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
+  }, [isNonEvenSplit, totalAmountInput, costPerPerson, taggedProfileIds.length]);
+
+  // Remaining difference between sum of input amounts and total expense cost
+  const remaining = useMemo(() => {
+    return Math.round((totalExpenseCost - sumOfInputAmounts) * 100) / 100;
+  }, [totalExpenseCost, sumOfInputAmounts]);
 
   if (!isOpen) return null;
 
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
   const payerProfile = getProfile(whoPaidId);
+
+  // Switch between AUD and JPY
+  const handleCurrencyChange = (newCurrency: 'AUD' | 'JPY') => {
+    if (newCurrency === currency) return;
+
+    if (newCurrency === 'JPY') {
+      fetchExchangeRate();
+      // Convert current AUD values to JPY
+      if (costPerPerson > 0) {
+        setCostPerPerson(Math.round(costPerPerson / jpyToAudRate));
+      }
+      if (totalAmountInput > 0) {
+        setTotalAmountInput(Math.round(totalAmountInput / jpyToAudRate));
+      }
+      const nextSplits: Record<string, string> = {};
+      Object.entries(customSplits).forEach(([pid, val]) => {
+        const num = parseFloat(val);
+        nextSplits[pid] = isNaN(num) || num <= 0 ? '' : String(Math.round(num / jpyToAudRate));
+      });
+      setCustomSplits(nextSplits);
+    } else {
+      // Switching back to AUD from JPY
+      if (costPerPerson > 0) {
+        setCostPerPerson(Math.round(costPerPerson * jpyToAudRate * 100) / 100);
+      }
+      if (totalAmountInput > 0) {
+        setTotalAmountInput(Math.round(totalAmountInput * jpyToAudRate * 100) / 100);
+      }
+      const nextSplits: Record<string, string> = {};
+      Object.entries(customSplits).forEach(([pid, val]) => {
+        const num = parseFloat(val);
+        nextSplits[pid] =
+          isNaN(num) || num <= 0
+            ? ''
+            : (Math.round(num * jpyToAudRate * 100) / 100).toFixed(2);
+      });
+      setCustomSplits(nextSplits);
+    }
+
+    setCurrency(newCurrency);
+  };
 
   // Toggle tagged profile
   const toggleTaggedProfile = (pid: string) => {
@@ -113,11 +260,15 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     setErrorMessage(null);
     setTaggedProfileIds(nextTagged);
 
-    // If currently in total mode, update costPerPerson based on new count
-    if (inputMode === 'total' && totalAmountInput > 0 && nextTagged.length > 0) {
-      setCostPerPerson(Math.round((totalAmountInput / nextTagged.length) * 100) / 100);
-    } else {
+    if (!isNonEvenSplit) {
       setTotalAmountInput(Math.round(costPerPerson * nextTagged.length * 100) / 100);
+    } else {
+      if (!taggedProfileIds.includes(pid) && customSplits[pid] === undefined) {
+        setCustomSplits((prev) => ({
+          ...prev,
+          [pid]: '',
+        }));
+      }
     }
   };
 
@@ -125,9 +276,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     const all = profiles.map((p) => p.id);
     setTaggedProfileIds(all);
     setErrorMessage(null);
-    if (inputMode === 'total' && totalAmountInput > 0 && all.length > 0) {
-      setCostPerPerson(Math.round((totalAmountInput / all.length) * 100) / 100);
-    } else {
+    if (!isNonEvenSplit) {
       setTotalAmountInput(Math.round(costPerPerson * all.length * 100) / 100);
     }
   };
@@ -135,9 +284,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const selectOnlyMe = () => {
     setTaggedProfileIds([activeProfileId]);
     setErrorMessage(null);
-    if (inputMode === 'total' && totalAmountInput > 0) {
-      setCostPerPerson(totalAmountInput);
-    } else {
+    if (!isNonEvenSplit) {
       setTotalAmountInput(costPerPerson);
     }
   };
@@ -146,7 +293,18 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const handleCostPerPersonChange = (val: number) => {
     const safeVal = Math.max(0, val);
     setCostPerPerson(safeVal);
-    setTotalAmountInput(Math.round(safeVal * taggedProfileIds.length * 100) / 100);
+    const newTotal = Math.round(safeVal * taggedProfileIds.length * 100) / 100;
+    setTotalAmountInput(newTotal);
+
+    if (isNonEvenSplit) {
+      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+      const evenVal = currency === 'JPY' ? Math.round(newTotal / count).toString() : (newTotal / count).toFixed(2);
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        nextSplits[pid] = evenVal;
+      });
+      setCustomSplits(nextSplits);
+    }
   };
 
   // Handle total amount change
@@ -157,9 +315,127 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     setCostPerPerson(Math.round((safeVal / count) * 100) / 100);
   };
 
-  const handleApplyPreset = (preset: typeof COMMON_EXPENSE_PRESETS[0]) => {
-    setTitle(preset.title);
-    setCategory(preset.category);
+  // Toggle non-even split option
+  const handleToggleNonEvenSplit = (checked: boolean) => {
+    setIsNonEvenSplit(checked);
+    setErrorMessage(null);
+
+    if (checked) {
+      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+      const targetTotal = totalAmountInput > 0 ? totalAmountInput : costPerPerson * count;
+      const baseShare = count > 0 ? (currency === 'JPY' ? Math.round(targetTotal / count).toString() : (targetTotal / count).toFixed(2)) : '0';
+
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        nextSplits[pid] = customSplits[pid] && customSplits[pid] !== '' ? customSplits[pid] : (targetTotal > 0 ? baseShare : '');
+      });
+      setCustomSplits(nextSplits);
+
+      if (totalAmountInput === 0 && costPerPerson > 0) {
+        setTotalAmountInput(Math.round(costPerPerson * count * 100) / 100);
+      }
+    }
+  };
+
+  // Update individual profile money input for non-even split
+  const handleCustomSplitChange = (pid: string, val: string) => {
+    if (currency === 'JPY') {
+      if (val !== '' && !/^\d*$/.test(val)) return;
+    } else {
+      if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+    }
+    setCustomSplits((prev) => ({
+      ...prev,
+      [pid]: val,
+    }));
+  };
+
+  // Quick helper: Distribute remaining difference equally
+  const handleDistributeRemainingEqually = () => {
+    if (taggedProfileIds.length === 0) return;
+    const count = taggedProfileIds.length;
+
+    if (currency === 'JPY') {
+      const addPerPerson = Math.floor(remaining / count);
+      let extraYen = remaining - addPerPerson * count;
+
+      const nextSplits: Record<string, string> = { ...customSplits };
+      taggedProfileIds.forEach((pid) => {
+        const current = parseInt(nextSplits[pid] || '0', 10) || 0;
+        let added = addPerPerson;
+        if (extraYen > 0) {
+          added += 1;
+          extraYen -= 1;
+        } else if (extraYen < 0) {
+          added -= 1;
+          extraYen += 1;
+        }
+        nextSplits[pid] = String(Math.max(0, current + added));
+      });
+      setCustomSplits(nextSplits);
+    } else {
+      const addPerPerson = Math.floor((remaining / count) * 100) / 100;
+      let extraCents = Math.round((remaining - addPerPerson * count) * 100);
+
+      const nextSplits: Record<string, string> = { ...customSplits };
+      taggedProfileIds.forEach((pid) => {
+        const current = parseFloat(nextSplits[pid] || '0') || 0;
+        let added = addPerPerson;
+        if (extraCents > 0) {
+          added += 0.01;
+          extraCents -= 1;
+        } else if (extraCents < 0) {
+          added -= 0.01;
+          extraCents += 1;
+        }
+        const updated = Math.max(0, Math.round((current + added) * 100) / 100);
+        nextSplits[pid] = updated.toFixed(2);
+      });
+      setCustomSplits(nextSplits);
+    }
+  };
+
+  // Quick helper: Set total expense cost to match sum of inputs
+  const handleSyncTotalToSum = () => {
+    setTotalAmountInput(sumOfInputAmounts);
+    const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+    setCostPerPerson(Math.round((sumOfInputAmounts / count) * 100) / 100);
+  };
+
+  // Quick helper: Reset non-even split amounts equally
+  const handleResetEvenly = () => {
+    if (taggedProfileIds.length === 0) return;
+    const count = taggedProfileIds.length;
+
+    if (currency === 'JPY') {
+      const baseShare = Math.floor(totalExpenseCost / count);
+      let extraYen = totalExpenseCost - baseShare * count;
+
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        let share = baseShare;
+        if (extraYen > 0) {
+          share += 1;
+          extraYen -= 1;
+        }
+        nextSplits[pid] = String(share);
+      });
+      setCustomSplits(nextSplits);
+    } else {
+      const baseShare = Math.floor((totalExpenseCost / count) * 100) / 100;
+      let extraCents = Math.round((totalExpenseCost - baseShare * count) * 100);
+
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        let share = baseShare;
+        if (extraCents > 0) {
+          share += 0.01;
+          extraCents -= 1;
+        }
+        nextSplits[pid] = share.toFixed(2);
+      });
+      setCustomSplits(nextSplits);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -170,28 +446,73 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       return;
     }
 
-    if (costPerPerson <= 0) {
-      setErrorMessage('Cost per person must be greater than $0.');
-      return;
-    }
-
     if (taggedProfileIds.length === 0) {
       setErrorMessage('Please select at least one traveler participating in this transaction.');
       return;
+    }
+
+    const tolerance = currency === 'JPY' ? 1 : 0.01;
+
+    if (!isNonEvenSplit) {
+      if (costPerPerson <= 0) {
+        setErrorMessage(`Cost per person must be greater than ${currency === 'JPY' ? '¥0' : '$0'}.`);
+        return;
+      }
+    } else {
+      if (totalExpenseCost <= 0 && sumOfInputAmounts <= 0) {
+        setErrorMessage('Please enter expense amounts greater than 0.');
+        return;
+      }
+
+      if (Math.abs(remaining) >= tolerance) {
+        setErrorMessage(
+          `Individual split amounts do not match the total expense cost (${currency === 'JPY' ? '¥' : '$'}${totalExpenseCost.toLocaleString()}). Remaining difference: ${
+            remaining < 0 ? '-' : ''
+          }${currency === 'JPY' ? '¥' : '$'}${Math.abs(remaining).toLocaleString()}. Adjust amounts or click "Set Total".`
+        );
+        return;
+      }
+    }
+
+    // Convert and store all amounts in AUD!
+    let finalAudCostPerPerson = 0;
+    let parsedCustomSplitsInAud: Record<string, number> | undefined = undefined;
+
+    if (isNonEvenSplit) {
+      parsedCustomSplitsInAud = {};
+      let totalAudSum = 0;
+      taggedProfileIds.forEach((pid) => {
+        const rawVal = parseFloat(customSplits[pid] || '0') || 0;
+        const audVal = currency === 'JPY' ? toAud(rawVal) : Math.round(rawVal * 100) / 100;
+        parsedCustomSplitsInAud![pid] = audVal;
+        totalAudSum += audVal;
+      });
+
+      finalAudCostPerPerson =
+        taggedProfileIds.length > 0
+          ? Math.round((totalAudSum / taggedProfileIds.length) * 100) / 100
+          : 0;
+    } else {
+      if (currency === 'JPY') {
+        finalAudCostPerPerson = toAud(costPerPerson);
+      } else {
+        finalAudCostPerPerson = Math.round(costPerPerson * 100) / 100;
+      }
     }
 
     const payload: Partial<Activity> = {
       title: title.trim(),
       category,
       date,
-      costPerPerson: Number(costPerPerson),
+      costPerPerson: Number(finalAudCostPerPerson),
       whoPaidId,
       taggedProfileIds,
-      bookingStatus: 'Booked', // Standalone expenses are active booked expenses
-      isExpenseOnly: true, // Marked as standalone expense (not linked to itinerary)
+      bookingStatus: 'Booked',
+      isExpenseOnly: true,
       description: notes.trim(),
       location: '',
-      // Preserve existing paidBackProfileIds and excludedExpenseProfileIds if editing
+      isNonEvenSplit,
+      customSplitAmounts: isNonEvenSplit ? parsedCustomSplitsInAud : undefined,
       paidBackProfileIds: expenseToEdit?.paidBackProfileIds || [],
       excludedExpenseProfileIds: expenseToEdit?.excludedExpenseProfileIds || [],
     };
@@ -200,26 +521,37 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     onClose();
   };
 
-  const totalCalculated = Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
-  const debtorCount = taggedProfileIds.filter((id) => id !== whoPaidId).length;
-  const amountToRecover = Math.round(costPerPerson * debtorCount * 100) / 100;
+  // Financial summary numbers
+  const debtorIds = taggedProfileIds.filter((id) => id !== whoPaidId);
+  const debtorCount = debtorIds.length;
+
+  let amountToRecover = 0;
+  if (isNonEvenSplit) {
+    debtorIds.forEach((pid) => {
+      amountToRecover += parseFloat(customSplits[pid] || '0') || 0;
+    });
+  } else {
+    amountToRecover = costPerPerson * debtorCount;
+  }
+  amountToRecover = Math.round(amountToRecover * 100) / 100;
+
+  const totalFrontedDisplay = isNonEvenSplit ? totalExpenseCost : Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
+
+  const currencySymbol = currency === 'JPY' ? '¥' : '$';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150 my-8">
-        {/* Header */}
+        {/* Header without the subtitle */}
         <div className="p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold shadow-2xs">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-stone-900">
-                {expenseToEdit ? 'Edit Standalone Expense' : 'Add New Expense'}
+                {expenseToEdit ? 'Edit Expense' : 'Add New Expense'}
               </h2>
-              <p className="text-xs text-stone-500">
-                Independent group expense not linked to an itinerary activity
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -283,27 +615,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-          {/* Quick Presets */}
-          {!expenseToEdit && (
-            <div>
-              <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">
-                Quick Expense Presets
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {COMMON_EXPENSE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.title}
-                    type="button"
-                    onClick={() => handleApplyPreset(preset)}
-                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200/80 text-stone-700 text-[11px] font-medium transition-colors cursor-pointer"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Title */}
           <div>
             <label className="block font-semibold text-stone-700 mb-1">
@@ -337,7 +648,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold text-stone-700 mb-1">Expense Date</label>
+              <label className="block font-semibold text-stone-700 mb-1">
+                Expense Date <span className="text-stone-400 font-normal">(Default: Today)</span>
+              </label>
               <div className="relative">
                 <input
                   type="date"
@@ -349,7 +662,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
           </div>
 
-          {/* Who is part of this transaction? (Tagged members / participants) - Placed above Cost & Split Breakdown */}
+          {/* Who is part of this transaction? */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="font-semibold text-stone-700 flex items-center gap-1.5 text-xs">
@@ -393,12 +706,12 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
                       <ProfileAvatar profile={profile} size="sm" />
-                      <div>
+                      <div className="min-w-0">
                         <span className={`font-semibold block truncate text-xs ${isTagged ? 'text-stone-900' : 'text-stone-400'}`}>
                           {profile.name} {isMe && <span className="opacity-75 font-normal text-[10px]">(You)</span>}
                         </span>
                         {isMe && (
-                          <span className="text-[10px] text-emerald-700 font-bold block">
+                          <span className="text-[10px] text-emerald-700 font-bold block truncate">
                             Payer (You)
                           </span>
                         )}
@@ -412,75 +725,107 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               })}
             </div>
             <p className="text-[11px] text-stone-500 mt-1">
-              Select all members splitting this expense. Paid by you ({payerProfile?.name || 'Active Profile'}).
+              Select members splitting this expense. Paid by you ({payerProfile?.name || 'Active Profile'}).
             </p>
           </div>
 
-          {/* Cost Per Person / Split Calculation Section */}
-          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-emerald-700" />
-                <span className="font-bold text-stone-900 text-xs">Cost & Split Breakdown</span>
+          {/* Cost per person view (without title) */}
+          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 space-y-3.5">
+            {/* Currency switcher & Frankfurter exchange info */}
+            <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-emerald-200/60">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-stone-700 text-xs">Currency:</span>
+                <div className="inline-flex p-0.5 bg-stone-200/80 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => handleCurrencyChange('AUD')}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                      currency === 'AUD'
+                        ? 'bg-white text-stone-900 shadow-xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    AUD ($)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCurrencyChange('JPY')}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      currency === 'JPY'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <span>JPY (¥)</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Mode Switcher */}
-              <div className="flex items-center bg-white border border-emerald-200 rounded-lg p-0.5 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setInputMode('perPerson')}
-                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
-                    inputMode === 'perPerson'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'text-stone-600 hover:text-stone-900'
-                  }`}
-                >
-                  Cost Per Person
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInputMode('total')}
-                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
-                    inputMode === 'total'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'text-stone-600 hover:text-stone-900'
-                  }`}
-                >
-                  Total Bill
-                </button>
-              </div>
+              {currency === 'JPY' && (
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 bg-white/90 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                  <span>1 JPY ≈ ${(jpyToAudRate).toFixed(5)} AUD</span>
+                  <button
+                    type="button"
+                    onClick={fetchExchangeRate}
+                    disabled={isLoadingRate}
+                    title="Refresh rate from Frankfurter API"
+                    className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingRate ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              )}
             </div>
 
+            {/* Primary cost inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  Cost per Person ($) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-stone-700 text-xs">
+                    Cost per Person ({currencySymbol}) {!isNonEvenSplit && <span className="text-red-500">*</span>}
+                    {isNonEvenSplit && <span className="text-stone-400 font-normal text-[10px] ml-1">(Average)</span>}
+                  </label>
+                  {currency === 'JPY' && costPerPerson > 0 && (
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                      ≈ ${toAud(costPerPerson).toFixed(2)} AUD
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">{currencySymbol}</span>
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
-                    placeholder="0.00"
+                    step={currency === 'JPY' ? '1' : '0.01'}
+                    placeholder={currency === 'JPY' ? '0' : '0.00'}
                     value={costPerPerson === 0 ? '' : costPerPerson}
                     onChange={(e) => handleCostPerPersonChange(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    disabled={isNonEvenSplit}
+                    className={`w-full pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
+                      isNonEvenSplit ? 'opacity-60 bg-stone-100 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  Total Transaction Amount ($)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-stone-700 text-xs">
+                    Total Expense Cost ({currencySymbol})
+                  </label>
+                  {currency === 'JPY' && totalAmountInput > 0 && (
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                      ≈ ${toAud(totalAmountInput).toFixed(2)} AUD
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">{currencySymbol}</span>
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
-                    placeholder="0.00"
+                    step={currency === 'JPY' ? '1' : '0.01'}
+                    placeholder={currency === 'JPY' ? '0' : '0.00'}
                     value={totalAmountInput === 0 ? '' : totalAmountInput}
                     onChange={(e) => handleTotalAmountChange(parseFloat(e.target.value) || 0)}
                     className="w-full pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
@@ -489,22 +834,195 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </div>
             </div>
 
+            {/* Option for Non-even Split */}
+            <div className="pt-2 border-t border-emerald-200/60">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isNonEvenSplit}
+                  onChange={(e) => handleToggleNonEvenSplit(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                />
+                <div className="flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="font-bold text-stone-800 text-xs">Non-even split</span>
+                </div>
+                <span className="text-[11px] text-stone-500 font-normal">
+                  (Specify custom amounts per person)
+                </span>
+              </label>
+
+              {/* Non-even split details list */}
+              {isNonEvenSplit && (
+                <div className="mt-3 space-y-2.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 px-1">
+                    <span>Selected Profiles ({taggedProfileIds.length})</span>
+                    <span>Individual Amount ({currencySymbol})</span>
+                  </div>
+
+                  {taggedProfileIds.length === 0 ? (
+                    <div className="p-3 bg-white/80 rounded-xl border border-stone-200 text-center text-stone-500 text-xs">
+                      Please select travelers above in &ldquo;Who is part...&rdquo; to input custom split amounts.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                      {taggedProfileIds.map((pid) => {
+                        const profile = getProfile(pid);
+                        const isMe = pid === activeProfileId;
+                        const numVal = parseFloat(customSplits[pid] || '0') || 0;
+
+                        return (
+                          <div
+                            key={pid}
+                            className="flex items-center justify-between gap-3 p-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs hover:border-emerald-300 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <ProfileAvatar profile={profile} size="sm" />
+                              <div className="min-w-0">
+                                <span className="font-semibold text-xs text-stone-900 block truncate">
+                                  {profile?.name || 'Traveler'}
+                                </span>
+                                {isMe && (
+                                  <span className="text-[10px] text-emerald-700 font-bold block truncate">
+                                    You (Payer)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Text field box to input money amount with nearby AUD conversion */}
+                            <div className="flex flex-col items-end shrink-0">
+                              <div className="relative w-32">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-semibold text-xs">
+                                  {currencySymbol}
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode={currency === 'JPY' ? 'numeric' : 'decimal'}
+                                  placeholder={currency === 'JPY' ? '0' : '0.00'}
+                                  value={customSplits[pid] ?? ''}
+                                  onChange={(e) => handleCustomSplitChange(pid, e.target.value)}
+                                  className="w-full pl-6 pr-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-right"
+                                />
+                              </div>
+                              {currency === 'JPY' && numVal > 0 && (
+                                <span className="text-[10px] text-stone-500 mt-0.5 font-medium">
+                                  ≈ ${toAud(numVal).toFixed(2)} AUD
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Remaining Amount section (sum of inputs line removed) */}
+                  <div
+                    className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs transition-colors ${
+                      Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01)
+                        ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950'
+                        : remaining > 0
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+                        : 'bg-rose-50/90 border-rose-300 text-rose-950'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-stone-700 text-xs">Remaining:</span>
+                        <span
+                          className={`font-black text-sm tracking-tight ${
+                            Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01)
+                              ? 'text-emerald-700'
+                              : remaining > 0
+                              ? 'text-amber-700'
+                              : 'text-rose-700'
+                          }`}
+                        >
+                          {remaining < 0 ? `-${currencySymbol}${Math.abs(remaining).toLocaleString()}` : `${currencySymbol}${remaining.toLocaleString()}`}
+                        </span>
+                        {currency === 'JPY' && Math.abs(remaining) >= 1 && (
+                          <span className="text-[11px] text-stone-600 font-medium">
+                            (≈ ${toAud(remaining).toFixed(2)} AUD)
+                          </span>
+                        )}
+                        {Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01) && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded-full">
+                            <Check className="w-3 h-3 text-emerald-700" />
+                            Balanced
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Helper Actions */}
+                    <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                      {Math.abs(remaining) >= (currency === 'JPY' ? 1 : 0.01) && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleDistributeRemainingEqually}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-stone-300 hover:border-emerald-400 rounded-lg text-stone-700 hover:text-emerald-800 hover:bg-emerald-50/50 transition-colors cursor-pointer shadow-2xs"
+                            title="Distribute the remaining difference equally among selected members"
+                          >
+                            Split Remaining
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSyncTotalToSum}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-stone-300 hover:border-emerald-400 rounded-lg text-stone-700 hover:text-emerald-800 hover:bg-emerald-50/50 transition-colors cursor-pointer shadow-2xs"
+                            title="Set total expense cost to match sum of inputs"
+                          >
+                            Set Total ({currencySymbol}{sumOfInputAmounts.toLocaleString()})
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleResetEvenly}
+                        className="px-2 py-1 text-[11px] font-medium text-stone-500 hover:text-stone-800 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+                        title="Reset all individual inputs to an equal share"
+                      >
+                        Reset Even
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Split summary indicator */}
-            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs">
+            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs flex-wrap gap-2">
               <div>
                 <span className="text-stone-500 block text-[11px]">Total Fronted by You:</span>
                 <span className="font-bold text-emerald-800 text-sm">
-                  ${totalCalculated.toFixed(2)}
+                  {currencySymbol}
+                  {currency === 'JPY'
+                    ? Math.round(totalFrontedDisplay).toLocaleString()
+                    : totalFrontedDisplay.toFixed(2)}
                 </span>
+                {currency === 'JPY' && (
+                  <span className="text-[11px] font-medium text-emerald-700 ml-1.5">
+                    (≈ ${toAud(totalFrontedDisplay).toFixed(2)} AUD)
+                  </span>
+                )}
                 <span className="text-[10px] text-stone-400 ml-1.5">
-                  ({taggedProfileIds.length} person{taggedProfileIds.length === 1 ? '' : 's'} × ${costPerPerson.toFixed(2)})
+                  ({taggedProfileIds.length} person{taggedProfileIds.length === 1 ? '' : 's'})
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-stone-500 block text-[11px]">To be Reimbursed:</span>
                 <span className="font-bold text-amber-700 text-sm">
-                  ${amountToRecover.toFixed(2)}
+                  {currencySymbol}
+                  {currency === 'JPY'
+                    ? Math.round(amountToRecover).toLocaleString()
+                    : amountToRecover.toFixed(2)}
                 </span>
+                {currency === 'JPY' && (
+                  <span className="text-[11px] font-medium text-amber-700 ml-1.5">
+                    (≈ ${toAud(amountToRecover).toFixed(2)} AUD)
+                  </span>
+                )}
                 <span className="text-[10px] text-stone-400 ml-1.5">
                   ({debtorCount} debtor{debtorCount === 1 ? '' : 's'})
                 </span>

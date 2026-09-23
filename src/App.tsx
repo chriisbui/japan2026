@@ -403,11 +403,12 @@ export default function App() {
         setActivityError(err?.message || 'Failed to update expense in Supabase');
       }
     } else {
+      const todayDate = new Date().toLocaleDateString('en-CA');
       const newExpense: Activity = {
         id: generateUUID(),
         title: data.title || 'Group Expense',
         category: data.category || 'Food & Drink',
-        date: data.date || INITIAL_TRIP.startDate,
+        date: data.date || todayDate,
         costPerPerson: data.costPerPerson || 0,
         whoPaidId: data.whoPaidId || activeProfileId,
         taggedProfileIds: data.taggedProfileIds || profiles.map((p) => p.id),
@@ -420,6 +421,8 @@ export default function App() {
         paidBackProfileIds: [],
         votes: [],
         createdAt: new Date().toISOString(),
+        customSplitAmounts: data.customSplitAmounts,
+        isNonEvenSplit: data.isNonEvenSplit,
       };
 
       try {
@@ -888,7 +891,7 @@ export default function App() {
         expenseToEdit={expenseToEdit}
         profiles={profiles}
         activeProfileId={activeProfileId}
-        defaultDate={selectedTimelineDate || INITIAL_TRIP.startDate}
+        defaultDate={new Date().toLocaleDateString('en-CA')}
       />
 
       {/* Add / Edit Activity Modal */}

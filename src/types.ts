@@ -81,6 +81,8 @@ export interface Activity {
   votes?: string[]; // profileIds who upvoted idea
   paidBackProfileIds?: string[]; // profileIds of debtors who have already paid back the payer
   excludedExpenseProfileIds?: string[]; // profileIds of attendees excluded from the expense split
+  customSplitAmounts?: Record<string, number>; // profileId -> exact amount in USD for non-even splits
+  isNonEvenSplit?: boolean; // true if expense is split unequally
   createdAt: string;
 }
 

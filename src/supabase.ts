@@ -237,6 +237,26 @@ export function rowToActivity(row: any): Activity {
     excludedExpenseProfileIds = row.excludedExpenseProfileIds;
   }
 
+  let customSplitAmounts: Record<string, number> | undefined;
+  let isNonEvenSplit = Boolean(row.is_non_even_split ?? row.isNonEvenSplit);
+  const splitsMatch = rawStatus.match(/splits[:\s]+([^\]\|]+)/i);
+  if (splitsMatch) {
+    customSplitAmounts = {};
+    isNonEvenSplit = true;
+    splitsMatch[1].split(';').forEach((part) => {
+      const [pid, amt] = part.split(':');
+      if (pid && amt) {
+        customSplitAmounts![pid.trim()] = parseFloat(amt) || 0;
+      }
+    });
+  } else if (row.custom_split_amounts && typeof row.custom_split_amounts === 'object') {
+    customSplitAmounts = row.custom_split_amounts;
+    isNonEvenSplit = true;
+  } else if (row.customSplitAmounts && typeof row.customSplitAmounts === 'object') {
+    customSplitAmounts = row.customSplitAmounts;
+    isNonEvenSplit = true;
+  }
+
   const isExpenseOnly =
     rawStatus.includes('expense:1') ||
     Boolean(row.is_expense_only ?? row.isExpenseOnly);
@@ -308,6 +328,8 @@ export function rowToActivity(row: any): Activity {
     votes: Array.isArray(row.votes) ? row.votes : [],
     paidBackProfileIds,
     excludedExpenseProfileIds,
+    customSplitAmounts,
+    isNonEvenSplit,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
   };
 }
@@ -391,6 +413,13 @@ export function activityToRow(activity: Partial<Activity>): Record<string, any> 
 
     if (activity.excludedExpenseProfileIds && activity.excludedExpenseProfileIds.length > 0) {
       tags.push(`excluded_exp:${activity.excludedExpenseProfileIds.join(',')}`);
+    }
+
+    if (activity.isNonEvenSplit && activity.customSplitAmounts && Object.keys(activity.customSplitAmounts).length > 0) {
+      const splits = Object.entries(activity.customSplitAmounts)
+        .map(([pid, amt]) => `${pid}:${amt}`)
+        .join(';');
+      tags.push(`splits:${splits}`);
     }
 
     if (activity.city && activity.city.trim()) {
