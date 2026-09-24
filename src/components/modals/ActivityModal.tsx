@@ -343,8 +343,6 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     }
   }, [isOpen, activityToEdit, activeProfileId, defaultDate, defaultStartTime, defaultEndTime, isIdeaBucketMode, profiles, activities]);
 
-  if (!isOpen) return null;
-
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
     if (!activityToEdit && !isIdea && newDate) {
@@ -771,6 +769,8 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
