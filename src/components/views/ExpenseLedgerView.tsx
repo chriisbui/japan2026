@@ -71,6 +71,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   // Settlement text copy status
   const [copiedSettlement, setCopiedSettlement] = useState(false);
+  // Toggle to show/hide settled transactions in What You Owe
+  const [showSettledWhatIOwe, setShowSettledWhatIOwe] = useState(false);
 
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
   const activeProfile = getProfile(activeProfileId);
@@ -213,7 +215,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
         </div>
 
         {/* Summary Metric Cards for Selected Payer */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-5 pt-5 border-t border-stone-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5 pt-5 border-t border-stone-100">
           {/* Simple overview of what you owe */}
           <div
             onClick={() => setViewTab('owe')}
@@ -269,19 +271,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             </p>
             <p className="text-[11px] text-amber-700/90 mt-0.5">
               Pending in {activePayerActivities.length} unsettled {activePayerActivities.length === 1 ? 'activity' : 'activities'}
-            </p>
-          </div>
-
-          <div className="bg-emerald-50/70 rounded-xl p-4 border border-emerald-200">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-emerald-800">Reimbursed / Recovered</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-900 mt-1">
-              ${payerTotalRecovered.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-            <p className="text-[11px] text-emerald-700/90 mt-0.5">
-              {settledPayerActivities.length} transaction{settledPayerActivities.length === 1 ? '' : 's'} fully settled
             </p>
           </div>
         </div>
@@ -574,11 +563,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                         e.stopPropagation();
                                         onToggleExcludeDebtor(act.id, debtorId);
                                       }}
-                                      className="inline-flex items-center gap-1 p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
-                                      title="Exclude from this transaction (stays on calendar activity)"
+                                      className="inline-flex items-center justify-center p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                                      title="Exclude from this transaction"
                                     >
                                       <UserMinus className="w-3.5 h-3.5" />
-                                      <span className="text-[10px] font-medium hidden sm:inline">Exclude</span>
                                     </button>
                                   )}
 
@@ -622,9 +610,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 <UserX className="w-3.5 h-3.5 text-stone-400" />
                                 Excluded from transaction split ({bd.excludedProfileIds.length})
                               </span>
-                              <span className="text-[11px] text-stone-400">
-                                Still on calendar activity
-                              </span>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {bd.excludedProfileIds.map((exclId) => {
@@ -636,7 +621,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                   >
                                     <ProfileAvatar profile={exclProfile} size="xs" />
                                     <span className="text-stone-700 font-medium">{exclProfile?.name || 'Traveler'}</span>
-                                    <span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">Not charged</span>
                                     {onToggleExcludeDebtor && (
                                       <button
                                         type="button"
@@ -648,7 +632,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                         title="Add back to this transaction split"
                                       >
                                         <UserPlus className="w-3 h-3 text-indigo-600" />
-                                        <span>Add back to transaction</span>
+                                        <span>Add back</span>
                                       </button>
                                     )}
                                   </div>
@@ -844,9 +828,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 <UserX className="w-3.5 h-3.5 text-stone-400" />
                                 Excluded from transaction ({bd.excludedProfileIds.length})
                               </span>
-                              <span className="text-[11px] text-stone-400">
-                                Still on calendar activity
-                              </span>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {bd.excludedProfileIds.map((exclId) => {
@@ -858,7 +839,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                   >
                                     <ProfileAvatar profile={exclProfile} size="xs" />
                                     <span className="text-stone-700 font-medium">{exclProfile?.name || 'Traveler'}</span>
-                                    <span className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">Not charged</span>
                                     {onToggleExcludeDebtor && (
                                       <button
                                         type="button"
@@ -909,7 +889,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             </div>
           </div>
 
-          {activitiesIOwe.length === 0 ? (
+          {unpaidActivitiesIOwe.length === 0 && paidActivitiesIOwe.length === 0 ? (
             <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center">
               <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
               <p className="text-sm font-bold text-stone-800">You do not owe anyone for any activities!</p>
@@ -918,108 +898,211 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {activitiesIOwe.map((act) => {
-                const payer = getProfile(act.whoPaidId);
-                const hasPaid = (act.paidBackProfileIds || []).includes(activeProfileId);
-                const CatMeta = CATEGORIES_META[act.category];
-                const CatIcon = CatMeta?.icon || Receipt;
+            <div className="space-y-4">
+              {/* Unpaid (Pending) Activities */}
+              {unpaidActivitiesIOwe.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center shadow-2xs">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-1.5" />
+                  <p className="text-sm font-bold text-stone-800">All caught up!</p>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    You have no pending payments to reimburse other travelers.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {unpaidActivitiesIOwe.map((act) => {
+                    const payer = getProfile(act.whoPaidId);
+                    const CatMeta = CATEGORIES_META[act.category];
+                    const CatIcon = CatMeta?.icon || Receipt;
 
-                return (
-                  <div
-                    key={act.id}
-                    className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
-                      hasPaid
-                        ? 'bg-white border-emerald-200 shadow-2xs'
-                        : 'bg-white border-stone-200 hover:border-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 flex items-center justify-center shrink-0">
-                        <CatIcon className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-stone-900 text-sm">{act.title}</h4>
-                          <CategoryBadge category={act.category} size="sm" />
-                          {act.isExpenseOnly && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                              <Receipt className="w-3 h-3 text-emerald-600" />
-                              <span>Expense</span>
-                            </span>
-                          )}
-                          {act.date && (
-                            <span className="text-[11px] text-stone-500">
-                              • {formatDatePretty(act.date)}
-                            </span>
-                          )}
+                    return (
+                      <div
+                        key={act.id}
+                        className="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all bg-white border-stone-200 hover:border-amber-300"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 flex items-center justify-center shrink-0">
+                            <CatIcon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-stone-900 text-sm">{act.title}</h4>
+                              <CategoryBadge category={act.category} size="sm" />
+                              {act.isExpenseOnly && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                  <Receipt className="w-3 h-3 text-emerald-600" />
+                                  <span>Expense</span>
+                                </span>
+                              )}
+                              {act.date && (
+                                <span className="text-[11px] text-stone-500">
+                                  • {formatDatePretty(act.date)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-stone-500">
+                              <span>Paid by:</span>
+                              <div className="flex items-center gap-1 font-semibold text-stone-800">
+                                <ProfileAvatar profile={payer} size="xs" />
+                                <span>{payer?.name}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-stone-500">
-                          <span>Paid by:</span>
-                          <div className="flex items-center gap-1 font-semibold text-stone-800">
-                            <ProfileAvatar profile={payer} size="xs" />
-                            <span>{payer?.name}</span>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto">
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-stone-900 block">
+                              Your share: $
+                              {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+                                ? act.customSplitAmounts[activeProfileId]
+                                : act.costPerPerson}
+                            </span>
+                            <span className="text-[10px] text-stone-400">
+                              Awaiting reimbursement
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border bg-amber-50 text-amber-800 border-amber-200">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pending Payment</span>
+                            </span>
+
+                            {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (act.isExpenseOnly && onEditExpense) {
+                                    onEditExpense(act);
+                                  } else if (onEditActivity) {
+                                    onEditActivity(act);
+                                  }
+                                }}
+                                className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                                title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto">
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-stone-900 block">
-                          Your share: $
-                          {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
-                            ? act.customSplitAmounts[activeProfileId]
-                            : act.costPerPerson}
-                        </span>
-                        <span className="text-[10px] text-stone-400">
-                          {hasPaid ? 'Recorded by payer' : 'Awaiting reimbursement'}
-                        </span>
-                      </div>
+              {/* Show / Hide Settled Transactions Button */}
+              {paidActivitiesIOwe.length > 0 && (
+                <div className="pt-2 border-t border-stone-200/80">
+                  <button
+                    type="button"
+                    onClick={() => setShowSettledWhatIOwe((prev) => !prev)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200/70 border border-stone-200 rounded-xl transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>
+                      {showSettledWhatIOwe
+                        ? 'Hide settled transactions'
+                        : `Show settled transactions (${paidActivitiesIOwe.length})`}
+                    </span>
+                    {showSettledWhatIOwe ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-stone-400" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                    )}
+                  </button>
 
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${
-                            hasPaid
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}
-                        >
-                          {hasPaid ? (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Settled ✓</span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Pending Payment</span>
-                            </>
-                          )}
-                        </span>
+                  {/* Render Settled Transactions when toggled */}
+                  {showSettledWhatIOwe && (
+                    <div className="space-y-3 mt-3 animate-in fade-in duration-150">
+                      {paidActivitiesIOwe.map((act) => {
+                        const payer = getProfile(act.whoPaidId);
+                        const CatMeta = CATEGORIES_META[act.category];
+                        const CatIcon = CatMeta?.icon || Receipt;
 
-                        {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (act.isExpenseOnly && onEditExpense) {
-                                onEditExpense(act);
-                              } else if (onEditActivity) {
-                                onEditActivity(act);
-                              }
-                            }}
-                            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-                            title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
+                        return (
+                          <div
+                            key={act.id}
+                            className="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all bg-white border-emerald-200 shadow-2xs"
                           >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 flex items-center justify-center shrink-0">
+                                <CatIcon className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-bold text-stone-900 text-sm">{act.title}</h4>
+                                  <CategoryBadge category={act.category} size="sm" />
+                                  {act.isExpenseOnly && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                      <Receipt className="w-3 h-3 text-emerald-600" />
+                                      <span>Expense</span>
+                                    </span>
+                                  )}
+                                  {act.date && (
+                                    <span className="text-[11px] text-stone-500">
+                                      • {formatDatePretty(act.date)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 text-xs text-stone-500">
+                                  <span>Paid by:</span>
+                                  <div className="flex items-center gap-1 font-semibold text-stone-800">
+                                    <ProfileAvatar profile={payer} size="xs" />
+                                    <span>{payer?.name}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto">
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-stone-900 block">
+                                  Your share: $
+                                  {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+                                    ? act.customSplitAmounts[activeProfileId]
+                                    : act.costPerPerson}
+                                </span>
+                                <span className="text-[10px] text-stone-400">
+                                  Recorded by payer
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border bg-emerald-50 text-emerald-800 border-emerald-200">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Settled ✓</span>
+                                </span>
+
+                                {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (act.isExpenseOnly && onEditExpense) {
+                                        onEditExpense(act);
+                                      } else if (onEditActivity) {
+                                        onEditActivity(act);
+                                      }
+                                    }}
+                                    className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                                    title={act.isExpenseOnly ? "Edit Expense" : "Edit Activity"}
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

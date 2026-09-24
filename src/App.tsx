@@ -342,6 +342,8 @@ export default function App() {
         votes: data.isIdea ? [activeProfileId] : [],
         paidBackProfileIds: data.paidBackProfileIds || [],
         excludedExpenseProfileIds: data.excludedExpenseProfileIds || [],
+        isNonEvenSplit: Boolean(data.isNonEvenSplit),
+        customSplitAmounts: data.customSplitAmounts,
         createdAt: new Date().toISOString(),
       };
 

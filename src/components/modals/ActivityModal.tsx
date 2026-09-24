@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Activity, ActivityCategory, BookingStatus, Profile } from '../../types';
 import { CATEGORY_LIST, CATEGORIES_META, normalizeCategory } from '../../data/categories';
 import { GooglePlacesAutocompleteInput, PlaceSelection } from '../common/GooglePlacesAutocompleteInput';
@@ -19,6 +19,8 @@ import {
   UserMinus,
   UserX,
   Receipt,
+  Scale,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BOOKING_LEAD_PRESETS,
@@ -93,6 +95,70 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
+  // Currency & Exchange Rate State (AUD vs JPY)
+  const [currency, setCurrency] = useState<'AUD' | 'JPY'>('AUD');
+  const [jpyToAudRate, setJpyToAudRate] = useState<number>(0.00895);
+  const [rateDate, setRateDate] = useState<string>('');
+  const [isLoadingRate, setIsLoadingRate] = useState<boolean>(false);
+
+  // Non-even split state
+  const [isNonEvenSplit, setIsNonEvenSplit] = useState<boolean>(false);
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [totalAmountInput, setTotalAmountInput] = useState<number>(0);
+
+  // Fetch exchange rate from Frankfurter API
+  const fetchExchangeRate = useCallback(async () => {
+    setIsLoadingRate(true);
+    try {
+      const urls = [
+        'https://api.frankfurter.dev/v1/latest?base=JPY&symbols=AUD',
+        'https://api.frankfurter.app/latest?from=JPY&to=AUD',
+        'https://api.frankfurter.dev/latest?from=JPY&to=AUD',
+      ];
+      let fetched = false;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            const rate = data?.rates?.AUD;
+            if (typeof rate === 'number' && rate > 0) {
+              setJpyToAudRate(rate);
+              setRateDate(data.date || '');
+              fetched = true;
+              break;
+            }
+          }
+        } catch {
+          // try next url
+        }
+      }
+      if (!fetched) {
+        setJpyToAudRate((prev) => prev || 0.00895);
+      }
+    } catch {
+      // Keep fallback
+    } finally {
+      setIsLoadingRate(false);
+    }
+  }, []);
+
+  // Fetch rate on mount or when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchExchangeRate();
+    }
+  }, [isOpen, fetchExchangeRate]);
+
+  // Convert an amount to AUD if current currency is JPY
+  const toAud = useCallback(
+    (amount: number): number => {
+      if (currency === 'AUD') return amount;
+      return Math.round(amount * jpyToAudRate * 100) / 100;
+    },
+    [currency, jpyToAudRate]
+  );
+
   const handleManualGeocode = async () => {
     if (!location.trim()) return;
     setIsGeocoding(true);
@@ -137,13 +203,39 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setPlaceId(activityToEdit.placeId);
         setFormattedAddress(activityToEdit.formattedAddress || (initialLoc ? initialLoc : undefined));
         setDescription(activityToEdit.description || '');
-        setCostPerPerson(activityToEdit.costPerPerson || 0);
+        const initialCost = activityToEdit.costPerPerson || 0;
+        setCostPerPerson(initialCost);
+        setCurrency('AUD');
         setWhoPaidId(activityToEdit.whoPaidId || activeProfileId);
-        setTaggedProfileIds(activityToEdit.taggedProfileIds || [activeProfileId]);
+        const initialTagged = activityToEdit.taggedProfileIds || [activeProfileId];
+        setTaggedProfileIds(initialTagged);
         setHostProfileId(activityToEdit.hostProfileId || activeProfileId);
         setBookingStatus(activityToEdit.bookingStatus || 'No Booking Needed');
         setBookingDeadline(activityToEdit.bookingDeadline || '');
         setBookingReference(activityToEdit.bookingReference || '');
+
+        const hasCustom = Boolean(
+          activityToEdit.isNonEvenSplit &&
+          activityToEdit.customSplitAmounts &&
+          Object.keys(activityToEdit.customSplitAmounts).length > 0
+        );
+        setIsNonEvenSplit(hasCustom);
+
+        if (hasCustom && activityToEdit.customSplitAmounts) {
+          const splitObj: Record<string, string> = {};
+          let totalSum = 0;
+          initialTagged.forEach((pid) => {
+            const val = activityToEdit.customSplitAmounts?.[pid];
+            const num = val !== undefined ? Number(val) : initialCost;
+            splitObj[pid] = num ? String(num) : '';
+            totalSum += num || 0;
+          });
+          setCustomSplits(splitObj);
+          setTotalAmountInput(Math.round(totalSum * 100) / 100);
+        } else {
+          setCustomSplits({});
+          setTotalAmountInput(Math.round(initialCost * initialTagged.length * 100) / 100);
+        }
 
         const savedLead = activityToEdit.bookingLeadTime;
         if (savedLead === 'now') {
@@ -234,6 +326,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         setFormattedAddress(undefined);
         setDescription('');
         setCostPerPerson(0);
+        setCurrency('AUD');
+        setIsNonEvenSplit(false);
+        setCustomSplits({});
+        setTotalAmountInput(0);
         setWhoPaidId(activeProfileId);
         setTaggedProfileIds(isIdeaBucketMode ? [] : profiles.map((p) => p.id));
         setHostProfileId(activeProfileId);
@@ -315,21 +411,215 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     setBookingDeadline(calculateBookingDate(date, 'custom', totalDays));
   };
 
+  const getProfile = (id: string) => profiles.find((p) => p.id === id);
+
+  // Sum of custom inputs entered so far
+  const sumOfInputAmounts = useMemo(() => {
+    let sum = 0;
+    taggedProfileIds.forEach((pid) => {
+      const val = parseFloat(customSplits[pid] || '0');
+      if (!isNaN(val) && val > 0) {
+        sum += val;
+      }
+    });
+    return currency === 'JPY' ? Math.round(sum) : Math.round(sum * 100) / 100;
+  }, [customSplits, taggedProfileIds, currency]);
+
+  // Total cost of the transaction
+  const totalExpenseCost = useMemo(() => {
+    if (totalAmountInput > 0) {
+      return totalAmountInput;
+    }
+    const count = taggedProfileIds.length;
+    return currency === 'JPY' ? Math.round(costPerPerson * count) : Math.round(costPerPerson * count * 100) / 100;
+  }, [totalAmountInput, costPerPerson, taggedProfileIds.length, currency]);
+
+  // Remaining difference to balance
+  const remaining = useMemo(() => {
+    const diff = totalExpenseCost - sumOfInputAmounts;
+    return currency === 'JPY' ? Math.round(diff) : Math.round(diff * 100) / 100;
+  }, [totalExpenseCost, sumOfInputAmounts, currency]);
+
+  // Switch between AUD and JPY
+  const handleCurrencyChange = (newCurrency: 'AUD' | 'JPY') => {
+    if (newCurrency === currency) return;
+
+    if (newCurrency === 'JPY') {
+      fetchExchangeRate();
+      // Convert current AUD values to JPY
+      if (costPerPerson > 0) {
+        setCostPerPerson(Math.round(costPerPerson / jpyToAudRate));
+      }
+      if (totalAmountInput > 0) {
+        setTotalAmountInput(Math.round(totalAmountInput / jpyToAudRate));
+      }
+      const nextSplits: Record<string, string> = {};
+      Object.entries(customSplits).forEach(([pid, val]) => {
+        const num = parseFloat(val);
+        nextSplits[pid] = isNaN(num) || num <= 0 ? '' : String(Math.round(num / jpyToAudRate));
+      });
+      setCustomSplits(nextSplits);
+    } else {
+      // Switching back to AUD from JPY
+      if (costPerPerson > 0) {
+        setCostPerPerson(Math.round(costPerPerson * jpyToAudRate * 100) / 100);
+      }
+      if (totalAmountInput > 0) {
+        setTotalAmountInput(Math.round(totalAmountInput * jpyToAudRate * 100) / 100);
+      }
+      const nextSplits: Record<string, string> = {};
+      Object.entries(customSplits).forEach(([pid, val]) => {
+        const num = parseFloat(val);
+        nextSplits[pid] =
+          isNaN(num) || num <= 0
+            ? ''
+            : (Math.round(num * jpyToAudRate * 100) / 100).toFixed(2);
+      });
+      setCustomSplits(nextSplits);
+    }
+
+    setCurrency(newCurrency);
+  };
+
+  // Handle per person change
+  const handleCostPerPersonChange = (val: number) => {
+    const safeVal = Math.max(0, val);
+    setCostPerPerson(safeVal);
+    const newTotal = Math.round(safeVal * taggedProfileIds.length * 100) / 100;
+    setTotalAmountInput(newTotal);
+
+    if (isNonEvenSplit) {
+      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+      const evenVal = currency === 'JPY' ? Math.round(newTotal / count).toString() : (newTotal / count).toFixed(2);
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        nextSplits[pid] = evenVal;
+      });
+      setCustomSplits(nextSplits);
+    }
+  };
+
+  // Handle total amount change
+  const handleTotalAmountChange = (val: number) => {
+    const safeVal = Math.max(0, val);
+    setTotalAmountInput(safeVal);
+    const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+    setCostPerPerson(Math.round((safeVal / count) * 100) / 100);
+  };
+
+  // Toggle non-even split option
+  const handleToggleNonEvenSplit = (checked: boolean) => {
+    setIsNonEvenSplit(checked);
+
+    if (checked) {
+      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+      const targetTotal = totalAmountInput > 0 ? totalAmountInput : costPerPerson * count;
+      const baseShare = count > 0 ? (currency === 'JPY' ? Math.round(targetTotal / count).toString() : (targetTotal / count).toFixed(2)) : '0';
+
+      const nextSplits: Record<string, string> = {};
+      taggedProfileIds.forEach((pid) => {
+        nextSplits[pid] = customSplits[pid] && customSplits[pid] !== '' ? customSplits[pid] : (targetTotal > 0 ? baseShare : '');
+      });
+      setCustomSplits(nextSplits);
+
+      if (totalAmountInput === 0 && costPerPerson > 0) {
+        setTotalAmountInput(Math.round(costPerPerson * count * 100) / 100);
+      }
+    }
+  };
+
+  // Update individual profile money input for non-even split
+  const handleCustomSplitChange = (pid: string, val: string) => {
+    if (currency === 'JPY') {
+      if (val !== '' && !/^\d*$/.test(val)) return;
+    } else {
+      if (val !== '' && !/^\d*\.?\d{0,2}$/.test(val)) return;
+    }
+    setCustomSplits((prev) => ({
+      ...prev,
+      [pid]: val,
+    }));
+  };
+
+  // Quick helper: Distribute remaining difference equally
+  const handleDistributeRemainingEqually = () => {
+    if (taggedProfileIds.length === 0) return;
+    const count = taggedProfileIds.length;
+
+    if (currency === 'JPY') {
+      const addPerPerson = Math.floor(remaining / count);
+      let extraYen = remaining - addPerPerson * count;
+
+      const nextSplits: Record<string, string> = { ...customSplits };
+      taggedProfileIds.forEach((pid) => {
+        const current = parseInt(nextSplits[pid] || '0', 10) || 0;
+        let added = addPerPerson;
+        if (extraYen > 0) {
+          added += 1;
+          extraYen -= 1;
+        } else if (extraYen < 0) {
+          added -= 1;
+          extraYen += 1;
+        }
+        nextSplits[pid] = String(Math.max(0, current + added));
+      });
+      setCustomSplits(nextSplits);
+    } else {
+      const addPerPerson = Math.floor((remaining / count) * 100) / 100;
+      let extraCents = Math.round((remaining - addPerPerson * count) * 100);
+
+      const nextSplits: Record<string, string> = { ...customSplits };
+      taggedProfileIds.forEach((pid) => {
+        const current = parseFloat(nextSplits[pid] || '0') || 0;
+        let added = addPerPerson;
+        if (extraCents > 0) {
+          added += 0.01;
+          extraCents -= 1;
+        } else if (extraCents < 0) {
+          added -= 0.01;
+          extraCents += 1;
+        }
+        nextSplits[pid] = (Math.max(0, current + added)).toFixed(2);
+      });
+      setCustomSplits(nextSplits);
+    }
+  };
+
   const toggleTaggedProfile = (pid: string) => {
+    let nextTagged: string[];
     if (taggedProfileIds.includes(pid)) {
       if (taggedProfileIds.length === 1) return; // keep at least one
-      setTaggedProfileIds(taggedProfileIds.filter((id) => id !== pid));
+      nextTagged = taggedProfileIds.filter((id) => id !== pid);
     } else {
-      setTaggedProfileIds([...taggedProfileIds, pid]);
+      nextTagged = [...taggedProfileIds, pid];
+    }
+    setTaggedProfileIds(nextTagged);
+
+    if (!isNonEvenSplit) {
+      setTotalAmountInput(Math.round(costPerPerson * nextTagged.length * 100) / 100);
+    } else {
+      if (!taggedProfileIds.includes(pid) && customSplits[pid] === undefined) {
+        setCustomSplits((prev) => ({
+          ...prev,
+          [pid]: '',
+        }));
+      }
     }
   };
 
   const selectAllProfiles = () => {
-    setTaggedProfileIds(profiles.map((p) => p.id));
+    const all = profiles.map((p) => p.id);
+    setTaggedProfileIds(all);
+    if (!isNonEvenSplit) {
+      setTotalAmountInput(Math.round(costPerPerson * all.length * 100) / 100);
+    }
   };
 
   const selectOnlyMe = () => {
     setTaggedProfileIds([activeProfileId]);
+    if (!isNonEvenSplit) {
+      setTotalAmountInput(costPerPerson);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -422,7 +712,33 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       return;
     }
 
-    const finalCost = bookingStatus === 'Booked' ? (Number(costPerPerson) || 0) : 0;
+    let finalAudCostPerPerson = 0;
+    let parsedCustomSplitsInAud: Record<string, number> | undefined = undefined;
+
+    if (bookingStatus === 'Booked') {
+      if (isNonEvenSplit) {
+        parsedCustomSplitsInAud = {};
+        let sumInAud = 0;
+        for (const pid of taggedProfileIds) {
+          const val = parseFloat(customSplits[pid] || '0') || 0;
+          const valInAud =
+            currency === 'JPY'
+              ? Math.round(val * jpyToAudRate * 100) / 100
+              : Math.round(val * 100) / 100;
+          parsedCustomSplitsInAud[pid] = valInAud;
+          sumInAud += valInAud;
+        }
+        finalAudCostPerPerson =
+          taggedProfileIds.length > 0
+            ? Math.round((sumInAud / taggedProfileIds.length) * 100) / 100
+            : 0;
+      } else {
+        finalAudCostPerPerson =
+          currency === 'JPY'
+            ? Math.round(costPerPerson * jpyToAudRate * 100) / 100
+            : Number(costPerPerson) || 0;
+      }
+    }
 
     onSave({
       ...(activityToEdit ? { id: activityToEdit.id } : {}),
@@ -439,7 +755,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       placeId: finalPlaceId,
       formattedAddress: finalFormattedAddress || (location.trim() ? location.trim() : undefined),
       description: description.trim(),
-      costPerPerson: finalCost,
+      costPerPerson: finalAudCostPerPerson,
       whoPaidId,
       taggedProfileIds: isIdea ? [] : taggedProfileIds,
       hostProfileId,
@@ -447,7 +763,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       bookingDeadline: bookingStatus === 'Needs Booking' ? bookingDeadline : undefined,
       bookingLeadTime: bookingStatus === 'Needs Booking' ? bookingLeadTime : undefined,
       bookingReference: bookingStatus === 'Booked' ? bookingReference.trim() : undefined,
+      isNonEvenSplit: bookingStatus === 'Booked' ? isNonEvenSplit : false,
+      customSplitAmounts: bookingStatus === 'Booked' && isNonEvenSplit ? parsedCustomSplitsInAud : undefined,
       paidBackProfileIds: activityToEdit?.paidBackProfileIds || [],
+      excludedExpenseProfileIds: activityToEdit?.excludedExpenseProfileIds || [],
     });
 
     onClose();
@@ -1065,45 +1384,264 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             )}
           </div>
 
-          {/* Financials & Who Paid - Only shown when Booked */}
+          {/* Financials & Cost Section - Only shown when Booked */}
           {bookingStatus === 'Booked' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 animate-in fade-in">
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1 flex items-center gap-1 text-xs">
-                  <DollarSign className="w-3.5 h-3.5 text-stone-500" />
-                  Cost per Person ($)
-                </label>
-                <input
-                  id="activity-cost-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={costPerPerson}
-                  onChange={(e) => setCostPerPerson(Math.max(0, Number(e.target.value)))}
-                  className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Total for {taggedProfileIds.length} person(s):{' '}
-                  <strong className="text-stone-800">${costPerPerson * taggedProfileIds.length}</strong>
-                </p>
+            <div className="bg-stone-50 rounded-xl border border-stone-200 p-4 space-y-3.5 animate-in fade-in">
+              {/* Currency switcher & Frankfurter exchange info */}
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-stone-200">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-stone-700 text-xs">Currency:</span>
+                  <div className="inline-flex p-0.5 bg-stone-200/80 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange('AUD')}
+                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        currency === 'AUD'
+                          ? 'bg-white text-stone-900 shadow-xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      AUD ($)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange('JPY')}
+                      className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                        currency === 'JPY'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      <span>JPY (¥)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {currency === 'JPY' && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 bg-white/90 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                    <span>1 JPY ≈ ${(jpyToAudRate).toFixed(5)} AUD</span>
+                    <button
+                      type="button"
+                      onClick={fetchExchangeRate}
+                      disabled={isLoadingRate}
+                      title="Refresh rate from Frankfurter API"
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isLoadingRate ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1 text-xs">Who Paid? (Payer)</label>
-                <select
-                  id="activity-who-paid-select"
-                  value={whoPaidId}
-                  onChange={(e) => setWhoPaidId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
-                >
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.role})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-stone-500 mt-1">Credited in Expenses</p>
+              {/* Primary cost inputs & Who Paid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-stone-700 text-xs flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5 text-stone-500" />
+                      Cost per Person ({currency === 'JPY' ? '¥' : '$'})
+                      {isNonEvenSplit && <span className="text-stone-400 font-normal text-[10px] ml-1">(Avg)</span>}
+                    </label>
+                    {currency === 'JPY' && costPerPerson > 0 && (
+                      <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                        ≈ ${toAud(costPerPerson).toFixed(2)} AUD
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">{currency === 'JPY' ? '¥' : '$'}</span>
+                    <input
+                      id="activity-cost-input"
+                      type="number"
+                      min="0"
+                      step={currency === 'JPY' ? '1' : '0.01'}
+                      placeholder={currency === 'JPY' ? '0' : '0.00'}
+                      value={costPerPerson === 0 ? '' : costPerPerson}
+                      onChange={(e) => handleCostPerPersonChange(parseFloat(e.target.value) || 0)}
+                      disabled={isNonEvenSplit}
+                      className={`w-full pl-7 pr-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                        isNonEvenSplit ? 'opacity-60 bg-stone-100 cursor-not-allowed' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-stone-700 text-xs">
+                      Total Cost ({currency === 'JPY' ? '¥' : '$'})
+                    </label>
+                    {currency === 'JPY' && totalAmountInput > 0 && (
+                      <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                        ≈ ${toAud(totalAmountInput).toFixed(2)} AUD
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">{currency === 'JPY' ? '¥' : '$'}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step={currency === 'JPY' ? '1' : '0.01'}
+                      placeholder={currency === 'JPY' ? '0' : '0.00'}
+                      value={totalAmountInput === 0 ? '' : totalAmountInput}
+                      onChange={(e) => handleTotalAmountChange(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-7 pr-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-stone-700 mb-1 text-xs">Who Paid? (Payer)</label>
+                  <select
+                    id="activity-who-paid-select"
+                    value={whoPaidId}
+                    onChange={(e) => setWhoPaidId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
+                  >
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.id === activeProfileId ? '(You)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-stone-500 mt-1">Credited in Expenses</p>
+                </div>
+              </div>
+
+              {/* Option for Non-even Split */}
+              <div className="pt-2 border-t border-stone-200">
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isNonEvenSplit}
+                    onChange={(e) => handleToggleNonEvenSplit(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Scale className="w-3.5 h-3.5 text-indigo-700" />
+                    <span className="font-bold text-stone-800 text-xs">Non-even split</span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-normal">
+                    (Specify custom amounts per person)
+                  </span>
+                </label>
+
+                {/* Non-even split details list */}
+                {isNonEvenSplit && (
+                  <div className="mt-3 space-y-2.5 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between text-[11px] text-stone-500 px-1">
+                      <span>Selected Travelers ({taggedProfileIds.length})</span>
+                      <span>Individual Amount ({currency === 'JPY' ? '¥' : '$'})</span>
+                    </div>
+
+                    {taggedProfileIds.length === 0 ? (
+                      <div className="p-3 bg-white rounded-xl border border-stone-200 text-center text-stone-500 text-xs">
+                        Please tag members below to input custom split amounts.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                        {taggedProfileIds.map((pid) => {
+                          const profile = getProfile(pid);
+                          const isPayer = pid === whoPaidId;
+                          const numVal = parseFloat(customSplits[pid] || '0') || 0;
+
+                          return (
+                            <div
+                              key={pid}
+                              className="flex items-center justify-between gap-3 p-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs hover:border-indigo-300 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <ProfileAvatar profile={profile} size="sm" />
+                                <div className="min-w-0">
+                                  <span className="font-semibold text-xs text-stone-900 block truncate">
+                                    {profile?.name || 'Traveler'}
+                                  </span>
+                                  {isPayer && (
+                                    <span className="text-[10px] text-indigo-700 font-bold block truncate">
+                                      Payer
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end shrink-0">
+                                <div className="relative w-32">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-semibold text-xs">
+                                    {currency === 'JPY' ? '¥' : '$'}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    inputMode={currency === 'JPY' ? 'numeric' : 'decimal'}
+                                    placeholder={currency === 'JPY' ? '0' : '0.00'}
+                                    value={customSplits[pid] ?? ''}
+                                    onChange={(e) => handleCustomSplitChange(pid, e.target.value)}
+                                    className="w-full pl-6 pr-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-right"
+                                  />
+                                </div>
+                                {currency === 'JPY' && numVal > 0 && (
+                                  <span className="text-[10px] text-stone-500 mt-0.5 font-medium">
+                                    ≈ ${toAud(numVal).toFixed(2)} AUD
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Remaining Amount & Balance Status */}
+                    <div
+                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs transition-colors ${
+                        Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01)
+                          ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950'
+                          : remaining > 0
+                          ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+                          : 'bg-rose-50/90 border-rose-300 text-rose-950'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-stone-700 text-xs">Remaining:</span>
+                          <span
+                            className={`font-black text-sm tracking-tight ${
+                              Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01)
+                                ? 'text-emerald-700'
+                                : remaining > 0
+                                ? 'text-amber-700'
+                                : 'text-rose-700'
+                            }`}
+                          >
+                            {remaining < 0
+                              ? `-${currency === 'JPY' ? '¥' : '$'}${Math.abs(remaining).toLocaleString()}`
+                              : `${currency === 'JPY' ? '¥' : '$'}${remaining.toLocaleString()}`}
+                          </span>
+                          {currency === 'JPY' && Math.abs(remaining) >= 1 && (
+                            <span className="text-[11px] text-stone-600 font-medium">
+                              (≈ ${toAud(remaining).toFixed(2)} AUD)
+                            </span>
+                          )}
+                          {Math.abs(remaining) < (currency === 'JPY' ? 1 : 0.01) && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded-full">
+                              <Check className="w-3 h-3" /> Balanced
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {Math.abs(remaining) >= (currency === 'JPY' ? 1 : 0.01) && (
+                        <button
+                          type="button"
+                          onClick={handleDistributeRemainingEqually}
+                          className="px-2.5 py-1 bg-white hover:bg-stone-50 border border-stone-300 rounded-lg text-[11px] font-bold text-stone-700 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto shrink-0"
+                        >
+                          Distribute remaining equally
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -7,6 +7,7 @@ interface CategoryBadgeProps {
   size?: 'sm' | 'md';
   showIcon?: boolean;
   className?: string;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
@@ -14,6 +15,7 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
   size = 'md',
   showIcon = true,
   className = '',
+  onClick,
 }) => {
   const normalized = normalizeCategory(category);
   const meta = CATEGORIES_META[normalized] || CATEGORIES_META.Sightseeing;
@@ -31,7 +33,10 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-md border ${meta.color.badgeBg} ${sizeClasses[size]} ${className}`}
+      onClick={onClick}
+      className={`inline-flex items-center font-medium rounded-md border ${meta.color.badgeBg} ${sizeClasses[size]} ${
+        onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+      } ${className}`}
     >
       {showIcon && <Icon className={`${iconSizes[size]} shrink-0`} />}
       <span>{meta.label}</span>
