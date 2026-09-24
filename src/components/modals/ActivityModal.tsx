@@ -35,8 +35,125 @@ import {
   TRIP_CITIES,
 } from '../../utils/dateUtils';
 import { ProfileAvatar } from '../common/ProfileAvatar';
-import { geocodeLocationText } from '../../utils/nominatim';
+import { geocodeLocationText, ResolvedLocation } from '../../utils/nominatim';
 import { isValidCoordinate, getCoordinatesForActivity } from '../../utils/mapUtils';
+
+/**
+ * LocationIQ Autocomplete API Search
+ * Target: https://api.locationiq.com/v1/autocomplete
+ * Search Optimization for Japan:
+ * - key=${API_KEY}
+ * - q=${encodeURIComponent(userQuery)}
+ * - countrycodes=jp (strictly restrict results to Japan)
+ * - lat=35.6762&lon=139.6503 (bias search toward Central Japan)
+ * - accept-language=en,ja (support both English and Japanese place names)
+ * - limit=5
+ * - format=json
+ */
+export async function searchLocationIQ(userQuery: string) {
+  if (!userQuery || !userQuery.trim()) return [];
+  const API_KEY = import.meta.env.VITE_LOCATIONIQ_API_KEY;
+  const url = `https://api.locationiq.com/v1/autocomplete?key=${API_KEY}&q=${encodeURIComponent(userQuery)}&countrycodes=jp&lat=35.6762&lon=139.6503&accept-language=en,ja&limit=5&format=json`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn('LocationIQ autocomplete request failed with status:', res.status);
+      return [];
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+
+    // Parse the response array and map the fields so that selecting a search suggestion extracts lat (as a float), lon (mapped to lng as a float), and display_name (or address)
+    return data.map((item: any) => {
+      const lat = parseFloat(item.lat);
+      const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
+      const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
+
+      return {
+        place_id: String(item.place_id || ''),
+        lat,
+        lng,
+        display_name: displayName,
+        address: item.address,
+        raw: item,
+      };
+    });
+  } catch (err) {
+    console.warn('LocationIQ fetch error:', err);
+    return [];
+  }
+}
+
+/**
+ * Geocode location query text using LocationIQ Autocomplete API
+ */
+export async function geocodeLocationWithLocationIQ(userQuery: string): Promise<ResolvedLocation | null> {
+  if (!userQuery || !userQuery.trim()) return null;
+  const API_KEY = import.meta.env.VITE_LOCATIONIQ_API_KEY;
+  const url = `https://api.locationiq.com/v1/autocomplete?key=${API_KEY}&q=${encodeURIComponent(userQuery)}&countrycodes=jp&lat=35.6762&lon=139.6503&accept-language=en,ja&limit=5&format=json`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn('LocationIQ geocoding fetch status:', res.status);
+      return null;
+    }
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const item = data[0];
+      const lat = parseFloat(item.lat);
+      const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
+      const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
+
+      // Guard clause: ensure lat and lng are non-zero numbers before returning
+      if (
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        lat !== 0 &&
+        lng !== 0 &&
+        !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180
+      ) {
+        let inferredCity: string | undefined;
+        const addrStr = typeof item.address === 'object' ? JSON.stringify(item.address) : (item.address || '');
+        const lower = `${displayName} ${addrStr}`.toLowerCase();
+        if (lower.includes('tokyo') || lower.includes('shibuya') || lower.includes('shinjuku') || lower.includes('chiyoda')) {
+          inferredCity = 'Tokyo';
+        } else if (
+          lower.includes('fuji') ||
+          lower.includes('kawaguchiko') ||
+          lower.includes('hakone') ||
+          lower.includes('yamanashi') ||
+          lower.includes('shizuoka')
+        ) {
+          inferredCity = 'Fuji';
+        } else if (lower.includes('kyoto') || lower.includes('gion') || lower.includes('arashiyama')) {
+          inferredCity = 'Kyoto';
+        } else if (lower.includes('osaka') || lower.includes('namba') || lower.includes('dotonbori') || lower.includes('umeda')) {
+          inferredCity = 'Osaka';
+        }
+
+        const primaryName = item.name || displayName.split(',')[0].trim() || userQuery;
+
+        return {
+          location: primaryName,
+          lat,
+          lng,
+          placeId: String(item.place_id || ''),
+          formattedAddress: displayName,
+          city: inferredCity,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('LocationIQ geocoding error:', err);
+  }
+  return null;
+}
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -164,8 +281,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     setIsGeocoding(true);
     setErrors((prev) => ({ ...prev, location: '' }));
     try {
-      const resolved = await geocodeLocationText(location.trim());
-      if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
+      let resolved = await geocodeLocationWithLocationIQ(location.trim());
+      if (!resolved) {
+        resolved = await geocodeLocationText(location.trim());
+      }
+      if (resolved && isValidCoordinate(resolved.lat, resolved.lng) && resolved.lat !== 0 && resolved.lng !== 0) {
         setLat(resolved.lat);
         setLng(resolved.lng);
         setPlaceId(resolved.placeId);
@@ -176,7 +296,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       } else {
         setErrors((prev) => ({
           ...prev,
-          location: 'Could not resolve non-zero coordinates via OpenStreetMap Nominatim. Please enter a more specific location name.',
+          location: 'Could not resolve non-zero coordinates via LocationIQ. Please enter a more specific location name.',
         }));
       }
     } finally {
@@ -639,11 +759,14 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
     // If location is provided, ensure latitude and longitude are valid and non-zero before saving to Supabase
     if (location.trim()) {
-      if (!isValidCoordinate(finalLat, finalLng)) {
+      if (!isValidCoordinate(finalLat, finalLng) || finalLat === 0 || finalLng === 0) {
         try {
           setIsGeocoding(true);
-          const resolved = await geocodeLocationText(location.trim());
-          if (resolved && isValidCoordinate(resolved.lat, resolved.lng)) {
+          let resolved = await geocodeLocationWithLocationIQ(location.trim());
+          if (!resolved) {
+            resolved = await geocodeLocationText(location.trim());
+          }
+          if (resolved && isValidCoordinate(resolved.lat, resolved.lng) && resolved.lat !== 0 && resolved.lng !== 0) {
             finalLat = resolved.lat;
             finalLng = resolved.lng;
             finalPlaceId = resolved.placeId;
@@ -663,7 +786,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               } as Activity,
               (city as any) || 'Tokyo'
             );
-            if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
+            if (estimated && isValidCoordinate(estimated.lat, estimated.lng) && estimated.lat !== 0 && estimated.lng !== 0) {
               finalLat = estimated.lat;
               finalLng = estimated.lng;
             }
@@ -678,31 +801,34 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             } as Activity,
             (city as any) || 'Tokyo'
           );
-          if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
+          if (estimated && isValidCoordinate(estimated.lat, estimated.lng) && estimated.lat !== 0 && estimated.lng !== 0) {
             finalLat = estimated.lat;
             finalLng = estimated.lng;
           }
         } finally {
           setIsGeocoding(false);
         }
-      } else if (Math.abs(finalLat!) < 0.0001 && Math.abs(finalLng!) < 0.0001) {
-        const estimated = getCoordinatesForActivity(
-          {
-            id: activityToEdit?.id || 'temp',
-            title: title.trim(),
-            location: location.trim(),
-            city: city || undefined,
-          } as Activity,
-          (city as any) || 'Tokyo'
-        );
-        if (estimated && isValidCoordinate(estimated.lat, estimated.lng)) {
-          finalLat = estimated.lat;
-          finalLng = estimated.lng;
-        } else {
-          finalLat = undefined;
-          finalLng = undefined;
-        }
       }
+    }
+
+    // Guard clause ensuring lat and lng are non-zero numbers before saving the activity record to Supabase, preventing invalid/Null Island coordinates
+    if (
+      finalLat === undefined ||
+      finalLng === undefined ||
+      typeof finalLat !== 'number' ||
+      typeof finalLng !== 'number' ||
+      isNaN(finalLat) ||
+      isNaN(finalLng) ||
+      finalLat === 0 ||
+      finalLng === 0 ||
+      (Math.abs(finalLat) < 0.0001 && Math.abs(finalLng) < 0.0001) ||
+      finalLat < -90 ||
+      finalLat > 90 ||
+      finalLng < -180 ||
+      finalLng > 180
+    ) {
+      finalLat = undefined;
+      finalLng = undefined;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -1015,7 +1141,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                   </span>
                 ) : (
                   <span className="text-[10px] text-stone-600 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full font-medium">
-                    OpenStreetMap Nominatim
+                    LocationIQ
                   </span>
                 )}
               </div>
@@ -1036,15 +1162,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                     }
                   }}
                   onSelectPlace={(place) => {
-                    setLocation(place.location);
-                    setLat(place.lat);
-                    setLng(place.lng);
+                    // Selecting a search suggestion extracts lat (as a float), lon (mapped to lng as a float), and display_name (or address)
+                    const parsedLat = typeof place.lat === 'number' ? place.lat : parseFloat(place.lat as any);
+                    const parsedLng = typeof place.lng === 'number' ? place.lng : parseFloat((place as any).lon !== undefined ? (place as any).lon : (place as any).lng);
+                    const displayName = place.formattedAddress || place.display_name || (typeof place.address === 'string' ? place.address : '') || place.location;
+
+                    setLocation(place.location || (displayName ? displayName.split(',')[0].trim() : ''));
+                    if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+                      setLat(parsedLat);
+                      setLng(parsedLng);
+                    }
                     setPlaceId(place.placeId);
-                    setFormattedAddress(place.formattedAddress);
+                    setFormattedAddress(displayName);
 
                     // If city is not explicitly selected yet, infer from place address
                     if (!city) {
-                      const combined = `${place.location} ${place.formattedAddress || ''}`.toLowerCase();
+                      const combined = `${place.location} ${displayName || ''}`.toLowerCase();
                       if (combined.includes('tokyo') || combined.includes('shibuya') || combined.includes('shinjuku') || combined.includes('chiyoda')) {
                         setCity('Tokyo');
                       } else if (combined.includes('fuji') || combined.includes('kawaguchiko') || combined.includes('hakone') || combined.includes('yamanashi') || combined.includes('shizuoka')) {
@@ -1067,7 +1200,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                   onClick={handleManualGeocode}
                   disabled={isGeocoding}
                   className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg border border-stone-300 transition-colors flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
-                  title="Geocode location text with OpenStreetMap Nominatim"
+                  title="Geocode location text with LocationIQ"
                 >
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                   <span>{isGeocoding ? 'Locating...' : 'Geocode'}</span>
@@ -1082,7 +1215,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               </p>
             ) : (
               <p className="mt-1 text-[11px] text-stone-400">
-                Powered by free OpenStreetMap Nominatim. Coordinates are validated non-zero before saving.
+                Powered by LocationIQ Autocomplete. Coordinates are validated non-zero before saving.
               </p>
             )}
           </div>

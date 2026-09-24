@@ -302,11 +302,32 @@ export default function App() {
 
   const handleSaveActivity = async (data: Partial<Activity>) => {
     setActivityError(null);
+
+    // Guard clause ensuring lat and lng are non-zero numbers before saving the activity record to Supabase, preventing invalid/Null Island coordinates
+    const safeData: Partial<Activity> = { ...data };
+    if (
+      safeData.lat !== undefined &&
+      (typeof safeData.lat !== 'number' ||
+        isNaN(safeData.lat) ||
+        safeData.lat === 0 ||
+        (safeData.lng !== undefined && Math.abs(safeData.lat) < 0.0001 && Math.abs(Number(safeData.lng)) < 0.0001))
+    ) {
+      safeData.lat = undefined;
+      safeData.lng = undefined;
+    }
+    if (
+      safeData.lng !== undefined &&
+      (typeof safeData.lng !== 'number' || isNaN(safeData.lng) || safeData.lng === 0)
+    ) {
+      safeData.lat = undefined;
+      safeData.lng = undefined;
+    }
+
     if (activityToEdit) {
       // Update existing using supabase.from('activities').update()
       try {
-        const updated = await updateActivityInSupabase(activityToEdit.id, data);
-        const resolved = updated || { ...activityToEdit, ...data };
+        const updated = await updateActivityInSupabase(activityToEdit.id, safeData);
+        const resolved = updated || { ...activityToEdit, ...safeData };
         setActivities((prev) =>
           prev.map((a) => (a.id === activityToEdit.id ? resolved : a))
         );
@@ -318,32 +339,32 @@ export default function App() {
       // Add new using supabase.from('activities').insert()
       const newActivity: Activity = {
         id: generateUUID(),
-        title: data.title || 'Untitled Activity',
-        category: data.category || 'Sightseeing',
-        city: data.city,
-        date: data.isIdea ? undefined : data.date,
-        startTime: data.isIdea ? undefined : data.startTime,
-        endTime: data.isIdea ? undefined : data.endTime,
-        location: data.location || '',
-        lat: data.lat,
-        lng: data.lng,
-        placeId: data.placeId,
-        formattedAddress: data.formattedAddress,
-        description: data.description || '',
-        costPerPerson: data.costPerPerson || 0,
-        whoPaidId: data.whoPaidId || activeProfileId,
-        taggedProfileIds: data.taggedProfileIds || [activeProfileId],
-        hostProfileId: data.hostProfileId || activeProfileId,
-        bookingStatus: data.bookingStatus || 'No Booking Needed',
-        bookingDeadline: data.bookingDeadline,
-        bookingLeadTime: data.bookingLeadTime,
-        bookingReference: data.bookingReference,
-        isIdea: Boolean(data.isIdea),
-        votes: data.isIdea ? [activeProfileId] : [],
-        paidBackProfileIds: data.paidBackProfileIds || [],
-        excludedExpenseProfileIds: data.excludedExpenseProfileIds || [],
-        isNonEvenSplit: Boolean(data.isNonEvenSplit),
-        customSplitAmounts: data.customSplitAmounts,
+        title: safeData.title || 'Untitled Activity',
+        category: safeData.category || 'Sightseeing',
+        city: safeData.city,
+        date: safeData.isIdea ? undefined : safeData.date,
+        startTime: safeData.isIdea ? undefined : safeData.startTime,
+        endTime: safeData.isIdea ? undefined : safeData.endTime,
+        location: safeData.location || '',
+        lat: safeData.lat,
+        lng: safeData.lng,
+        placeId: safeData.placeId,
+        formattedAddress: safeData.formattedAddress,
+        description: safeData.description || '',
+        costPerPerson: safeData.costPerPerson || 0,
+        whoPaidId: safeData.whoPaidId || activeProfileId,
+        taggedProfileIds: safeData.taggedProfileIds || [activeProfileId],
+        hostProfileId: safeData.hostProfileId || activeProfileId,
+        bookingStatus: safeData.bookingStatus || 'No Booking Needed',
+        bookingDeadline: safeData.bookingDeadline,
+        bookingLeadTime: safeData.bookingLeadTime,
+        bookingReference: safeData.bookingReference,
+        isIdea: Boolean(safeData.isIdea),
+        votes: safeData.isIdea ? [activeProfileId] : [],
+        paidBackProfileIds: safeData.paidBackProfileIds || [],
+        excludedExpenseProfileIds: safeData.excludedExpenseProfileIds || [],
+        isNonEvenSplit: Boolean(safeData.isNonEvenSplit),
+        customSplitAmounts: safeData.customSplitAmounts,
         createdAt: new Date().toISOString(),
       };
 

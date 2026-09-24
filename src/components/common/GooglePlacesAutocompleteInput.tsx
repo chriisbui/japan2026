@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Search, X, Loader2, Navigation } from 'lucide-react';
-import { searchNominatim, NominatimPlace } from '../../utils/nominatim';
+import { fetchLocationIQAutocomplete, LocationIQSuggestion } from '../../utils/locationiq';
+import { searchNominatim } from '../../utils/nominatim';
 
 export interface PlaceSelection {
   location: string;
@@ -8,6 +9,8 @@ export interface PlaceSelection {
   lng?: number;
   placeId?: string;
   formattedAddress?: string;
+  display_name?: string;
+  address?: any;
 }
 
 interface GooglePlacesAutocompleteInputProps {
@@ -21,8 +24,8 @@ interface GooglePlacesAutocompleteInputProps {
 }
 
 /**
- * OpenStreetMap Nominatim-powered location autocomplete input.
- * Replaces Google Places API with 100% free, open-source search.
+ * LocationIQ Autocomplete-powered location search input.
+ * Search optimized for Japan with strict country code and geographic bias.
  */
 export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInputProps> = ({
   id = 'location-autocomplete',
@@ -41,9 +44,11 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
       id: string;
       mainText: string;
       secondaryText: string;
+      display_name: string;
+      address?: any;
       lat: number;
       lng: number;
-      raw: NominatimPlace;
+      raw: any;
     }>
   >([]);
 
@@ -72,9 +77,9 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch predictions using OpenStreetMap Nominatim
-  const fetchSuggestions = useCallback(async (query: string) => {
-    if (!query.trim() || query.trim().length < 2) {
+  // Fetch predictions using LocationIQ Autocomplete API
+  const fetchSuggestions = useCallback(async (userQuery: string) => {
+    if (!userQuery.trim() || userQuery.trim().length < 2) {
       setSuggestions([]);
       setIsLoading(false);
       return;
@@ -83,16 +88,41 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
     setIsLoading(true);
 
     try {
-      const places = await searchNominatim(query, 6);
-      const mapped = places
-        .map((place) => {
-          const lat = parseFloat(place.lat);
-          const lng = parseFloat(place.lon);
+      const API_KEY = import.meta.env.VITE_LOCATIONIQ_API_KEY;
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${API_KEY}&q=${encodeURIComponent(userQuery)}&countrycodes=jp&lat=35.6762&lon=139.6503&accept-language=en,ja&limit=5&format=json`;
 
-          // Null island & validity check
+      let rawData: any[] = [];
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const parsed = await res.json();
+          if (Array.isArray(parsed)) {
+            rawData = parsed;
+          }
+        }
+      } catch (err) {
+        console.warn('LocationIQ fetch error:', err);
+      }
+
+      // Fallback if no results or key not configured in dev
+      if (rawData.length === 0 && !API_KEY) {
+        const nominatimResults = await searchNominatim(userQuery, 5);
+        rawData = nominatimResults;
+      }
+
+      // Parse the response array and map the fields
+      const mapped = rawData
+        .map((item: any) => {
+          const lat = parseFloat(item.lat);
+          const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
+          const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
+
+          // Null island & validity check (ensure lat and lng are non-zero numbers)
           if (
             isNaN(lat) ||
             isNaN(lng) ||
+            lat === 0 ||
+            lng === 0 ||
             (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) ||
             lat < -90 ||
             lat > 90 ||
@@ -102,32 +132,36 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
             return null;
           }
 
-          const parts = place.display_name.split(',');
-          const mainText = place.name || parts[0].trim();
-          const secondaryText = parts.slice(1, 4).join(',').trim();
+          const parts = displayName.split(',');
+          const mainText = item.name || parts[0]?.trim() || displayName;
+          const secondaryText = parts.slice(1, 4).join(',').trim() || (typeof item.address === 'object' ? Object.values(item.address).join(', ') : '');
 
           return {
-            id: String(place.place_id),
+            id: String(item.place_id || Math.random()),
             mainText,
-            secondaryText: secondaryText || place.display_name,
+            secondaryText: secondaryText || displayName,
+            display_name: displayName,
+            address: item.address,
             lat,
             lng,
-            raw: place,
+            raw: item,
           };
         })
         .filter(Boolean) as Array<{
         id: string;
         mainText: string;
         secondaryText: string;
+        display_name: string;
+        address?: any;
         lat: number;
         lng: number;
-        raw: NominatimPlace;
+        raw: any;
       }>;
 
       setSuggestions(mapped);
       setIsOpen(mapped.length > 0);
     } catch (err) {
-      console.warn('Nominatim autocomplete error:', err);
+      console.warn('Autocomplete fetch error:', err);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -157,10 +191,17 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
     id: string;
     mainText: string;
     secondaryText: string;
+    display_name: string;
+    address?: any;
     lat: number;
     lng: number;
-    raw: NominatimPlace;
+    raw: any;
   }) => {
+    // Extract lat (as a float), lon (mapped to lng as a float), and display_name (or address)
+    const lat = typeof item.lat === 'number' ? item.lat : parseFloat(item.lat);
+    const lng = typeof item.lng === 'number' ? item.lng : parseFloat(item.raw?.lon !== undefined ? item.raw.lon : item.lng);
+    const displayName = item.display_name || item.address || item.mainText;
+
     setInputValue(item.mainText);
     onChange(item.mainText);
     setIsOpen(false);
@@ -168,10 +209,12 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
     if (onSelectPlace) {
       onSelectPlace({
         location: item.mainText,
-        lat: item.lat,
-        lng: item.lng,
+        lat,
+        lng,
         placeId: item.id,
-        formattedAddress: item.raw.display_name,
+        formattedAddress: typeof displayName === 'string' ? displayName : JSON.stringify(displayName),
+        display_name: typeof displayName === 'string' ? displayName : undefined,
+        address: item.address,
       });
     }
   };
@@ -237,8 +280,8 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
           className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-stone-100 animate-in fade-in slide-in-from-top-1 duration-150 max-h-64 overflow-y-auto"
         >
           <div className="px-3 py-1.5 bg-stone-50 text-[10px] font-semibold text-stone-500 uppercase tracking-wider flex items-center justify-between border-b border-stone-100">
-            <span>OpenStreetMap Locations</span>
-            <span className="text-emerald-700 font-medium">Free & Open-Source</span>
+            <span>Location Suggestions</span>
+            <span className="text-emerald-700 font-medium">Japan POIs</span>
           </div>
 
           {suggestions.map((item) => (
@@ -266,3 +309,4 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
     </div>
   );
 };
+
