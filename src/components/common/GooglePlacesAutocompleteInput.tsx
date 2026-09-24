@@ -42,6 +42,7 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
   const [suggestions, setSuggestions] = useState<
     Array<{
       id: string;
+      place_id: string;
       mainText: string;
       secondaryText: string;
       display_name: string;
@@ -110,45 +111,12 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
         rawData = nominatimResults;
       }
 
-      // Parse the response array and map the fields
-      const mapped = rawData
-        .map((item: any) => {
-          const lat = parseFloat(item.lat);
-          const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
-          const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
-
-          // Null island & validity check (ensure lat and lng are non-zero numbers)
-          if (
-            isNaN(lat) ||
-            isNaN(lng) ||
-            lat === 0 ||
-            lng === 0 ||
-            (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) ||
-            lat < -90 ||
-            lat > 90 ||
-            lng < -180 ||
-            lng > 180
-          ) {
-            return null;
-          }
-
-          const parts = displayName.split(',');
-          const mainText = item.name || parts[0]?.trim() || displayName;
-          const secondaryText = parts.slice(1, 4).join(',').trim() || (typeof item.address === 'object' ? Object.values(item.address).join(', ') : '');
-
-          return {
-            id: String(item.place_id || Math.random()),
-            mainText,
-            secondaryText: secondaryText || displayName,
-            display_name: displayName,
-            address: item.address,
-            lat,
-            lng,
-            raw: item,
-          };
-        })
-        .filter(Boolean) as Array<{
+      // Parse and deduplicate the response items
+      const seenPlaceIds = new Set<string>();
+      const seenNames = new Set<string>();
+      const mapped: Array<{
         id: string;
+        place_id: string;
         mainText: string;
         secondaryText: string;
         display_name: string;
@@ -156,7 +124,62 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
         lat: number;
         lng: number;
         raw: any;
-      }>;
+      }> = [];
+
+      for (let i = 0; i < rawData.length; i++) {
+        const item = rawData[i];
+        const rawPlaceId = item.place_id !== undefined && item.place_id !== null ? String(item.place_id) : '';
+
+        // Prevent duplicate places by place_id
+        if (rawPlaceId && seenPlaceIds.has(rawPlaceId)) {
+          continue;
+        }
+        if (rawPlaceId) {
+          seenPlaceIds.add(rawPlaceId);
+        }
+
+        const lat = parseFloat(item.lat);
+        const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
+        const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
+
+        // Prevent duplicate places by identical display name and coordinates
+        const locationKey = `${displayName.trim()}_${lat.toFixed(4)}_${lng.toFixed(4)}`;
+        if (seenNames.has(locationKey)) {
+          continue;
+        }
+        seenNames.add(locationKey);
+
+        // Null island & validity check (ensure lat and lng are non-zero numbers)
+        if (
+          isNaN(lat) ||
+          isNaN(lng) ||
+          lat === 0 ||
+          lng === 0 ||
+          (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) ||
+          lat < -90 ||
+          lat > 90 ||
+          lng < -180 ||
+          lng > 180
+        ) {
+          continue;
+        }
+
+        const parts = displayName.split(',');
+        const mainText = item.name || parts[0]?.trim() || displayName;
+        const secondaryText = parts.slice(1, 4).join(',').trim() || (typeof item.address === 'object' ? Object.values(item.address).join(', ') : '');
+
+        mapped.push({
+          id: `${rawPlaceId || 'place'}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          place_id: rawPlaceId,
+          mainText,
+          secondaryText: secondaryText || displayName,
+          display_name: displayName,
+          address: item.address,
+          lat,
+          lng,
+          raw: item,
+        });
+      }
 
       setSuggestions(mapped);
       setIsOpen(mapped.length > 0);
@@ -189,6 +212,7 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
 
   const handleSelectSuggestion = (item: {
     id: string;
+    place_id: string;
     mainText: string;
     secondaryText: string;
     display_name: string;
@@ -211,7 +235,7 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
         location: item.mainText,
         lat,
         lng,
-        placeId: item.id,
+        placeId: item.place_id || item.raw?.place_id || item.id,
         formattedAddress: typeof displayName === 'string' ? displayName : JSON.stringify(displayName),
         display_name: typeof displayName === 'string' ? displayName : undefined,
         address: item.address,
@@ -284,9 +308,9 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
             <span className="text-emerald-700 font-medium">Japan POIs</span>
           </div>
 
-          {suggestions.map((item) => (
+          {suggestions.map((item, index) => (
             <button
-              key={item.id}
+              key={`${item.id}-${index}`}
               type="button"
               onClick={() => handleSelectSuggestion(item)}
               className="w-full text-left px-3 py-2.5 hover:bg-emerald-50/50 flex items-start gap-2.5 transition-colors cursor-pointer group"

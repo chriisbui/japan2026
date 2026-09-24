@@ -910,11 +910,6 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             <h2 className="text-lg font-semibold text-stone-900">
               {activityToEdit ? (isIdea ? 'Edit Idea' : 'Edit Activity') : isIdea ? 'Add to Idea Bucket' : 'Add Activity to Itinerary'}
             </h2>
-            <p className="text-xs text-stone-500">
-              {isIdea
-                ? 'Backlog idea without fixed schedule — can be added to schedule anytime.'
-                : 'Plan an event with timing, budget, booking requirements, and attendees.'}
-            </p>
           </div>
           <div className="flex items-center gap-1.5">
             {isIdea && (
@@ -1128,23 +1123,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
           {/* Location with OpenStreetMap Nominatim Geocoding */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1">
               <label className="font-semibold text-stone-700 flex items-center gap-1 text-xs">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Location</span>
               </label>
-              <div className="flex items-center gap-1.5">
-                {lat !== undefined && lng !== undefined && isValidCoordinate(lat, lng) ? (
-                  <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full font-mono font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    <span>{lat.toFixed(4)}, {lng.toFixed(4)}</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-stone-600 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded-full font-medium">
-                    LocationIQ
-                  </span>
-                )}
-              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1208,14 +1191,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               )}
             </div>
 
-            {errors.location ? (
+            {errors.location && (
               <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1 font-medium">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{errors.location}</span>
-              </p>
-            ) : (
-              <p className="mt-1 text-[11px] text-stone-400">
-                Powered by LocationIQ Autocomplete. Coordinates are validated non-zero before saving.
               </p>
             )}
           </div>

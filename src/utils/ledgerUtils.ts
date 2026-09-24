@@ -191,6 +191,55 @@ export interface ActivityExpenseBreakdown {
   isSettled: boolean;
 }
 
+export interface UserExpenseSummary {
+  owedToYou: number;
+  youOwe: number;
+}
+
+export function getUserExpenseSummary(
+  activities: Activity[],
+  profiles: Profile[],
+  activeProfileId: string
+): UserExpenseSummary {
+  // Payer activities: booked activities fronted by activeProfileId
+  const payerActivities = activities.filter(
+    (a) => !a.isIdea && a.bookingStatus === 'Booked' && a.whoPaidId === activeProfileId && Number(a.costPerPerson) > 0
+  );
+
+  let owedToYou = 0;
+  payerActivities.forEach((act) => {
+    const bd = getActivityExpenseBreakdown(act);
+    owedToYou += bd.amountStillOwed;
+  });
+
+  // Activities fronted by other profiles where activeProfileId is a debtor who hasn't paid back
+  const activitiesIOwe = activities.filter(
+    (a) =>
+      !a.isIdea &&
+      a.bookingStatus === 'Booked' &&
+      profiles.some((p) => p.id === a.whoPaidId) &&
+      a.whoPaidId !== activeProfileId &&
+      Number(a.costPerPerson) > 0 &&
+      (a.taggedProfileIds || []).includes(activeProfileId) &&
+      !(a.excludedExpenseProfileIds || []).includes(activeProfileId) &&
+      !(a.paidBackProfileIds || []).includes(activeProfileId)
+  );
+
+  let youOwe = 0;
+  activitiesIOwe.forEach((act) => {
+    const myShare =
+      act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
+        ? act.customSplitAmounts[activeProfileId]
+        : Number(act.costPerPerson) || 0;
+    youOwe += myShare;
+  });
+
+  return {
+    owedToYou: Math.round(owedToYou * 100) / 100,
+    youOwe: Math.round(youOwe * 100) / 100,
+  };
+}
+
 export function getActivityExpenseBreakdown(activity: Activity): ActivityExpenseBreakdown {
   const payerId = activity.whoPaidId || 'unpaid';
   const costPerPerson = Number(activity.costPerPerson) || 0;

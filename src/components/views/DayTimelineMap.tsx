@@ -394,7 +394,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
             defaultZoom={defaultArea.zoom}
           />
 
-          {renderablePins.map(({ activity: act, coords }) => {
+          {renderablePins.map(({ activity: act, coords }, idx) => {
             const isSelected = selectedActivity?.id === act.id;
             const isIdea = Boolean(act.isIdea || !act.date);
             const isAccommodation = act.id.startsWith('acc-') || act.category === 'Accommodation';
@@ -402,7 +402,7 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
 
             return (
               <Marker
-                key={act.id}
+                key={`${act.id}-${idx}`}
                 position={[coords.lat, coords.lng]}
                 icon={pinIcon}
                 eventHandlers={{
@@ -478,12 +478,12 @@ export const DayTimelineMap: React.FC<DayTimelineMapProps> = ({
       {renderablePins.length > 0 && (
         <div className="px-4 py-2.5 bg-stone-50/70 border-t border-stone-200 overflow-x-auto flex items-center gap-2 scrollbar-none">
           <span className="text-xs font-semibold text-stone-500 shrink-0">Stops:</span>
-          {renderablePins.map(({ activity: act }) => {
+          {renderablePins.map(({ activity: act }, idx) => {
             const isSelected = selectedActivity?.id === act.id;
             const isAccommodation = act.id.startsWith('acc-') || act.category === 'Accommodation';
             return (
               <button
-                key={act.id}
+                key={`${act.id}-${idx}`}
                 type="button"
                 onClick={() => setSelectedActivity(act)}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${

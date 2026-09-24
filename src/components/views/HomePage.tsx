@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { Activity, Profile, TripInfo, ActivityCategory } from '../../types';
 import { getDaysArray, getCityForDate } from '../../utils/dateUtils';
 import { normalizeCategory, CATEGORIES_META } from '../../data/categories';
-import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane, MapPin, UserCheck, Sparkles, Pencil } from 'lucide-react';
-import { ProfileAvatar } from '../common/ProfileAvatar';
+import { getUserExpenseSummary } from '../../utils/ledgerUtils';
+import { Calendar, ArrowRight, Plus, Trash2, AlertCircle, Plane, MapPin, UserCheck, Sparkles, Pencil, Wallet } from 'lucide-react';
 
 export const CATEGORY_CALENDAR_STYLES: Record<
   string,
@@ -93,6 +93,7 @@ interface HomePageProps {
   onRequestDeleteActivity?: (activity: Activity) => void;
   onAddActivityForDay: (date: string) => void;
   onViewFullCalendar: () => void;
+  onViewExpenses?: () => void;
   onEditProfile?: (profile: Profile) => void;
 }
 
@@ -109,11 +110,18 @@ export const HomePage: React.FC<HomePageProps> = ({
   onRequestDeleteActivity,
   onAddActivityForDay,
   onViewFullCalendar,
+  onViewExpenses,
   onEditProfile,
 }) => {
   const allTripDays = useMemo(() => getDaysArray(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
   const flightDetails = activeProfile?.flightDetails;
+
+  // Expense summary for active user: what is owed to them and what they owe
+  const expenseSummary = useMemo(
+    () => getUserExpenseSummary(activities, profiles, activeProfileId),
+    [activities, profiles, activeProfileId]
+  );
 
   // Personal schedule: starts at arrival date and ends at departure date
   // By default, when no flight details are entered, keep the current full date view
@@ -178,8 +186,8 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         </div>
 
-        {/* Days Until We Leave (Oct 26) & Deadlines Number / Link */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5 pt-4 border-t border-stone-100">
+        {/* Days Until We Leave (Oct 26), Deadlines, & Expenses Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-5 pt-4 border-t border-stone-100">
           {/* Days until we leave (Oct 26) */}
           <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -234,6 +242,57 @@ export const HomePage: React.FC<HomePageProps> = ({
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
           </button>
+
+          {/* Expenses Summary Tile */}
+          <button
+            type="button"
+            id="home-expenses-summary-btn"
+            onClick={onViewExpenses}
+            className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 hover:bg-stone-100 hover:border-stone-300 flex items-center justify-between transition-all cursor-pointer text-left group"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs font-medium text-stone-500 block">
+                  Expenses
+                </span>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <div>
+                    <span className="text-[11px] font-medium text-stone-500 block">Owed to you</span>
+                    <p className="text-lg font-extrabold text-stone-900 leading-tight">
+                      ${expenseSummary.owedToYou.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                  <div className="h-6 w-px bg-stone-200 shrink-0" />
+                  <div>
+                    <span className="text-[11px] font-medium text-stone-500 block">You owe</span>
+                    <p
+                      className={`text-lg font-extrabold leading-tight ${
+                        expenseSummary.youOwe > 0 ? 'text-rose-600' : 'text-stone-900'
+                      }`}
+                    >
+                      ${expenseSummary.youOwe.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {onViewExpenses && (
+              <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform">
+                <span>View</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+            )}
+          </button>
         </div>
       </div>
 
@@ -242,27 +301,18 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Quick day-by-day itinerary with city locations and category-coded activities. Click any day or activity to expand.
-            </p>
           </div>
-          {activeProfile && (
+          {activeProfile && onEditProfile && (
             <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-800">
-                <ProfileAvatar profile={activeProfile} size="xs" />
-                <span>Showing {activeProfile.name}&apos;s schedule ({scheduledActivities.length} activities)</span>
-              </div>
-              {onEditProfile && (
-                <button
-                  type="button"
-                  onClick={() => onEditProfile(activeProfile)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 cursor-pointer"
-                  title="Edit flight arrival/departure dates and accommodation stays"
-                >
-                  <Pencil className="w-3 h-3 text-stone-500" />
-                  <span>Edit Flights & Stays</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => onEditProfile(activeProfile)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 cursor-pointer"
+                title="Edit flight arrival/departure dates and accommodation stays"
+              >
+                <Pencil className="w-3 h-3 text-stone-500" />
+                <span>Edit Flights & Stays</span>
+              </button>
             </div>
           )}
         </div>

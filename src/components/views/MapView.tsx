@@ -168,7 +168,19 @@ function LeafletMapViewController({
       }
     }
 
-    return () => clearTimeout(timeout);
+    const handleResize = () => {
+      try {
+        map.invalidateSize();
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [map, targetArea, targetActivity, isActive]);
 
   return null;
@@ -347,12 +359,12 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div
       id="map-view-container"
-      className={`flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-stone-100 relative ${
+      className={`flex-1 min-h-0 w-full overflow-hidden bg-stone-100 relative flex-col pb-16 sm:pb-0 ${
         isActive ? 'flex' : 'hidden'
       }`}
     >
       {/* Top Controls Header Bar */}
-      <div className="bg-white border-b border-stone-200 px-3 sm:px-4 py-2.5 z-20 shadow-xs">
+      <div className="bg-white border-b border-stone-200 px-3 sm:px-4 py-2.5 z-20 shadow-xs shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
           {/* Regional Jump Buttons: Tokyo, Mt Fuji, Kyoto, Osaka, All */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
@@ -472,7 +484,7 @@ export const MapView: React.FC<MapViewProps> = ({
       </div>
 
       {/* Main Map Body + Sidebar Container */}
-      <div className="flex-1 flex relative overflow-hidden">
+      <div className="flex-1 min-h-0 flex relative overflow-hidden">
         {/* Leaflet Map Stage */}
         <div className="flex-1 h-full w-full relative z-0">
           <MapContainer
@@ -480,7 +492,7 @@ export const MapView: React.FC<MapViewProps> = ({
             zoom={currentArea.zoom}
             scrollWheelZoom={true}
             style={{ height: '100%', width: '100%' }}
-            className="z-0"
+            className="z-0 h-full w-full"
           >
             {/* Standard OpenStreetMap TileLayer: 100% Free without API keys or quotas */}
             <TileLayer
@@ -497,7 +509,7 @@ export const MapView: React.FC<MapViewProps> = ({
             />
 
             {/* OpenStreetMap Markers: strictly filtered to prevent pins at Null Island */}
-            {renderablePins.map(({ activity: act, coords }) => {
+            {renderablePins.map(({ activity: act, coords }, idx) => {
               const isSelected = selectedActivity?.id === act.id;
               const isIdea = Boolean(act.isIdea || !act.date);
               const isAccommodation = act.id.startsWith('acc-');
@@ -511,7 +523,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
               return (
                 <Marker
-                  key={act.id}
+                  key={`${act.id}-${idx}`}
                   position={[coords.lat, coords.lng]}
                   icon={pinIcon}
                   eventHandlers={{
@@ -629,7 +641,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
         {/* Activity List: Responsive Bottom Sheet on Mobile (<lg:), Docked Sidebar on Desktop (lg:) */}
         {isSidebarOpen && (
-          <div className="fixed lg:static inset-x-0 bottom-0 z-30 lg:z-10 max-h-[58vh] sm:max-h-[60vh] lg:max-h-none h-auto lg:h-full w-full lg:w-80 xl:w-96 bg-white border-t lg:border-t-0 lg:border-l border-stone-200 rounded-t-2xl lg:rounded-none flex flex-col shadow-2xl lg:shadow-none animate-in slide-in-from-bottom duration-200">
+          <div className="fixed lg:static inset-x-0 bottom-16 sm:bottom-0 lg:bottom-auto z-30 lg:z-10 max-h-[58vh] sm:max-h-[60vh] lg:max-h-none h-auto lg:h-full w-full lg:w-80 xl:w-96 bg-white border-t lg:border-t-0 lg:border-l border-stone-200 rounded-t-2xl lg:rounded-none flex flex-col shadow-2xl lg:shadow-none animate-in slide-in-from-bottom duration-200">
             {/* Mobile Drag Indicator Bar */}
             <div className="w-10 h-1 bg-stone-300 rounded-full mx-auto my-2 lg:hidden shrink-0" />
 
@@ -675,14 +687,14 @@ export const MapView: React.FC<MapViewProps> = ({
                   </p>
                 </div>
               ) : (
-                renderablePins.map(({ activity: act, coords }) => {
+                renderablePins.map(({ activity: act, coords }, idx) => {
                   const isSelected = selectedActivity?.id === act.id;
                   const isIdea = Boolean(act.isIdea || !act.date);
                   const isAccommodation = act.id.startsWith('acc-');
 
                   return (
                     <div
-                      key={act.id}
+                      key={`${act.id}-${idx}`}
                       onClick={() => setSelectedActivity(act)}
                       className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         isSelected

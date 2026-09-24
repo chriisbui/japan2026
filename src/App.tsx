@@ -108,7 +108,14 @@ export default function App() {
     setActivityError(null);
     try {
       const items = await fetchActivitiesFromSupabase();
-      setActivities(items);
+      // Ensure activities in state have strictly unique IDs
+      const uniqueMap = new Map<string, Activity>();
+      for (const item of items) {
+        if (!uniqueMap.has(item.id)) {
+          uniqueMap.set(item.id, item);
+        }
+      }
+      setActivities(Array.from(uniqueMap.values()));
       setIsSupabaseLive(true);
     } catch (err: any) {
       console.error('[Supabase select error]:', err);
@@ -687,7 +694,13 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <div
+      className={`bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white ${
+        activeTab === 'map'
+          ? 'h-screen h-[100dvh] overflow-hidden flex flex-col'
+          : 'min-h-screen'
+      }`}
+    >
       {/* Navigation Header */}
       <Navbar
         trip={trip}
@@ -758,7 +771,7 @@ export default function App() {
             >
               <HomePage
                 trip={trip}
-                activities={scheduledActivities}
+                activities={activities}
                 profiles={profiles}
                 activeProfileId={activeProfileId}
                 needsBookingCount={needsBookingCount}
@@ -769,6 +782,7 @@ export default function App() {
                 onDeleteActivity={handleDeleteActivity}
                 onAddActivityForDay={(date) => handleOpenAddModal(date)}
                 onViewFullCalendar={() => setActiveTab('calendar')}
+                onViewExpenses={() => setActiveTab('expenses')}
                 onEditProfile={handleOpenPhotoModal}
               />
             </motion.div>

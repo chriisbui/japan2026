@@ -66,7 +66,19 @@ export async function fetchLocationIQAutocomplete(userQuery: string): Promise<Lo
 
     // Parse the response array and map the fields so that selecting a search suggestion extracts lat (as a float), lon (mapped to lng as a float), and display_name (or address)
     const results: LocationIQSuggestion[] = [];
+    const seenPlaceIds = new Set<string>();
+    const seenLocations = new Set<string>();
+    let idx = 0;
+
     for (const item of data) {
+      const rawPlaceId = item.place_id !== undefined && item.place_id !== null ? String(item.place_id) : '';
+      if (rawPlaceId && seenPlaceIds.has(rawPlaceId)) {
+        continue;
+      }
+      if (rawPlaceId) {
+        seenPlaceIds.add(rawPlaceId);
+      }
+
       const lat = parseFloat(item.lat);
       const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng); // lon mapped to lng as a float
 
@@ -86,13 +98,19 @@ export async function fetchLocationIQAutocomplete(userQuery: string): Promise<Lo
       }
 
       const displayName = item.display_name || (typeof item.address === 'string' ? item.address : item.address?.name || item.name || '');
+      const locationKey = `${displayName.trim()}_${lat.toFixed(4)}_${lng.toFixed(4)}`;
+      if (seenLocations.has(locationKey)) {
+        continue;
+      }
+      seenLocations.add(locationKey);
+
       const parts = displayName.split(',');
       const mainText = item.name || parts[0]?.trim() || displayName;
       const secondaryText = parts.slice(1, 4).join(',').trim() || (typeof item.address === 'object' ? Object.values(item.address).join(', ') : '');
 
       results.push({
-        id: String(item.place_id || Math.random()),
-        place_id: String(item.place_id || ''),
+        id: `${rawPlaceId || 'loc'}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        place_id: rawPlaceId,
         mainText,
         secondaryText,
         display_name: displayName,
@@ -101,6 +119,7 @@ export async function fetchLocationIQAutocomplete(userQuery: string): Promise<Lo
         lng,
         raw: item,
       });
+      idx++;
     }
 
     return results;
