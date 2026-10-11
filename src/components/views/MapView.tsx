@@ -364,12 +364,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }`}
     >
       {/* Top Controls Header Bar */}
-      <div className="bg-white border-b border-stone-200 px-3 sm:px-4 py-2.5 z-20 shadow-xs shrink-0">
+      <div className="glass-panel border-b border-stone-200/60 px-3 sm:px-4 py-2 z-20 shadow-xs shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
-          {/* Regional Jump Buttons: Tokyo, Mt Fuji, Kyoto, Osaka, All */}
+          {/* Regional Jump Buttons: Tokyo, Mt Fuji, Kyoto, Osaka, All (Pills) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             <div className="text-xs font-semibold text-stone-500 mr-1 hidden sm:flex items-center gap-1 shrink-0">
-              <Compass className="w-3.5 h-3.5 text-emerald-600" />
+              <Compass className="w-3.5 h-3.5 text-stone-700" />
               <span>Region:</span>
             </div>
             {AREAS.map((area) => {
@@ -384,17 +384,17 @@ export const MapView: React.FC<MapViewProps> = ({
                     setSelectedAreaId(area.id);
                     setSelectedActivity(null);
                   }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs ${
                     isSelected
-                      ? 'bg-stone-900 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200'
+                      ? 'bg-stone-900 text-white shadow-xs font-semibold'
+                      : 'bg-white/80 text-stone-700 hover:bg-white border border-stone-200/80'
                   }`}
                   title={`Jump to ${area.name} - ${area.description}`}
                 >
                   <span>{area.name}</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      isSelected ? 'bg-stone-800 text-stone-200' : 'bg-stone-200 text-stone-600'
+                      isSelected ? 'bg-white/20 text-white font-bold' : 'bg-stone-100 text-stone-600'
                     }`}
                   >
                     {count}
@@ -406,15 +406,15 @@ export const MapView: React.FC<MapViewProps> = ({
 
           {/* Filter Bar: Scope (All / Confirmed / Ideas) + Category */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Scope segment toggle */}
-            <div className="inline-flex rounded-lg bg-stone-100 p-0.5 border border-stone-200 text-xs">
+            {/* Scope segment toggle (Pill Segmented Control) */}
+            <div className="inline-flex rounded-full bg-white/70 p-1 border border-stone-200/80 text-xs shadow-2xs backdrop-blur-xs">
               <button
                 type="button"
                 id="map-scope-all"
                 onClick={() => setScope('all')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
                   scope === 'all'
-                    ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                    ? 'bg-stone-900 text-white shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
@@ -424,9 +424,9 @@ export const MapView: React.FC<MapViewProps> = ({
                 type="button"
                 id="map-scope-confirmed"
                 onClick={() => setScope('confirmed')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
                   scope === 'confirmed'
-                    ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                    ? 'bg-stone-900 text-white shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
@@ -436,9 +436,9 @@ export const MapView: React.FC<MapViewProps> = ({
                 type="button"
                 id="map-scope-ideas"
                 onClick={() => setScope('ideas')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
                   scope === 'ideas'
-                    ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                    ? 'bg-stone-900 text-white shadow-2xs font-semibold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
@@ -446,13 +446,13 @@ export const MapView: React.FC<MapViewProps> = ({
               </button>
             </div>
 
-            {/* Category Filter Dropdown */}
+            {/* Category Filter Dropdown (Pill Shaped) */}
             <div className="relative">
               <select
                 id="map-category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="appearance-none bg-stone-100 border border-stone-200 text-stone-700 text-xs rounded-lg pl-2.5 pr-7 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                className="appearance-none bg-white/80 border border-stone-200/80 text-stone-700 text-xs rounded-full pl-3 pr-7 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer shadow-2xs"
               >
                 <option value="all">All Categories</option>
                 {CATEGORY_LIST.map((cat) => (
@@ -461,18 +461,18 @@ export const MapView: React.FC<MapViewProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-stone-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-stone-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
-            {/* Toggle Sidebar Button */}
+            {/* Toggle Sidebar Button (Pill Shaped) */}
             <button
               type="button"
               id="map-toggle-sidebar"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                 isSidebarOpen
                   ? 'bg-stone-900 text-white border-stone-900'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border-stone-200'
+                  : 'bg-white/80 text-stone-700 hover:bg-white border-stone-200/80'
               }`}
               title={isSidebarOpen ? 'Hide list' : 'Show list'}
             >
@@ -641,18 +641,18 @@ export const MapView: React.FC<MapViewProps> = ({
 
         {/* Activity List: Responsive Bottom Sheet on Mobile (<lg:), Docked Sidebar on Desktop (lg:) */}
         {isSidebarOpen && (
-          <div className="fixed lg:static inset-x-0 bottom-16 sm:bottom-0 lg:bottom-auto z-30 lg:z-10 max-h-[58vh] sm:max-h-[60vh] lg:max-h-none h-auto lg:h-full w-full lg:w-80 xl:w-96 bg-white border-t lg:border-t-0 lg:border-l border-stone-200 rounded-t-2xl lg:rounded-none flex flex-col shadow-2xl lg:shadow-none animate-in slide-in-from-bottom duration-200">
+          <div className="fixed lg:static inset-x-0 bottom-16 sm:bottom-0 lg:bottom-auto z-30 lg:z-10 max-h-[58vh] sm:max-h-[60vh] lg:max-h-none h-auto lg:h-full w-full lg:w-80 xl:w-96 glass-panel border-t lg:border-t-0 lg:border-l border-stone-200/80 rounded-t-3xl lg:rounded-none flex flex-col shadow-2xl lg:shadow-none animate-in slide-in-from-bottom duration-200">
             {/* Mobile Drag Indicator Bar */}
-            <div className="w-10 h-1 bg-stone-300 rounded-full mx-auto my-2 lg:hidden shrink-0" />
+            <div className="w-10 h-1 bg-stone-300/80 rounded-full mx-auto my-2.5 lg:hidden shrink-0" />
 
             {/* Sidebar Header */}
-            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50 flex items-center justify-between shrink-0">
+            <div className="px-4 py-3 border-b border-stone-200/60 bg-white/70 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                <h3 className="text-sm sm:text-base font-serif font-medium text-stone-900 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-stone-600 shrink-0" />
                   <span>{currentArea.name} Activities</span>
                 </h3>
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[11px] text-stone-500 font-sans">
                   {renderablePins.length} pinned locations
                 </p>
               </div>
@@ -660,15 +660,15 @@ export const MapView: React.FC<MapViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onAddActivity()}
-                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-full transition-colors cursor-pointer shadow-2xs"
                   title="Add new activity"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5 text-amber-300" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors cursor-pointer"
                   title="Close sidebar"
                 >
                   <X className="w-4 h-4" />

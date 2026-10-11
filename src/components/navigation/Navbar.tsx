@@ -65,30 +65,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-2xs shrink-0">
+    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-stone-200/60 shadow-xs shrink-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top bar: Trip branding & Global User Switcher & Action buttons */}
         <div className="flex items-center justify-between h-16 gap-3">
-          {/* Logo & Trip info: Title is just Japan 2026, no cities or dates/travelers */}
+          {/* Logo & Trip info: Title with Editorial Serif */}
           <div
             onClick={() => onTabChange('home')}
             className="flex items-center gap-2.5 cursor-pointer group"
             title="Go to Home"
           >
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 group-hover:bg-indigo-700 text-white flex items-center justify-center shadow-xs transition-colors shrink-0">
-              <Compass className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-stone-800 to-stone-700 text-white flex items-center justify-center shadow-xs transition-transform group-hover:scale-105 shrink-0">
+              <Compass className="w-5 h-5 text-amber-200" />
             </div>
-            <h1 className="text-lg font-bold text-stone-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
+            <h1 className="text-xl font-serif font-medium text-stone-900 tracking-tight leading-none group-hover:text-amber-900 transition-colors">
               Japan 2026
             </h1>
             {supabaseConnected ? (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50/80 border border-emerald-200 text-emerald-800 text-[11px] font-medium shadow-2xs backdrop-blur-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                 <span>Realtime</span>
               </span>
             ) : (
               <span
-                className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-500 text-[11px] font-medium"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-100/80 border border-stone-200/80 text-stone-600 text-[11px] font-medium shadow-2xs backdrop-blur-xs"
                 title="Waiting for VITE_SUPABASE_URL and key in .env"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"></span>
@@ -104,12 +104,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="active-user-switcher-btn"
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-stone-200 hover:border-indigo-300 bg-stone-50/70 hover:bg-stone-100 transition-all cursor-pointer shadow-2xs"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-stone-200/80 hover:border-amber-200 bg-white/70 hover:bg-white backdrop-blur-md transition-all cursor-pointer shadow-2xs"
                 title="Instant switch logged-in profile"
               >
                 <ProfileAvatar profile={activeProfile} size="sm" isActive />
                 <div className="text-left hidden lg:block leading-tight">
-                  <span className="block text-xs font-bold text-stone-900">{activeProfile?.name}</span>
+                  <span className="block text-xs font-semibold text-stone-800">{activeProfile?.name}</span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
               </button>
@@ -121,9 +121,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="fixed inset-0 z-30"
                     onClick={() => setProfileDropdownOpen(false)}
                   ></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-stone-200 py-2 z-40 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-1.5 border-b border-stone-100 flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                  <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-stone-200/90 py-2 z-40 animate-in fade-in zoom-in-95">
+                    <div className="px-3.5 py-1.5 border-b border-stone-100 flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 font-sans">
                         Switch Active Profile
                       </span>
                       <button
@@ -131,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setProfileDropdownOpen(false);
                           onOpenProfileModal();
                         }}
-                        className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold"
+                        className="text-[11px] text-stone-700 hover:text-stone-900 font-semibold cursor-pointer underline underline-offset-2"
                       >
                         Manage
                       </button>
@@ -143,8 +143,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         return (
                           <div
                             key={p.id}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-stone-50 text-xs transition-colors cursor-pointer ${
-                              isSelected ? 'bg-indigo-50/60 font-semibold' : ''
+                            className={`w-full flex items-center justify-between px-3.5 py-2 text-left hover:bg-stone-50/80 text-xs transition-colors cursor-pointer ${
+                              isSelected ? 'bg-amber-50/60 font-semibold' : ''
                             }`}
                           >
                             <button
@@ -152,18 +152,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 onSelectProfile(p.id);
                                 setProfileDropdownOpen(false);
                               }}
-                              className="flex items-center gap-2.5 flex-1 min-w-0 text-left py-1"
+                              className="flex items-center gap-2.5 flex-1 min-w-0 text-left py-1 cursor-pointer"
                             >
                               <ProfileAvatar profile={p} size="sm" />
                               <span className="font-semibold text-stone-900 truncate">{p.name}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 ml-auto" />}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-auto" />}
                             </button>
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="pt-1.5 mt-1 border-t border-stone-100 px-2 pb-1">
+                    <div className="pt-1.5 mt-1 border-t border-stone-100 px-2.5 pb-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -174,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             onOpenProfileModal();
                           }
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-stone-700 hover:text-indigo-600 bg-stone-50 hover:bg-indigo-50/50 rounded-lg transition-colors cursor-pointer border border-stone-200"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-stone-700 hover:text-stone-900 bg-stone-100/70 hover:bg-stone-100 rounded-full transition-colors cursor-pointer border border-stone-200/80"
                       >
                         <Pencil className="w-3.5 h-3.5 text-stone-500" />
                         <span>Edit Profile, Flights & Stays</span>
@@ -185,20 +185,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* + Add Activity Button */}
+            {/* + Add Activity Button (Pill shaped) */}
             <button
               id="global-add-activity-btn"
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0 active:scale-95"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 text-amber-300" />
               <span className="hidden sm:inline">Add Activity</span>
             </button>
           </div>
         </div>
 
-        {/* Desktop tab navigation (hidden on mobile) */}
-        <nav className="hidden sm:flex space-x-1 sm:space-x-2 overflow-x-auto py-2 scrollbar-none border-t border-stone-100">
+        {/* Desktop tab navigation (Pill shaped) */}
+        <nav className="hidden sm:flex items-center space-x-1.5 overflow-x-auto py-2.5 scrollbar-none border-t border-stone-200/40">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -207,18 +207,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={tab.id}
                 id={`tab-btn-${tab.id}`}
                 onClick={() => onTabChange(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                   isActive
                     ? 'bg-stone-900 text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/80'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'
+                      isActive ? 'bg-amber-400 text-stone-900' : 'bg-stone-200/80 text-stone-700'
                     }`}
                   >
                     {tab.badge}
@@ -231,10 +231,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
     </header>
 
-    {/* Mobile Bottom Navigation Bar: fixed to bottom of the viewport, icons only */}
+    {/* Mobile Bottom Navigation Bar: Frosted glass bar with pill buttons */}
     <nav
       id="mobile-bottom-nav"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 px-3 py-2 flex items-center justify-around sm:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-t border-stone-200/60 px-3 py-2 flex items-center justify-around sm:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.06)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
     >
       {tabs.map((tab) => {
         const Icon = tab.icon;
@@ -244,10 +244,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             key={tab.id}
             id={`mobile-tab-btn-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
-            className={`relative flex items-center justify-center w-12 h-11 rounded-xl transition-all cursor-pointer ${
+            className={`relative flex items-center justify-center w-12 h-11 rounded-full transition-all cursor-pointer ${
               isActive
                 ? 'bg-stone-900 text-white shadow-xs'
-                : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100 active:bg-stone-200'
+                : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100/70 active:bg-stone-200/60'
             }`}
             title={tab.label}
             aria-label={tab.label}
@@ -255,7 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Icon className="w-5 h-5 shrink-0" />
             {tab.badge !== undefined && tab.badge > 0 && (
               <span
-                className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
+                className={`absolute top-1 right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
                   isActive ? 'bg-amber-400 text-stone-900' : 'bg-amber-500 text-white'
                 }`}
               >

@@ -899,19 +899,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-md overflow-y-auto animate-in fade-in duration-150">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-2xl my-8 overflow-hidden animate-in zoom-in-95 duration-150"
+        className="glass-panel rounded-3xl shadow-2xl border border-stone-200/80 w-full max-w-2xl my-8 overflow-hidden animate-in zoom-in-95 duration-150 relative"
         role="dialog"
       >
+        {/* Soft atmospheric ambient light aura */}
+        <div className="absolute -top-16 -right-16 w-44 h-44 bg-gradient-to-br from-amber-200/20 via-rose-200/20 to-sky-200/20 rounded-full blur-2xl pointer-events-none" />
+
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/60">
+        <div className="px-6 py-4.5 border-b border-stone-200/60 flex items-center justify-between bg-white/60 relative z-10">
           <div>
-            <h2 className="text-lg font-semibold text-stone-900">
+            <h2 className="font-serif font-medium text-xl text-stone-900 tracking-tight">
               {activityToEdit ? (isIdea ? 'Edit Idea' : 'Edit Activity') : isIdea ? 'Add to Idea Bucket' : 'Add Activity to Itinerary'}
             </h2>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {isIdea && (
               <button
                 type="button"
@@ -927,10 +930,10 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                     setTaggedProfileIds(profiles.map((p) => p.id));
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer mr-1"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-stone-800 bg-white/90 hover:bg-white border border-stone-200/80 rounded-full shadow-2xs transition-colors cursor-pointer mr-1"
                 title="Add this idea to schedule"
               >
-                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <Calendar className="w-3.5 h-3.5 text-stone-600" />
                 <span>Add to Schedule</span>
               </button>
             )}
@@ -938,7 +941,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(true)}
-                className="text-stone-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                className="text-stone-400 hover:text-rose-600 p-2 rounded-full hover:bg-rose-50/80 transition-colors cursor-pointer"
                 title="Remove Activity"
                 aria-label="Remove Activity"
               >
@@ -947,7 +950,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+              className="text-stone-400 hover:text-stone-600 p-2 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1840,7 +1843,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                   type="button"
                   id="activity-delete-btn"
                   onClick={() => setIsConfirmingDelete(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-rose-700 hover:text-rose-900 hover:bg-rose-50 rounded-full transition-colors cursor-pointer"
                   title="Remove this activity from the trip"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1850,11 +1853,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-200/60 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -1873,9 +1876,9 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                     setTaggedProfileIds(profiles.map((p) => p.id));
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-stone-800 bg-white/90 hover:bg-white border border-stone-200/80 rounded-full shadow-2xs transition-colors cursor-pointer"
               >
-                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <Calendar className="w-3.5 h-3.5 text-stone-600" />
                 <span>Add to Schedule</span>
               </button>
             )}
@@ -1883,7 +1886,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               type="button"
               id="activity-save-submit-btn"
               onClick={handleSubmit}
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+              className="px-5 py-2 text-xs font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-full shadow-xs transition-colors cursor-pointer"
             >
               {activityToEdit ? 'Save Changes' : isIdea ? 'Add to Idea Bucket' : 'Add to Itinerary'}
             </button>

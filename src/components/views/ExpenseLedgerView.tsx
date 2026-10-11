@@ -183,15 +183,21 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header (Frosted Glass & Editorial Serif) */}
+      <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-sm relative overflow-hidden">
+        {/* Soft atmospheric ambient light aura */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-emerald-100/30 via-amber-100/30 to-transparent blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="text-[10px] uppercase font-semibold tracking-wider text-amber-900/70 block mb-1">
+              Trip Balances & Settlements
+            </span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-stone-900 text-emerald-300 flex items-center justify-center shrink-0 shadow-2xs">
                 <DollarSign className="w-5 h-5" />
-              </span>
-              <h1 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-serif font-normal text-stone-900 tracking-tight">
                 Expenses & Reimbursements
               </h1>
             </div>
@@ -200,14 +206,14 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+          <div className="relative z-10 flex items-center gap-2.5 self-start md:self-auto flex-wrap">
             {onAddExpense && (
               <button
                 type="button"
                 onClick={onAddExpense}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium transition-all shadow-xs cursor-pointer active:scale-95"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 text-emerald-300" />
                 <span>Add Expense</span>
               </button>
             )}
@@ -215,83 +221,83 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
         </div>
 
         {/* Summary Metric Cards for Selected Payer */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5 pt-5 border-t border-stone-100">
+        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-5 pt-5 border-t border-stone-200/50">
           {/* Simple overview of what you owe */}
           <div
             onClick={() => setViewTab('owe')}
-            className={`rounded-xl p-4 border transition-all cursor-pointer group ${
+            className={`rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer group shadow-2xs backdrop-blur-xs ${
               totalIOweOthers > 0
-                ? 'bg-rose-50/70 hover:bg-rose-50/90 border-rose-200 hover:border-rose-300'
-                : 'bg-stone-50 hover:bg-stone-100/80 border-stone-200'
+                ? 'bg-gradient-to-br from-rose-50/80 via-white/70 to-orange-50/50 border-rose-200/80 hover:border-rose-300 hover:bg-white'
+                : 'bg-white/80 border-stone-200/80 hover:border-stone-300 hover:bg-white'
             }`}
             title="Click to view details of what you owe"
           >
             <div className="flex items-center justify-between">
-              <span className={`text-xs font-semibold ${totalIOweOthers > 0 ? 'text-rose-800' : 'text-stone-600'}`}>
+              <span className={`text-xs font-medium ${totalIOweOthers > 0 ? 'text-rose-900' : 'text-stone-600'}`}>
                 What You Owe
               </span>
-              <div className="flex items-center gap-1 text-[11px] font-medium text-stone-400 group-hover:text-rose-600 transition-colors">
+              <div className="flex items-center gap-1 text-[11px] font-medium text-stone-400 group-hover:text-rose-700 transition-colors">
                 <span>Details</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </div>
             </div>
-            <p className={`text-2xl font-bold mt-1 ${totalIOweOthers > 0 ? 'text-rose-950' : 'text-stone-900'}`}>
+            <p className={`text-2xl sm:text-3xl font-serif font-normal mt-1 leading-none ${totalIOweOthers > 0 ? 'text-rose-950' : 'text-stone-900'}`}>
               ${totalIOweOthers.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className={`text-[11px] mt-0.5 ${totalIOweOthers > 0 ? 'text-rose-700/90' : 'text-stone-500'}`}>
+            <p className={`text-[11px] mt-1 ${totalIOweOthers > 0 ? 'text-rose-700/90' : 'text-stone-500'}`}>
               {totalIOweOthers === 0
                 ? 'All settled up with other travelers'
                 : `Across ${unpaidActivitiesIOwe.length} unpaid ${unpaidActivitiesIOwe.length === 1 ? 'activity' : 'activities'}`}
             </p>
 
-            {/* Simple overview chips of who is owed */}
+            {/* Simple overview chips of who is owed (Pills) */}
             {owedPayersList.length > 0 && (
-              <div className="mt-2.5 pt-2 border-t border-rose-200/60 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="text-rose-700 font-medium">To:</span>
+              <div className="mt-3 pt-2.5 border-t border-rose-200/50 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-rose-700 font-medium text-[10px] uppercase tracking-wider">To:</span>
                 {owedPayersList.map(({ payer, amount }) => (
                   <span
                     key={payer?.id || Math.random()}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-rose-200 text-rose-900 text-[11px]"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 border border-rose-200 text-rose-900 text-[11px] shadow-2xs"
                   >
                     <span className="font-medium">{payer?.name || 'Someone'}:</span>
-                    <span className="font-bold">${amount.toFixed(2)}</span>
+                    <span className="font-serif font-bold">${amount.toFixed(2)}</span>
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-200">
+          <div className="bg-gradient-to-br from-amber-50/80 via-white/70 to-orange-50/40 rounded-2xl p-4 sm:p-5 border border-amber-200/80 shadow-2xs backdrop-blur-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-amber-800">Still Owed to You</span>
+              <span className="text-xs font-medium text-amber-900">Still Owed to You</span>
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-2xl font-bold text-amber-900 mt-1">
+            <p className="text-2xl sm:text-3xl font-serif font-normal text-amber-950 mt-1 leading-none">
               ${payerTotalOwedToThem.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-[11px] text-amber-700/90 mt-0.5">
+            <p className="text-[11px] text-amber-800/90 mt-1">
               Pending in {activePayerActivities.length} unsettled {activePayerActivities.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs: Active & Owed vs. Settled button vs. What I Owe vs. Balances */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      {/* Navigation Sub-Tabs (Pill Segmented Control) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200/50 pb-3">
+        <div className="glass-pill rounded-full p-1 inline-flex items-center gap-1 flex-wrap">
           {/* Main Active tab */}
           <button
             onClick={() => setViewTab('active')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
               viewTab === 'active'
-                ? 'bg-stone-900 text-white shadow-xs'
-                : 'bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200'
+                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
             }`}
           >
             <span>Paid by You</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                viewTab === 'active' ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-600'
+                viewTab === 'active' ? 'bg-white/20 text-white' : 'bg-stone-200/80 text-stone-700'
               }`}
             >
               {activePayerActivities.length}
@@ -302,10 +308,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
           <button
             id="settled-transactions-btn"
             onClick={() => setViewTab('settled')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
               viewTab === 'settled'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+                ? 'bg-emerald-700 text-white shadow-2xs font-semibold'
+                : 'text-emerald-800 hover:bg-emerald-50/70'
             }`}
             title="View past already settled transactions"
           >
@@ -323,10 +329,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
           {/* What I Owe Tab */}
           <button
             onClick={() => setViewTab('owe')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
               viewTab === 'owe'
-                ? 'bg-stone-900 text-white shadow-xs'
-                : 'bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200'
+                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
             }`}
           >
             <span>What You Owe</span>
@@ -340,10 +346,10 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
           {/* Group Balances & Cash Flow Tab */}
           <button
             onClick={() => setViewTab('balances')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
               viewTab === 'balances'
-                ? 'bg-stone-900 text-white shadow-xs'
-                : 'bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-100 border border-stone-200'
+                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
             }`}
           >
             <Scale className="w-3.5 h-3.5 text-stone-400" />
@@ -409,23 +415,23 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                 return (
                   <div
                     key={act.id}
-                    className="bg-white rounded-2xl border border-stone-200 hover:border-indigo-300 transition-all shadow-xs overflow-hidden"
+                    className="glass-card glass-card-hover rounded-2xl border border-stone-200/80 transition-all shadow-2xs overflow-hidden"
                   >
                     {/* Activity Card Header / Click to Expand */}
                     <div
                       onClick={() => toggleExpand(act.id)}
-                      className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-stone-50/50 transition-colors"
+                      className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-white/60 transition-colors"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center shrink-0 shadow-2xs">
                           <CatIcon className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-stone-900 text-sm">{act.title}</h3>
+                            <h3 className="font-serif font-medium text-stone-900 text-base">{act.title}</h3>
                             <CategoryBadge category={act.category} size="sm" />
                             {act.isExpenseOnly && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2.5 py-0.5 rounded-full shadow-2xs">
                                 <Receipt className="w-3 h-3 text-emerald-600" />
                                 <span>Expense</span>
                               </span>

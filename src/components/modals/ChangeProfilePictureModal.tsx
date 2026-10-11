@@ -126,9 +126,9 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150"
+        className="glass-panel rounded-3xl shadow-2xl border border-stone-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
@@ -139,8 +139,8 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
               <Camera className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-stone-900 leading-tight">Change Profile Picture</h3>
-              <p className="text-[11px] text-stone-500">Updating photo for {profile.name}</p>
+              <h3 className="font-serif font-medium text-lg text-stone-900 leading-tight">Change Profile Picture</h3>
+              <p className="text-xs text-stone-500">Updating photo for {profile.name}</p>
             </div>
           </div>
           <button
@@ -279,11 +279,11 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-100 flex items-center justify-end gap-2">
+        <div className="px-6 py-4 bg-white/60 border-t border-stone-200/60 flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/50 transition-colors"
+            className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-200/60 transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -291,7 +291,7 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
             type="button"
             onClick={handleSave}
             disabled={isUploading}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             Save Photo
           </button>

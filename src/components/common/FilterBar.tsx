@@ -42,23 +42,23 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   };
 
   return (
-    <div className="bg-white border border-stone-200/80 rounded-xl p-3 shadow-xs mb-5">
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+    <div className="glass-panel rounded-2xl sm:rounded-full p-2.5 sm:px-4 shadow-sm mb-5">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
         {/* Search bar */}
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             id="filter-search-input"
             type="text"
             placeholder="Search activities, locations, notes..."
             value={filters.searchQuery}
             onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
-            className="w-full pl-9 pr-8 py-1.5 text-xs text-stone-800 placeholder-stone-400 bg-stone-50 hover:bg-stone-100/60 focus:bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+            className="w-full pl-9 pr-8 py-2 text-xs text-stone-800 placeholder-stone-400 bg-white/70 hover:bg-white focus:bg-white border border-stone-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-stone-400 transition-all shadow-2xs"
           />
           {filters.searchQuery && (
             <button
               onClick={() => onFilterChange({ ...filters, searchQuery: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -75,10 +75,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               onChange={(e) =>
                 onFilterChange({ ...filters, category: e.target.value as ActivityCategory | 'ALL' })
               }
-              className={`text-xs py-1.5 pl-3 pr-7 rounded-lg border font-medium cursor-pointer transition-colors appearance-none bg-no-repeat bg-[right_8px_center] ${
+              className={`text-xs py-2 pl-3.5 pr-7 rounded-full border font-medium cursor-pointer transition-all appearance-none bg-no-repeat bg-[right_10px_center] shadow-2xs ${
                 filters.category !== 'ALL'
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-1 ring-indigo-300'
-                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+                  ? 'bg-indigo-50/90 text-indigo-800 border-indigo-200 ring-1 ring-indigo-300'
+                  : 'bg-white/80 text-stone-700 border-stone-200/90 hover:border-stone-300 hover:bg-white'
               }`}
             >
               <option value="ALL">All Categories</option>
@@ -96,10 +96,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               id="filter-profile-select"
               value={filters.taggedProfileId}
               onChange={(e) => onFilterChange({ ...filters, taggedProfileId: e.target.value })}
-              className={`text-xs py-1.5 pl-3 pr-7 rounded-lg border font-medium cursor-pointer transition-colors appearance-none ${
+              className={`text-xs py-2 pl-3.5 pr-7 rounded-full border font-medium cursor-pointer transition-all appearance-none shadow-2xs ${
                 filters.taggedProfileId !== 'ALL'
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-1 ring-indigo-300'
-                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+                  ? 'bg-indigo-50/90 text-indigo-800 border-indigo-200 ring-1 ring-indigo-300'
+                  : 'bg-white/80 text-stone-700 border-stone-200/90 hover:border-stone-300 hover:bg-white'
               }`}
             >
               <option value="ALL">All Travelers (6)</option>
@@ -119,10 +119,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               onChange={(e) =>
                 onFilterChange({ ...filters, bookingStatus: e.target.value as BookingStatus | 'ALL' })
               }
-              className={`text-xs py-1.5 pl-3 pr-7 rounded-lg border font-medium cursor-pointer transition-colors appearance-none ${
+              className={`text-xs py-2 pl-3.5 pr-7 rounded-full border font-medium cursor-pointer transition-all appearance-none shadow-2xs ${
                 filters.bookingStatus !== 'ALL'
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 ring-1 ring-indigo-300'
-                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+                  ? 'bg-indigo-50/90 text-indigo-800 border-indigo-200 ring-1 ring-indigo-300'
+                  : 'bg-white/80 text-stone-700 border-stone-200/90 hover:border-stone-300 hover:bg-white'
               }`}
             >
               <option value="ALL">All Bookings</option>
@@ -136,7 +136,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-stone-600 hover:text-stone-900 bg-white/90 hover:bg-white border border-stone-200/80 rounded-full transition-all cursor-pointer shadow-2xs"
               title="Reset all filters"
             >
               <X className="w-3.5 h-3.5" />

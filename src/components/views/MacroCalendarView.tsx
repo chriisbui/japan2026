@@ -69,27 +69,30 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Overview header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-stone-200">
+      <div className="glass-panel rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-600" />
+          <span className="text-[10px] uppercase font-semibold tracking-wider text-amber-900/70 block mb-0.5">
+            Full Itinerary Overview
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-serif font-normal text-stone-900 tracking-tight flex items-center gap-2.5">
+            <Calendar className="w-5 h-5 text-stone-600" />
             Calendar
           </h2>
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-stone-500 mt-1">
             {days.length}-day journey overview. Click any day card to expand its hour-by-hour schedule.
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-stone-600">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Booked
+        <div className="flex items-center gap-2 text-xs text-stone-600 flex-wrap">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Booked
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Needs Booking
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span> Needs Booking
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-stone-300"></span> Flexible
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-stone-300"></span> Flexible
           </span>
         </div>
       </div>
@@ -116,56 +119,56 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
           return (
             <div
               key={dateStr}
-              className="bg-white rounded-xl border border-stone-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all flex flex-col group overflow-hidden"
+              className="glass-card glass-card-hover rounded-2xl border border-stone-200/80 shadow-2xs flex flex-col group overflow-hidden"
             >
               {/* Day Header */}
               <div
                 onClick={() => onSelectDay(dateStr)}
-                className="p-3.5 bg-stone-50/80 hover:bg-indigo-50/40 border-b border-stone-100 flex items-center justify-between cursor-pointer transition-colors"
+                className="p-3.5 bg-white/60 hover:bg-white/90 border-b border-stone-100 flex items-center justify-between cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-stone-200 flex flex-col items-center justify-center shadow-2xs group-hover:border-indigo-400 shrink-0">
-                    <span className="text-[10px] font-bold uppercase text-indigo-600 tracking-wider">
+                  <div className="w-10 h-10 rounded-full bg-white border border-stone-200/80 flex flex-col items-center justify-center shadow-2xs group-hover:border-amber-400 shrink-0">
+                    <span className="text-[10px] font-semibold uppercase text-stone-500 tracking-wider">
                       {weekday}
                     </span>
-                    <span className="text-sm font-bold text-stone-900 leading-none">{dayNum}</span>
+                    <span className="text-sm font-serif font-bold text-stone-900 leading-none">{dayNum}</span>
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
+                      <span className="text-[10px] font-medium text-amber-900 uppercase tracking-wider bg-amber-50 px-2 py-0.2 rounded-full border border-amber-200/60">
                         Day {allTripDays.indexOf(dateStr) + 1}
                       </span>
-                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold border ${city.badgeClass}`}>
+                      <span className={`inline-flex items-center gap-0.5 px-2 py-0.2 rounded-full text-[10px] font-medium border ${city.badgeClass}`}>
                         <MapPin className="w-2.5 h-2.5 shrink-0" />
                         <span>{city.name}</span>
                       </span>
                     </div>
-                    <h3 className="text-xs font-semibold text-stone-900">
+                    <h3 className="text-xs font-serif font-medium text-stone-900 mt-0.5">
                       {monthName} {dayNum}
                     </h3>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-bold text-stone-800 block">
+                  <span className="text-xs font-serif font-medium text-stone-800 block">
                     {dayActs.length} {dayActs.length === 1 ? 'event' : 'events'}
                   </span>
                   {dayTotalCost > 0 && (
-                    <span className="text-[11px] text-stone-500">${dayTotalCost} est.</span>
+                    <span className="text-[11px] text-stone-500 font-serif">${dayTotalCost} est.</span>
                   )}
                 </div>
               </div>
 
               {/* Day Activity Summaries */}
-              <div className="p-3 flex-1 flex flex-col gap-2 min-h-[180px] max-h-[300px] overflow-y-auto">
+              <div className="p-3 flex-1 flex flex-col gap-2 min-h-[180px] max-h-[300px] overflow-y-auto no-scrollbar">
                 {dayActs.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                    <p className="text-xs font-medium text-stone-400">Open Day / Free Time</p>
+                    <p className="text-xs font-serif italic text-stone-400">Open Day / Free Time</p>
                     <button
                       onClick={() => onAddActivityForDay(dateStr)}
-                      className="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1"
+                      className="mt-2 text-xs text-stone-700 hover:text-stone-900 font-medium inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/80 hover:bg-white border border-stone-200/80 shadow-2xs transition-all cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Plan an activity
+                      <Plus className="w-3.5 h-3.5 text-stone-500" /> Plan an activity
                     </button>
                   </div>
                 ) : (

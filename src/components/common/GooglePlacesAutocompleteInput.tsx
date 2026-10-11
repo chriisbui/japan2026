@@ -278,11 +278,11 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
           }}
           placeholder={placeholder}
           required={required}
-          className="w-full pl-9 pr-16 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
+          className="w-full pl-9 pr-14 py-2.5 bg-white/90 border border-stone-300 rounded-full text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400/20 focus:border-stone-500 transition-colors shadow-2xs"
           autoComplete="off"
         />
 
-        <div className="absolute right-2 flex items-center gap-1">
+        <div className="absolute right-2.5 flex items-center gap-1">
           {isLoading && <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />}
           {inputValue && !isLoading && (
             <button
@@ -301,11 +301,11 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
       {isOpen && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-stone-100 animate-in fade-in slide-in-from-top-1 duration-150 max-h-64 overflow-y-auto"
+          className="absolute left-0 right-0 top-full mt-2 glass-panel border border-stone-200/80 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-stone-100 animate-in fade-in slide-in-from-top-1 duration-150 max-h-64 overflow-y-auto"
         >
-          <div className="px-3 py-1.5 bg-stone-50 text-[10px] font-semibold text-stone-500 uppercase tracking-wider flex items-center justify-between border-b border-stone-100">
+          <div className="px-3.5 py-2 bg-white/60 text-[10px] font-semibold text-stone-500 uppercase tracking-wider flex items-center justify-between border-b border-stone-200/60">
             <span>Location Suggestions</span>
-            <span className="text-emerald-700 font-medium">Japan POIs</span>
+            <span className="text-emerald-800 font-medium">Japan POIs</span>
           </div>
 
           {suggestions.map((item, index) => (
@@ -313,9 +313,9 @@ export const GooglePlacesAutocompleteInput: React.FC<GooglePlacesAutocompleteInp
               key={`${item.id}-${index}`}
               type="button"
               onClick={() => handleSelectSuggestion(item)}
-              className="w-full text-left px-3 py-2.5 hover:bg-emerald-50/50 flex items-start gap-2.5 transition-colors cursor-pointer group"
+              className="w-full text-left px-3.5 py-2.5 hover:bg-stone-100/70 flex items-start gap-2.5 transition-colors cursor-pointer group"
             >
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+              <MapPin className="w-4 h-4 text-stone-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-semibold text-stone-900 truncate">
                   {item.mainText}

@@ -370,9 +370,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-stone-900/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        className="glass-panel rounded-3xl shadow-2xl border border-stone-200/80 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
@@ -383,7 +383,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               <Pencil className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-stone-900 leading-tight">Edit profile</h3>
+              <h3 className="font-serif font-medium text-lg sm:text-xl text-stone-900 leading-tight">Edit profile</h3>
               <p className="text-xs text-stone-500">Updating profile & trip logistics for {profile.name}</p>
             </div>
           </div>
@@ -803,11 +803,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-100 flex items-center justify-end gap-2.5 shrink-0">
+        <div className="px-6 py-4 bg-white/60 border-t border-stone-200/60 flex items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/50 transition-colors cursor-pointer"
+            className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-200/60 transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -815,7 +815,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             type="button"
             onClick={handleSaveAll}
             disabled={isUploading}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             Save profile
           </button>

@@ -540,26 +540,29 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const currencySymbol = currency === 'JPY' ? '¥' : '$';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-md overflow-y-auto">
+      <div className="glass-panel rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200/80 animate-in fade-in zoom-in-95 duration-150 my-8 relative">
+        {/* Atmospheric ambient light */}
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-gradient-to-br from-emerald-200/20 via-amber-200/20 to-sky-200/20 rounded-full blur-2xl pointer-events-none" />
+
         {/* Header without the subtitle */}
-        <div className="p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
+        <div className="p-5 sm:p-6 border-b border-stone-200/60 flex items-center justify-between bg-white/60 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold shadow-2xs">
+            <div className="w-10 h-10 rounded-full bg-emerald-100/90 border border-emerald-200/80 text-emerald-800 flex items-center justify-center font-bold shadow-2xs">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-stone-900">
+              <h2 className="font-serif font-medium text-xl text-stone-900 tracking-tight">
                 {expenseToEdit ? 'Edit Expense' : 'Add New Expense'}
               </h2>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {expenseToEdit && onDelete && (
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(true)}
-                className="text-stone-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                className="text-stone-400 hover:text-rose-600 p-2 rounded-full hover:bg-rose-50/80 transition-colors cursor-pointer"
                 title="Delete Expense"
               >
                 <Trash2 className="w-4 h-4" />
@@ -567,7 +570,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+              className="text-stone-400 hover:text-stone-600 p-2 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1045,17 +1048,17 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-stone-200/60">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-stone-700 font-semibold hover:bg-stone-50 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-white/80 border border-stone-200/80 rounded-full text-stone-700 font-medium hover:bg-white transition-colors cursor-pointer text-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-full font-medium shadow-xs transition-all cursor-pointer flex items-center gap-1.5 text-xs"
             >
               <Check className="w-4 h-4" />
               <span>{expenseToEdit ? 'Save Changes' : 'Record Expense'}</span>

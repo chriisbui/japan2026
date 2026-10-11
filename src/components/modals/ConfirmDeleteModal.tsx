@@ -20,24 +20,27 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150"
+        className="glass-panel rounded-3xl shadow-2xl border border-stone-200/80 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 relative"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Soft atmospheric ambient light */}
+        <div className="absolute top-0 right-0 w-44 h-44 bg-gradient-to-br from-rose-200/20 via-amber-200/15 to-transparent rounded-full blur-2xl pointer-events-none" />
+
         {/* Header / Body */}
-        <div className="p-6">
+        <div className="p-6 relative z-10">
           <div className="flex items-start justify-between gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-rose-100/90 text-rose-700 border border-rose-200/80 flex items-center justify-center shrink-0 shadow-2xs">
               <Trash2 className="w-5 h-5" />
             </div>
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-600 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+              className="text-stone-400 hover:text-stone-600 p-2 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -45,16 +48,16 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
           </div>
 
           <div className="mt-3.5">
-            <h3 className="text-lg font-bold text-stone-900 tracking-tight">
+            <h3 className="font-serif font-medium text-xl text-stone-900 tracking-tight">
               Delete Activity?
             </h3>
-            <p className="text-xs text-stone-600 mt-1">
-              Are you sure you want to remove <strong className="text-stone-900 font-semibold">"{activity.title}"</strong>?
+            <p className="text-xs sm:text-sm text-stone-600 mt-1">
+              Are you sure you want to remove <strong className="text-stone-900 font-medium">"{activity.title}"</strong>?
             </p>
           </div>
 
           {/* Activity Context Preview */}
-          <div className="mt-3.5 p-3 rounded-xl bg-stone-50 border border-stone-200/80 space-y-1 text-xs text-stone-600">
+          <div className="mt-4 p-3.5 rounded-2xl bg-white/70 border border-stone-200/70 space-y-1.5 text-xs text-stone-600 backdrop-blur-xs">
             {activity.date && (
               <div className="flex items-center gap-1.5 font-medium text-stone-700">
                 <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
@@ -78,18 +81,18 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             )}
           </div>
 
-          <p className="text-[11px] text-stone-400 mt-3 flex items-center gap-1">
+          <p className="text-[11px] text-stone-500 mt-3.5 flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span>This will remove the activity and any split expenses from the group itinerary.</span>
           </p>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-3.5 bg-stone-50 border-t border-stone-100 flex items-center justify-end gap-2.5">
+        <div className="px-6 py-4 bg-white/60 border-t border-stone-200/60 flex items-center justify-end gap-2.5 relative z-10">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-lg hover:bg-stone-200/60 transition-colors cursor-pointer"
+            className="px-4 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-200/60 transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -100,7 +103,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
               onConfirm();
               onClose();
             }}
-            className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+            className="px-5 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-full shadow-xs transition-colors cursor-pointer"
           >
             Delete Activity
           </button>

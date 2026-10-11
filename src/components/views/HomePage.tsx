@@ -165,11 +165,18 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Trip Overview Banner */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Trip Overview Banner (Frosted Glass with Editorial Serif) */}
+      <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-sm relative overflow-hidden">
+        {/* Soft atmospheric ambient light aura */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-amber-200/40 via-rose-200/30 to-transparent blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-sky-200/35 via-indigo-100/25 to-transparent blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+            <span className="text-[11px] uppercase tracking-widest text-amber-900/70 font-semibold block mb-1">
+              Autumn Journey · Group Itinerary
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-serif font-normal text-stone-900 tracking-tight">
               Japan 2026
             </h1>
           </div>
@@ -177,91 +184,91 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={onViewFullCalendar}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white/80 hover:bg-white text-stone-800 transition-all cursor-pointer shadow-2xs border border-white/90 active:scale-95"
             >
-              <Calendar className="w-4 h-4" />
-              <span>Calendar</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Calendar className="w-3.5 h-3.5 text-stone-500" />
+              <span>Full Calendar</span>
+              <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
             </button>
           </div>
         </div>
 
         {/* Days Until We Leave (Oct 26), Deadlines, & Expenses Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-5 pt-4 border-t border-stone-100">
-          {/* Days until we leave (Oct 26) */}
-          <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100 flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <Plane className="w-5 h-5" />
+        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-6 pt-5 border-t border-stone-200/40">
+          {/* Days until we leave (Oct 26) - Soft Sky / Mist Tone */}
+          <div className="bg-gradient-to-br from-sky-50/80 via-white/70 to-indigo-50/60 p-4 rounded-2xl border border-sky-100/80 flex items-center gap-3.5 shadow-2xs backdrop-blur-sm">
+            <div className="w-10 h-10 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center shrink-0 shadow-xs">
+              <Plane className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-xs font-medium text-indigo-700 block">
+              <span className="text-xs font-medium text-stone-600 block">
                 Days until we leave (Oct 26)
               </span>
-              <p className="text-2xl font-extrabold text-stone-900 mt-0.5 leading-none">
-                {daysUntilDeparture} <span className="text-sm font-semibold text-stone-500">days</span>
+              <p className="text-2xl font-serif font-normal text-stone-900 mt-0.5 leading-none">
+                {daysUntilDeparture} <span className="text-xs font-sans font-medium text-stone-500">days</span>
               </p>
             </div>
           </div>
 
-          {/* Deadlines Number & Link */}
+          {/* Deadlines Number & Link - Soft Sunset Amber Tone */}
           <button
             type="button"
             id="home-deadlines-btn"
             onClick={onOpenDeadlinesDrawer}
-            className={`p-4 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left ${
+            className={`p-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer text-left shadow-2xs backdrop-blur-sm ${
               needsBookingCount > 0
-                ? 'bg-amber-50/70 border-amber-200 hover:bg-amber-100/80 hover:border-amber-300'
-                : 'bg-stone-50/70 border-stone-200 hover:bg-stone-100 hover:border-stone-300'
+                ? 'bg-gradient-to-br from-amber-50/85 via-white/70 to-orange-50/60 border-amber-200/80 hover:border-amber-300 hover:bg-white'
+                : 'bg-gradient-to-br from-stone-50/80 via-white/70 to-stone-50/50 border-stone-200/70 hover:border-stone-300 hover:bg-white'
             }`}
           >
             <div className="flex items-center gap-3.5">
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-xs ${
                   needsBookingCount > 0
                     ? 'bg-amber-500 text-white'
                     : 'bg-stone-200 text-stone-600'
                 }`}
               >
-                <AlertCircle className="w-5 h-5" />
+                <AlertCircle className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-medium text-stone-500 block">
+                <span className="text-xs font-medium text-stone-600 block">
                   Booking Deadlines
                 </span>
-                <p className="text-2xl font-extrabold text-stone-900 mt-0.5 leading-none">
+                <p className="text-2xl font-serif font-normal text-stone-900 mt-0.5 leading-none">
                   {needsBookingCount}{' '}
-                  <span className="text-sm font-semibold text-stone-500">
+                  <span className="text-xs font-sans font-medium text-stone-500">
                     {needsBookingCount === 1 ? 'item needed' : 'items needed'}
                   </span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 shrink-0 ml-2">
-              <span>View details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-stone-200/60 text-xs font-medium text-stone-800 shrink-0 ml-2 shadow-2xs">
+              <span>Details</span>
+              <ArrowRight className="w-3 h-3 text-stone-400" />
             </div>
           </button>
 
-          {/* Expenses Summary Tile */}
+          {/* Expenses Summary Tile - Mist Sage / Rose Tone */}
           <button
             type="button"
             id="home-expenses-summary-btn"
             onClick={onViewExpenses}
-            className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 hover:bg-stone-100 hover:border-stone-300 flex items-center justify-between transition-all cursor-pointer text-left group"
+            className="p-4 rounded-2xl border border-stone-200/70 bg-gradient-to-br from-rose-50/50 via-white/70 to-emerald-50/50 hover:bg-white hover:border-stone-300 flex items-center justify-between transition-all cursor-pointer text-left group shadow-2xs backdrop-blur-sm"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Wallet className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-full bg-stone-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Wallet className="w-4 h-4 text-emerald-300" />
               </div>
               <div className="min-w-0">
-                <span className="text-xs font-medium text-stone-500 block">
+                <span className="text-xs font-medium text-stone-600 block">
                   Expenses
                 </span>
                 <div className="flex items-center gap-3 mt-0.5">
                   <div>
-                    <span className="text-[11px] font-medium text-stone-500 block">Owed to you</span>
-                    <p className="text-lg font-extrabold text-stone-900 leading-tight">
+                    <span className="text-[10px] font-medium text-stone-500 block uppercase tracking-wider">Owed to you</span>
+                    <p className="text-base font-serif font-semibold text-stone-900 leading-tight">
                       ${expenseSummary.owedToYou.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -270,10 +277,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                   <div className="h-6 w-px bg-stone-200 shrink-0" />
                   <div>
-                    <span className="text-[11px] font-medium text-stone-500 block">You owe</span>
+                    <span className="text-[10px] font-medium text-stone-500 block uppercase tracking-wider">You owe</span>
                     <p
-                      className={`text-lg font-extrabold leading-tight ${
-                        expenseSummary.youOwe > 0 ? 'text-rose-600' : 'text-stone-900'
+                      className={`text-base font-serif font-semibold leading-tight ${
+                        expenseSummary.youOwe > 0 ? 'text-rose-700' : 'text-stone-900'
                       }`}
                     >
                       ${expenseSummary.youOwe.toLocaleString(undefined, {
@@ -287,9 +294,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {onViewExpenses && (
-              <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-stone-200/60 text-xs font-medium text-stone-800 shrink-0 ml-2 shadow-2xs group-hover:translate-x-0.5 transition-transform">
                 <span>View</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3 h-3 text-stone-400" />
               </div>
             )}
           </button>
@@ -297,27 +304,29 @@ export const HomePage: React.FC<HomePageProps> = ({
       </div>
 
       {/* Condensed Calendar Grid Header */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-stone-900 tracking-tight">Condensed Trip Calendar</h2>
+            <h2 className="text-xl sm:text-2xl font-serif font-normal text-stone-900 tracking-tight">
+              Condensed Trip Calendar
+            </h2>
           </div>
           {activeProfile && onEditProfile && (
             <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
               <button
                 type="button"
                 onClick={() => onEditProfile(activeProfile)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-200 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 hover:bg-white text-stone-700 transition-all border border-stone-200/80 cursor-pointer shadow-2xs"
                 title="Edit flight arrival/departure dates and accommodation stays"
               >
-                <Pencil className="w-3 h-3 text-stone-500" />
+                <Pencil className="w-3 h-3 text-stone-400" />
                 <span>Edit Flights & Stays</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Category Color Legend */}
+        {/* Category Color Legend (Pills) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
           <span className="text-stone-400 font-medium text-[10px] uppercase tracking-wider shrink-0 mr-1">Categories:</span>
           {Object.entries(CATEGORY_CALENDAR_STYLES).map(([catName, style]) => {
@@ -326,9 +335,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             return (
               <div
                 key={catName}
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-medium shrink-0 ${style.bg} ${style.text} ${style.border}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium shrink-0 shadow-2xs backdrop-blur-xs ${style.bg} ${style.text} ${style.border}`}
               >
-                <CatIcon className="w-3 h-3 shrink-0" />
+                <CatIcon className="w-3 h-3 shrink-0 opacity-80" />
                 <span>{catName}</span>
               </div>
             );
@@ -336,7 +345,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* Condensed Calendar Grid */}
+      {/* Condensed Calendar Grid (Frosted Glass Day Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         {days.map((dateStr, index) => {
           const dayDate = new Date(dateStr + 'T00:00:00');
@@ -355,17 +364,19 @@ export const HomePage: React.FC<HomePageProps> = ({
               key={dateStr}
               id={`condensed-day-${dateStr}`}
               onClick={() => onSelectDay(dateStr)}
-              className={`group flex flex-col rounded-xl border bg-white p-3.5 transition-all duration-150 hover:shadow-md hover:border-indigo-300 cursor-pointer min-h-[160px] ${
-                isWeekend ? 'border-stone-200 bg-stone-50/30' : 'border-stone-200'
+              className={`group flex flex-col rounded-2xl border p-3.5 transition-all duration-200 glass-card-hover cursor-pointer min-h-[165px] ${
+                isWeekend
+                  ? 'bg-white/70 border-stone-200/80 shadow-2xs'
+                  : 'bg-white/80 border-stone-200/70 shadow-2xs'
               }`}
             >
               {/* Day Tile Header: [26 Oct] [Mon] [Day 1] + Quick Add */}
               <div className="flex items-center justify-between pb-2 border-b border-stone-100 mb-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-900 text-white tracking-tight shrink-0">
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-900 text-white tracking-tight shrink-0 shadow-2xs">
                     {dateFormatted}
                   </span>
-                  <span className="text-xs font-bold text-stone-900 leading-none shrink-0">
+                  <span className="text-xs font-serif font-semibold text-stone-900 leading-none shrink-0">
                     {dayName}
                   </span>
                   <span className="text-[10px] text-stone-400 font-normal leading-none shrink-0">
@@ -373,14 +384,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </span>
                 </div>
 
-                {/* Quick Add Button */}
+                {/* Quick Add Button (Pill shaped) */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddActivityForDay(dateStr);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-stone-400 hover:text-indigo-600 hover:bg-stone-100 transition-all cursor-pointer shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-full text-stone-500 hover:text-stone-900 hover:bg-white transition-all cursor-pointer shrink-0 shadow-2xs border border-transparent hover:border-stone-200"
                   title={`Add activity on ${dateFormatted} in ${city.name}`}
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -404,11 +415,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                           e.stopPropagation();
                           onSelectActivity(act);
                         }}
-                        className={`group/item flex items-center justify-between gap-1.5 text-[11px] font-medium p-1.5 rounded-md border shadow-2xs transition-all leading-snug cursor-pointer ${style.bg} ${style.hoverBg} ${style.text} ${style.border}`}
+                        className={`group/item flex items-center justify-between gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border shadow-2xs transition-all leading-snug cursor-pointer backdrop-blur-xs ${style.bg} ${style.hoverBg} ${style.text} ${style.border}`}
                         title={`${act.title} (${act.category}${act.startTime ? ` • ${act.startTime}` : ''})`}
                       >
-                        <CatIcon className="w-3.5 h-3.5 shrink-0 opacity-80" />
-                        <span className="truncate flex-1 font-medium">{act.title}</span>
+                        <CatIcon className="w-3 h-3 shrink-0 opacity-80" />
+                        <span className="truncate flex-1 font-medium tracking-tight">{act.title}</span>
                         {(onRequestDeleteActivity || onDeleteActivity) && (
                           <button
                             type="button"
@@ -420,7 +431,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 onDeleteActivity(act.id);
                               }
                             }}
-                            className="opacity-70 sm:opacity-0 group-hover/item:opacity-100 p-0.5 text-stone-500 hover:text-red-700 hover:bg-black/10 rounded transition-all shrink-0 cursor-pointer"
+                            className="opacity-70 sm:opacity-0 group-hover/item:opacity-100 p-0.5 text-stone-500 hover:text-rose-700 hover:bg-black/10 rounded-full transition-all shrink-0 cursor-pointer"
                             title={`Remove "${act.title}"`}
                             aria-label={`Remove ${act.title}`}
                           >
@@ -431,7 +442,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     );
                   })
                 ) : (
-                  <div className="h-full flex items-center justify-center py-4 text-[11px] text-stone-300 italic">
+                  <div className="h-full flex items-center justify-center py-4 text-[11px] text-stone-400 font-serif italic">
                     Free day
                   </div>
                 )}
@@ -440,13 +451,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               {/* Day footer: City tag in bottom-left, View button on right */}
               <div className="pt-2 mt-auto border-t border-stone-100 flex items-center justify-between">
                 <span
-                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${city.badgeClass}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${city.badgeClass}`}
                   title={`Location: ${city.name}`}
                 >
                   <MapPin className="w-2.5 h-2.5 shrink-0" />
                   <span>{city.name}</span>
                 </span>
-                <span className="text-[10px] text-stone-400 group-hover:text-indigo-600 font-semibold transition-colors">
+                <span className="text-[10px] text-stone-400 group-hover:text-stone-900 font-medium transition-colors">
                   View →
                 </span>
               </div>

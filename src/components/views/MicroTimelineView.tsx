@@ -177,17 +177,17 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Day Navigation & Scope Bar */}
-      <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-4 shadow-xs">
+      <div className="glass-panel rounded-3xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col gap-3">
           {/* Day Stepper */}
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => prevDay && onSelectDate(prevDay)}
               disabled={!prevDay}
-              className={`p-2 rounded-lg border transition-colors shrink-0 ${
+              className={`p-2 rounded-full border transition-all shrink-0 ${
                 prevDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer active:bg-stone-100'
-                  : 'border-stone-100 text-stone-300 cursor-not-allowed'
+                  ? 'border-stone-200/80 bg-white/70 hover:bg-white text-stone-700 cursor-pointer shadow-2xs active:scale-95'
+                  : 'border-transparent text-stone-300 cursor-not-allowed'
               }`}
               title="Previous Day"
               aria-label="Previous Day"
@@ -197,17 +197,17 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
 
             <div className="text-center min-w-0 flex-1">
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-amber-900 bg-amber-50/80 px-2.5 py-0.5 rounded-full border border-amber-200/80 shadow-2xs">
                   Day {synchronizedDayNumber} of {allTripDays.length}
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${getCityForDate(selectedDate).badgeClass}`}
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${getCityForDate(selectedDate).badgeClass}`}
                 >
-                  <MapPin className="w-3 h-3 shrink-0" />
+                  <MapPin className="w-2.5 h-2.5 shrink-0" />
                   <span>{getCityForDate(selectedDate).name}</span>
                 </span>
               </div>
-              <h2 className="text-sm sm:text-base font-bold text-stone-900 mt-1">
+              <h2 className="text-base sm:text-xl font-serif font-normal text-stone-900 mt-1">
                 {formatDateFull(selectedDate)}
               </h2>
               <p className="text-[11px] text-stone-500 mt-0.5">
@@ -219,10 +219,10 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             <button
               onClick={() => nextDay && onSelectDate(nextDay)}
               disabled={!nextDay}
-              className={`p-2 rounded-lg border transition-colors shrink-0 ${
+              className={`p-2 rounded-full border transition-all shrink-0 ${
                 nextDay
-                  ? 'border-stone-200 hover:bg-stone-50 text-stone-700 cursor-pointer active:bg-stone-100'
-                  : 'border-stone-100 text-stone-300 cursor-not-allowed'
+                  ? 'border-stone-200/80 bg-white/70 hover:bg-white text-stone-700 cursor-pointer shadow-2xs active:scale-95'
+                  : 'border-transparent text-stone-300 cursor-not-allowed'
               }`}
               title="Next Day"
               aria-label="Next Day"
@@ -231,10 +231,10 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             </button>
           </div>
 
-          {/* Quick Day Chips Horizontal Scroll (Auto-scrolled on selection) */}
+          {/* Quick Day Chips Horizontal Scroll (Auto-scrolled on selection, Pill shaped) */}
           <div
             ref={daysScrollContainerRef}
-            className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 pt-1 border-t border-stone-100 -mx-1 px-1 scroll-smooth"
+            className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 pt-1 border-t border-stone-200/50 -mx-1 px-1 scroll-smooth no-scrollbar"
           >
             {days.map((dateStr, idx) => {
               const isSelected = dateStr === selectedDate;
@@ -246,16 +246,16 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                     dayButtonRefs.current[dateStr] = el;
                   }}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs ${
                     isSelected
-                      ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      ? 'bg-stone-900 text-white shadow-xs font-medium'
+                      : 'bg-white/70 hover:bg-white text-stone-600 border border-stone-200/70'
                   }`}
                   title={`${dateStr} (${chipCity.name})`}
                 >
                   <span>D{allTripDays.indexOf(dateStr) + 1}</span>
-                  <span className={`text-[10px] ${isSelected ? 'text-indigo-200' : 'text-stone-400'}`}>•</span>
-                  <span className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-stone-500 font-normal'}`}>
+                  <span className={`text-[10px] ${isSelected ? 'text-amber-200' : 'text-stone-300'}`}>•</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-amber-100' : 'text-stone-500 font-normal'}`}>
                     {chipCity.name}
                   </span>
                 </button>
@@ -263,23 +263,23 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             })}
           </div>
 
-          {/* Scope Toggle: My Schedule vs All Activities */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100">
-            <div className="inline-flex p-0.5 bg-stone-100 rounded-lg border border-stone-200 text-xs">
+          {/* Scope Toggle: My Schedule vs All Activities (Pill Segmented Control) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-200/50">
+            <div className="inline-flex p-1 bg-white/70 rounded-full border border-stone-200/80 text-xs shadow-2xs backdrop-blur-xs">
               <button
                 type="button"
                 onClick={() => setScope('mine')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
                   scope === 'mine'
-                    ? 'bg-white text-stone-900 shadow-2xs'
+                    ? 'bg-stone-900 text-white shadow-2xs'
                     : 'text-stone-500 hover:text-stone-900'
                 }`}
               >
-                <User className="w-3.5 h-3.5 text-indigo-600" />
+                <User className={`w-3.5 h-3.5 ${scope === 'mine' ? 'text-amber-300' : 'text-stone-400'}`} />
                 <span>My Schedule</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    scope === 'mine' ? 'bg-indigo-100 text-indigo-800' : 'text-stone-400'
+                    scope === 'mine' ? 'bg-white/20 text-white' : 'text-stone-400'
                   }`}
                 >
                   {myDayActivities.length}
@@ -289,17 +289,17 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
               <button
                 type="button"
                 onClick={() => setScope('all')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
                   scope === 'all'
-                    ? 'bg-white text-stone-900 shadow-2xs'
+                    ? 'bg-stone-900 text-white shadow-2xs'
                     : 'text-stone-500 hover:text-stone-900'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className={`w-3.5 h-3.5 ${scope === 'all' ? 'text-amber-300' : 'text-stone-400'}`} />
                 <span>All Activities</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                    scope === 'all' ? 'bg-stone-200/80 text-stone-800' : 'text-stone-400'
+                    scope === 'all' ? 'bg-white/20 text-white' : 'text-stone-400'
                   }`}
                 >
                   {allDayActivities.length}
@@ -308,7 +308,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             </div>
 
             {/* Profile attribution chip */}
-            <div className="flex items-center gap-1.5 text-xs text-stone-500">
+            <div className="flex items-center gap-1.5 text-xs text-stone-500 bg-white/60 px-2.5 py-1 rounded-full border border-stone-200/60 shadow-2xs">
               <ProfileAvatar profile={activeProfile} size="xs" />
               <span className="font-medium text-stone-700">
                 {scope === 'mine'
@@ -380,40 +380,40 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
       )}
 
       {/* Hour-by-Hour Timeline Schedule */}
-      <div className="bg-white rounded-xl border border-stone-200 p-3.5 sm:p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
+      <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-200/50">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-bold text-stone-900">
+            <Clock className="w-4 h-4 text-stone-600" />
+            <h3 className="text-base sm:text-lg font-serif font-normal text-stone-900">
               {scope === 'mine' ? `${activeProfile?.name || 'My'} Schedule` : 'Schedule'}
             </h3>
           </div>
           <button
             onClick={() => onAddActivityWithTime(selectedDate)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white text-stone-800 font-medium text-xs border border-stone-200/80 shadow-2xs transition-all cursor-pointer active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-stone-500" />
             <span>Add Event to Day</span>
           </button>
         </div>
 
         {timelineItems.length === 0 ? (
-          <div className="text-center py-14 border-2 border-dashed border-stone-200 rounded-xl">
+          <div className="text-center py-14 border-2 border-dashed border-stone-200/80 rounded-2xl bg-white/40">
             <Coffee className="w-9 h-9 text-stone-400 mx-auto mb-2" />
-            <h4 className="font-semibold text-stone-800 text-sm">
+            <h4 className="font-serif font-medium text-stone-800 text-base">
               {scope === 'mine' ? 'No personal events for this day' : 'No activities planned for this day'}
             </h4>
             <div className="mt-4 flex items-center justify-center gap-2">
               <button
                 onClick={() => onAddActivityWithTime(selectedDate)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-stone-900 text-white text-xs font-medium hover:bg-stone-800 shadow-xs cursor-pointer active:scale-95"
               >
-                <Plus className="w-4 h-4" /> Add Activity
+                <Plus className="w-4 h-4 text-amber-300" /> Add Activity
               </button>
               {scope === 'mine' && allDayActivities.length > 0 && (
                 <button
                   onClick={() => setScope('all')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-stone-50 text-stone-700 text-xs font-medium border border-stone-200/80 cursor-pointer shadow-2xs"
                 >
                   <Users className="w-3.5 h-3.5" /> View Group Events ({allDayActivities.length})
                 </button>
@@ -421,7 +421,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="relative pl-5 sm:pl-6 space-y-3.5 sm:space-y-4 before:content-[''] before:absolute before:left-2 before:sm:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
+          <div className="relative pl-5 sm:pl-6 space-y-3.5 sm:space-y-4 before:content-[''] before:absolute before:left-2 before:sm:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200/80">
             {timelineItems.map((item) => {
               if (item.type === 'free_time' && item.freeSlot) {
                 const slot = item.freeSlot;
@@ -430,17 +430,17 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                     {/* Node Dot */}
                     <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500"></div>
 
-                    {/* Free Time Card (Clean & uncluttered, redundant supporting text removed) */}
-                    <div className="p-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50/80 transition-colors flex items-center justify-between gap-2.5">
+                    {/* Free Time Card */}
+                    <div className="p-3.5 rounded-2xl border border-dashed border-emerald-300/80 bg-emerald-50/50 hover:bg-emerald-50/70 backdrop-blur-xs transition-colors flex items-center justify-between gap-2.5 shadow-2xs">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                          <Coffee className="w-3.5 h-3.5" />
+                        <div className="w-8 h-8 rounded-full bg-emerald-100/90 text-emerald-800 flex items-center justify-center shrink-0">
+                          <Coffee className="w-4 h-4" />
                         </div>
                         <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-bold text-emerald-800">
+                          <span className="text-xs font-semibold text-emerald-900">
                             Free Time ({slot.durationLabel})
                           </span>
-                          <span className="text-[11px] font-semibold text-emerald-700/90 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                          <span className="text-[11px] font-medium text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full">
                             {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                           </span>
                         </div>
@@ -450,7 +450,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         onClick={() =>
                           onAddActivityWithTime(selectedDate, slot.startTime, addHoursToTime(slot.startTime, 1))
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100/80 shadow-2xs transition-colors shrink-0 cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white text-emerald-900 border border-emerald-300/80 hover:bg-emerald-50 shadow-2xs transition-colors shrink-0 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Fill Gap</span>
@@ -470,23 +470,23 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                   <div key={act.id} className="relative group">
                     {/* Node Dot */}
                     <div
-                      className={`absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-white border-2 shadow-xs ${
-                        isTaggedMe ? 'border-indigo-600' : 'border-stone-400'
+                      className={`absolute -left-[23px] sm:-left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-white border-2 shadow-xs ${
+                        isTaggedMe ? 'border-amber-600' : 'border-stone-400'
                       }`}
                     ></div>
 
-                    {/* Activity Card */}
+                    {/* Activity Card (Frosted Glass) */}
                     <div
-                      className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all ${
                         isTaggedMe
-                          ? 'bg-white border-stone-200 shadow-xs hover:border-indigo-300'
-                          : 'bg-stone-50/70 border-stone-200/80 opacity-90'
+                          ? 'glass-card border-stone-200/80 shadow-xs hover:border-amber-300'
+                          : 'bg-white/60 border-stone-200/60 opacity-90'
                       }`}
                     >
                       {/* Line 1: Time on one line with actions */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                          <span className="text-xs font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md shrink-0">
+                          <span className="text-xs font-semibold text-stone-900 bg-white/80 border border-stone-200/70 px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
                             {formatTimeRange(act.startTime, act.endTime)}
                           </span>
                           {duration > 0 && (
@@ -495,7 +495,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                             </span>
                           )}
                           {isTaggedMe && scope === 'all' && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold border border-indigo-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50/80 text-amber-900 text-[10px] font-medium border border-amber-200/70">
                               Attending
                             </span>
                           )}
@@ -505,14 +505,14 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 shrink-0">
                           <button
                             onClick={() => onEditActivity(act)}
-                            className="p-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100/80 transition-colors cursor-pointer"
                             title="Edit Activity"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => onDeleteActivity(act.id)}
-                            className="p-1 rounded-md text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-full text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Delete Activity"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -530,22 +530,24 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         />
                       </div>
 
-                      {/* Title & Description */}
-                      <h4 className="text-sm sm:text-base font-bold text-stone-900 leading-snug">{act.title}</h4>
+                      {/* Title & Description with Editorial Serif */}
+                      <h4 className="text-base sm:text-lg font-serif font-medium text-stone-900 leading-snug">
+                        {act.title}
+                      </h4>
                       {act.description && (
                         <p className="text-xs text-stone-600 mt-1 leading-relaxed">{act.description}</p>
                       )}
 
                       {/* Location row */}
                       {(act.location || act.formattedAddress) && (
-                        <div className="flex items-center gap-1.5 text-xs text-stone-600 mt-1.5">
+                        <div className="flex items-center gap-1.5 text-xs text-stone-600 mt-2">
                           <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                           <span className="truncate">{act.location || act.formattedAddress}</span>
                         </div>
                       )}
 
                       {/* Meta footer: Payer, Cost, Attendees */}
-                      <div className="mt-3 pt-2.5 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="mt-3.5 pt-2.5 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div className="flex flex-wrap items-center gap-3">
                           {act.bookingStatus === 'Booked' && payer && (
                             <div className="flex items-center gap-1.5">
@@ -559,11 +561,11 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           {act.bookingStatus === 'Booked' && (
                             act.costPerPerson > 0 ? (
                               <div className="text-right">
-                                <span className="font-semibold text-stone-900">${act.costPerPerson}</span>
+                                <span className="font-serif font-semibold text-stone-900">${act.costPerPerson}</span>
                                 <span className="text-[10px] text-stone-500"> /person</span>
                               </div>
                             ) : (
-                              <span className="text-[11px] font-medium text-emerald-600">Free</span>
+                              <span className="text-[11px] font-medium text-emerald-700">Free</span>
                             )
                           )}
 

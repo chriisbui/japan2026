@@ -189,21 +189,21 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
   }, [ideas, selectedCityFilter, selectedCategoryFilter, searchQuery, sortBy]);
 
   return (
-    <div className="space-y-3.5">
-      {/* Top Banner */}
-      <div className="bg-white rounded-xl border border-stone-200 px-4 py-3 sm:py-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
-            <Lightbulb className="w-5 h-5 text-amber-500" />
+    <div className="space-y-4">
+      {/* Top Banner (Frosted Glass & Editorial Serif) */}
+      <div className="glass-panel rounded-3xl px-5 py-4 sm:py-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 relative overflow-hidden">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+            <Lightbulb className="w-5 h-5 text-amber-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-stone-900">Idea Bucket</h2>
-              <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200/90 px-2 py-0.5 rounded-full font-bold">
+              <h2 className="text-xl sm:text-2xl font-serif font-normal text-stone-900 tracking-tight">Idea Bucket</h2>
+              <span className="text-xs bg-amber-50/80 text-amber-900 border border-amber-200/90 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                 {ideas.length} ideas
               </span>
             </div>
-            <p className="text-xs text-stone-500 line-clamp-1">
+            <p className="text-xs text-stone-500 line-clamp-1 mt-0.5">
               Wishlist spots, restaurants, and activities. Vote on favorites and slot into the schedule.
             </p>
           </div>
@@ -211,31 +211,31 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
         <button
           onClick={onAddNewIdea}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs transition-all shrink-0 cursor-pointer active:scale-95"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-amber-300" />
           <span>Dump New Idea</span>
         </button>
       </div>
 
       {/* Filter & Controls Panel */}
-      <div className="bg-white rounded-xl border border-stone-200 p-3 shadow-xs space-y-2.5">
+      <div className="glass-panel rounded-2xl sm:rounded-3xl p-4 shadow-sm space-y-3">
         {/* Search, Sort, and Status Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          {/* Search Input */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          {/* Search Input (Pill Shaped) */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search ideas by title, notes, or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1 text-xs text-stone-800 placeholder-stone-400 bg-stone-50 hover:bg-stone-100/60 focus:bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full pl-9 pr-8 py-2 text-xs text-stone-800 placeholder-stone-400 bg-white/70 hover:bg-white focus:bg-white border border-stone-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-stone-400 transition-all shadow-2xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
                 title="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -245,7 +245,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
           {/* Sort & Count Controls */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1 text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1">
+            <div className="flex items-center gap-1.5 text-xs text-stone-600 bg-white/80 border border-stone-200/80 rounded-full px-3 py-1.5 shadow-2xs">
               <ArrowUpDown className="w-3 h-3 text-stone-400 shrink-0" />
               <select
                 value={sortBy}
@@ -263,7 +263,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-800 bg-rose-50/80 hover:bg-rose-100 border border-rose-200 rounded-full transition-colors cursor-pointer shadow-2xs"
                 title="Reset all filters"
               >
                 <X className="w-3 h-3" />
@@ -277,19 +277,19 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Chips */}
-        <div className="pt-2 border-t border-stone-100">
+        {/* Category Filter Chips (Pill Shaped) */}
+        <div className="pt-2 border-t border-stone-200/50">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider shrink-0 mr-0.5">
+            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider shrink-0 mr-1">
               Category:
             </span>
             <button
               type="button"
               onClick={() => setSelectedCategoryFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 shadow-2xs ${
                 selectedCategoryFilter === 'ALL'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-stone-50 text-stone-600 hover:bg-stone-100 border border-stone-200'
+                  ? 'bg-stone-900 text-white shadow-xs font-semibold'
+                  : 'bg-white/80 text-stone-600 hover:bg-white border border-stone-200/80'
               }`}
             >
               All Categories ({ideas.length})
@@ -306,19 +306,19 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategoryFilter(isSelected ? 'ALL' : cat)}
-                  className={`px-2 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border shadow-2xs backdrop-blur-xs ${
                     isSelected
-                      ? `${meta.color.badgeBg} ring-1 ring-current shadow-2xs font-bold`
+                      ? `${meta.color.badgeBg} ring-1 ring-current shadow-xs font-semibold`
                       : count > 0
-                      ? 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
-                      : 'bg-stone-50/70 text-stone-400 border-stone-200 hover:bg-stone-100'
+                      ? 'bg-white/80 text-stone-700 border-stone-200/80 hover:bg-white'
+                      : 'bg-stone-50/70 text-stone-400 border-stone-200/60 hover:bg-stone-100'
                   }`}
                   title={`${cat} (${count} ideas)`}
                 >
                   <Icon className="w-3 h-3 shrink-0 opacity-80" />
                   <span>{cat}</span>
                   <span className={`text-[10px] ${isSelected ? 'font-bold' : 'opacity-60'}`}>
-                    ({count})
+                    {count}
                   </span>
                 </button>
               );
@@ -433,18 +433,18 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
             return (
               <div
                 key={idea.id}
-                className="bg-white rounded-xl border border-stone-200 hover:border-indigo-300 shadow-2xs hover:shadow-xs p-3.5 flex flex-col justify-between transition-all relative group"
+                className="glass-card glass-card-hover rounded-2xl border border-stone-200/80 shadow-2xs p-4 flex flex-col justify-between transition-all relative group"
               >
                 <div>
                   {/* Category, City Badge & Booking Status */}
-                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <div className="flex items-center justify-between gap-1.5 mb-2">
                     <div className="flex flex-wrap items-center gap-1">
                       {/* Clickable category badge to quick filter */}
                       <CategoryBadge
                         category={idea.category}
                         size="sm"
                         onClick={() => setSelectedCategoryFilter(normalizeCategory(idea.category))}
-                        className="hover:ring-1 hover:ring-indigo-300"
+                        className="hover:ring-1 hover:ring-amber-300"
                       />
 
                       {/* City Quick Selector */}
@@ -452,10 +452,10 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                         <button
                           type="button"
                           onClick={() => setEditingCityIdeaId(isEditingCity ? null : idea.id)}
-                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-all cursor-pointer shadow-2xs ${
                             idea.city
-                              ? `${cityMeta.badgeClass} hover:opacity-85 shadow-2xs`
-                              : 'bg-stone-50 hover:bg-stone-100 text-stone-500 border-dashed border-stone-300'
+                              ? `${cityMeta.badgeClass} hover:opacity-85`
+                              : 'bg-white/80 hover:bg-white text-stone-500 border-dashed border-stone-300'
                           }`}
                           title="Click to assign or change city"
                         >
@@ -466,14 +466,14 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
                         {/* City Dropdown */}
                         {isEditingCity && (
-                          <div className="absolute left-0 top-full mt-1 z-30 w-40 bg-white rounded-lg shadow-xl border border-stone-200 p-1 space-y-0.5 animate-in fade-in zoom-in-95">
-                            <div className="px-1.5 py-0.5 text-[9px] font-bold text-stone-400 uppercase tracking-wider">
+                          <div className="absolute left-0 top-full mt-1.5 z-30 w-44 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-stone-200/90 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                            <div className="px-2 py-0.5 text-[9px] font-bold text-stone-400 uppercase tracking-wider">
                               Assign City
                             </div>
                             <button
                               type="button"
                               onClick={() => handleSelectCity(idea, undefined)}
-                              className={`w-full text-left px-1.5 py-1 rounded text-[11px] font-medium flex items-center justify-between hover:bg-stone-100 cursor-pointer ${
+                              className={`w-full text-left px-2 py-1 rounded-full text-[11px] font-medium flex items-center justify-between hover:bg-stone-100 cursor-pointer ${
                                 !idea.city ? 'bg-stone-100 font-bold text-stone-900' : 'text-stone-600'
                               }`}
                             >
@@ -488,7 +488,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                                   key={c}
                                   type="button"
                                   onClick={() => handleSelectCity(idea, c)}
-                                  className={`w-full text-left px-1.5 py-1 rounded text-[11px] font-medium flex items-center justify-between hover:bg-stone-50 cursor-pointer ${
+                                  className={`w-full text-left px-2 py-1 rounded-full text-[11px] font-medium flex items-center justify-between hover:bg-stone-50 cursor-pointer ${
                                     isSelected ? `${meta.badgeClass} font-bold` : 'text-stone-700'
                                   }`}
                                 >
@@ -516,9 +516,9 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                     )}
                   </div>
 
-                  {/* Title */}
+                  {/* Title with Editorial Serif */}
                   <h3
-                    className="font-semibold text-stone-900 text-xs sm:text-sm leading-snug line-clamp-1 mt-1"
+                    className="font-serif font-medium text-stone-900 text-sm sm:text-base leading-snug line-clamp-1 mt-1"
                     title={idea.title}
                   >
                     {idea.title}
@@ -526,14 +526,14 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
                   {/* Description */}
                   {idea.description && (
-                    <p className="text-[11px] text-stone-500 line-clamp-2 mt-0.5 leading-relaxed">
+                    <p className="text-[11px] text-stone-500 line-clamp-2 mt-1 leading-relaxed">
                       {idea.description}
                     </p>
                   )}
 
                   {/* Compact Location & Cost line */}
                   {((idea.location || idea.formattedAddress) || (idea.costPerPerson > 0)) && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-stone-500 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-stone-500 mt-2">
                       {(idea.location || idea.formattedAddress) && (
                         <div
                           className="flex items-center gap-1 max-w-[170px] truncate"
@@ -544,7 +544,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                         </div>
                       )}
                       {idea.costPerPerson > 0 && (
-                        <div className="flex items-center gap-0.5 text-stone-600 font-medium">
+                        <div className="flex items-center gap-0.5 text-stone-700 font-serif font-semibold">
                           <DollarSign className="w-3 h-3 text-stone-400 shrink-0 -mr-0.5" />
                           <span>~${idea.costPerPerson}</span>
                         </div>
@@ -554,17 +554,17 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                 </div>
 
                 {/* Bottom Actions & Scheduler */}
-                <div className="pt-2 mt-2 border-t border-stone-100 space-y-2">
-                  {/* Upvote (icon + number only) & Quick Actions */}
+                <div className="pt-2.5 mt-2.5 border-t border-stone-100 space-y-2">
+                  {/* Upvote & Quick Actions (Pill buttons) */}
                   <div className="flex items-center justify-between">
-                    {/* Vote button: icon + number denoting amount of votes */}
+                    {/* Vote button: pill container */}
                     <button
                       type="button"
                       onClick={() => onToggleVote(idea.id)}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shadow-2xs ${
                         hasVoted
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs'
-                          : 'bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900 border border-stone-200'
+                          ? 'bg-amber-100/90 text-amber-900 border border-amber-300/80 shadow-xs'
+                          : 'bg-white/80 text-stone-600 hover:bg-white hover:text-stone-900 border border-stone-200/80'
                       }`}
                       title={
                         voterNames
@@ -576,7 +576,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                     >
                       <ThumbsUp
                         className={`w-3.5 h-3.5 transition-transform active:scale-125 ${
-                          hasVoted ? 'fill-indigo-600 text-indigo-600' : 'text-stone-400'
+                          hasVoted ? 'fill-amber-600 text-amber-700' : 'text-stone-400'
                         }`}
                       />
                       <span>{votes.length}</span>
@@ -587,7 +587,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onEditIdea(idea)}
-                        className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                        className="p-1.5 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
                         title="Edit Idea"
                       >
                         <Edit2 className="w-3 h-3" />
@@ -595,7 +595,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onDeleteIdea(idea.id)}
-                        className="p-1 rounded text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-full text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                         title="Delete Idea"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -605,10 +605,10 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleOpenSchedule(idea)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-stone-100 hover:bg-indigo-50 text-stone-700 hover:text-indigo-700 text-xs font-medium rounded-md border border-stone-200 hover:border-indigo-200 transition-colors cursor-pointer ml-0.5"
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-white hover:bg-stone-50 text-stone-800 text-xs font-medium rounded-full border border-stone-200/80 shadow-2xs transition-colors cursor-pointer ml-0.5 active:scale-95"
                           title="Add to trip calendar"
                         >
-                          <Calendar className="w-3 h-3 text-indigo-600" />
+                          <Calendar className="w-3 h-3 text-stone-600" />
                           <span>Schedule</span>
                         </button>
                       )}

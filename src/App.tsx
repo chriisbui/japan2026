@@ -695,7 +695,7 @@ export default function App() {
 
   return (
     <div
-      className={`bg-stone-100/60 text-stone-900 font-sans selection:bg-indigo-500 selection:text-white ${
+      className={`bg-mesh-atmospheric text-stone-800 font-sans selection:bg-amber-200 selection:text-stone-900 relative ${
         activeTab === 'map'
           ? 'h-screen h-[100dvh] overflow-hidden flex flex-col'
           : 'min-h-screen'
@@ -732,20 +732,20 @@ export default function App() {
 
       {/* Standard Main Container for non-map tabs */}
       <main
-        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8 ${
+        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-8 relative z-10 ${
           activeTab === 'map' ? 'hidden' : 'block'
         }`}
       >
         {/* Supabase Status Alert Banner */}
         {activityError && (
-          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50/80 backdrop-blur-md border border-rose-200/90 rounded-2xl text-rose-800 text-sm shadow-sm">
             <div className="flex items-center gap-2">
               <span className="font-semibold">Supabase Error:</span>
               <span>{activityError}</span>
             </div>
             <button
               onClick={loadActivities}
-              className="px-3 py-1 text-xs font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition"
+              className="px-3.5 py-1 text-xs font-semibold bg-rose-700 text-white rounded-full hover:bg-rose-800 transition shadow-2xs cursor-pointer"
             >
               Retry
             </button>
@@ -753,8 +753,8 @@ export default function App() {
         )}
 
         {isLoadingActivities && (
-          <div className="mb-4 flex items-center gap-3 px-4 py-2.5 bg-white/90 border border-stone-200 rounded-xl text-stone-600 text-xs font-medium shadow-xs">
-            <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="mb-4 flex items-center gap-3 px-4 py-2.5 bg-white/80 backdrop-blur-md border border-white/90 rounded-full text-stone-600 text-xs font-medium shadow-xs">
+            <div className="w-3.5 h-3.5 border-2 border-stone-800 border-t-transparent rounded-full animate-spin" />
             <span>Loading trip activities directly from Supabase...</span>
           </div>
         )}

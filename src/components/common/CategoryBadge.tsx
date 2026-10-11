@@ -22,8 +22,8 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
   const Icon = meta.icon;
 
   const sizeClasses = {
-    sm: 'px-2 py-0.5 text-[11px] gap-1',
-    md: 'px-2.5 py-1 text-xs gap-1.5',
+    sm: 'px-2.5 py-0.5 text-[11px] gap-1.5',
+    md: 'px-3 py-1 text-xs gap-1.5',
   };
 
   const iconSizes = {
@@ -34,12 +34,12 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
   return (
     <span
       onClick={onClick}
-      className={`inline-flex items-center font-medium rounded-md border ${meta.color.badgeBg} ${sizeClasses[size]} ${
-        onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+      className={`inline-flex items-center font-medium rounded-full border shadow-2xs backdrop-blur-xs ${meta.color.badgeBg} ${sizeClasses[size]} ${
+        onClick ? 'cursor-pointer hover:opacity-85 transition-opacity active:scale-95' : ''
       } ${className}`}
     >
-      {showIcon && <Icon className={`${iconSizes[size]} shrink-0`} />}
-      <span>{meta.label}</span>
+      {showIcon && <Icon className={`${iconSizes[size]} shrink-0 opacity-80`} />}
+      <span className="tracking-tight">{meta.label}</span>
     </span>
   );
 };
