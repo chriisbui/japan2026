@@ -186,7 +186,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
       {/* Top Header (Frosted Glass & Editorial Serif) */}
       <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-sm relative overflow-hidden">
         {/* Soft atmospheric ambient light aura */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-emerald-100/30 via-amber-100/30 to-transparent blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-teal-200/30 via-emerald-200/25 to-transparent blur-3xl pointer-events-none animate-float-ambient" />
+        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-sky-200/30 via-teal-100/25 to-transparent blur-3xl pointer-events-none animate-float-ambient-reverse" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -211,7 +212,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               <button
                 type="button"
                 onClick={onAddExpense}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium transition-all shadow-xs cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium transition-all shadow-xs cursor-pointer hover-lift active:scale-95"
               >
                 <Plus className="w-4 h-4 text-emerald-300" />
                 <span>Add Expense</span>
@@ -225,7 +226,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
           {/* Simple overview of what you owe */}
           <div
             onClick={() => setViewTab('owe')}
-            className={`rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer group shadow-2xs backdrop-blur-xs ${
+            className={`rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer group shadow-2xs backdrop-blur-xs hover-lift ${
               totalIOweOthers > 0
                 ? 'bg-gradient-to-br from-rose-50/80 via-white/70 to-orange-50/50 border-rose-200/80 hover:border-rose-300 hover:bg-white'
                 : 'bg-white/80 border-stone-200/80 hover:border-stone-300 hover:bg-white'
@@ -267,15 +268,15 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
             )}
           </div>
 
-          <div className="bg-gradient-to-br from-amber-50/80 via-white/70 to-orange-50/40 rounded-2xl p-4 sm:p-5 border border-amber-200/80 shadow-2xs backdrop-blur-xs">
+          <div className="bg-gradient-to-br from-teal-50/80 via-white/70 to-emerald-50/50 rounded-2xl p-4 sm:p-5 border border-teal-200/80 shadow-2xs backdrop-blur-xs hover-lift">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-amber-900">Still Owed to You</span>
-              <Clock className="w-4 h-4 text-amber-600" />
+              <span className="text-xs font-medium text-teal-900">Still Owed to You</span>
+              <Clock className="w-4 h-4 text-teal-600" />
             </div>
-            <p className="text-2xl sm:text-3xl font-serif font-normal text-amber-950 mt-1 leading-none">
+            <p className="text-2xl sm:text-3xl font-serif font-normal text-teal-950 mt-1 leading-none">
               ${payerTotalOwedToThem.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-[11px] text-amber-800/90 mt-1">
+            <p className="text-[11px] text-teal-800/90 mt-1">
               Pending in {activePayerActivities.length} unsettled {activePayerActivities.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>
@@ -423,7 +424,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                       className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-white/60 transition-colors"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center shrink-0 shadow-2xs">
+                        <div className="w-10 h-10 rounded-full bg-stone-900 text-teal-300 flex items-center justify-center shrink-0 shadow-2xs">
                           <CatIcon className="w-5 h-5" />
                         </div>
                         <div>

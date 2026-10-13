@@ -77,12 +77,12 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
     <div className="fixed inset-0 z-50 overflow-hidden bg-stone-900/50 backdrop-blur-sm flex justify-end animate-in fade-in duration-150">
       <div className="w-full max-w-lg glass-panel h-full shadow-2xl flex flex-col border-l border-stone-200/80 animate-in slide-in-from-right duration-200 relative">
         {/* Soft atmospheric ambient light */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-amber-200/20 via-rose-200/15 to-indigo-200/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-teal-200/25 via-sky-200/20 to-emerald-200/15 rounded-full blur-3xl pointer-events-none animate-float-ambient" />
 
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-stone-200/60 flex items-center justify-between bg-white/60 relative z-10">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-amber-100/90 border border-amber-300/80 flex items-center justify-center text-amber-800 shadow-2xs">
+            <div className="w-10 h-10 rounded-full bg-teal-100/90 border border-teal-300/80 flex items-center justify-center text-teal-800 shadow-2xs">
               <Timer className="w-5 h-5" />
             </div>
             <div>
@@ -101,7 +101,9 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-600 p-2 rounded-full hover:bg-stone-100 transition-colors cursor-pointer"
+            className="text-stone-400 hover:text-stone-700 p-2 rounded-full hover:bg-stone-100/80 transition-all duration-200 hover:rotate-90 cursor-pointer"
+            title="Close Drawer"
+            aria-label="Close Drawer"
           >
             <X className="w-5 h-5" />
           </button>

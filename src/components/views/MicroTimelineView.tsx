@@ -197,7 +197,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
 
             <div className="text-center min-w-0 flex-1">
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-amber-900 bg-amber-50/80 px-2.5 py-0.5 rounded-full border border-amber-200/80 shadow-2xs">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-teal-900 bg-teal-50/80 px-2.5 py-0.5 rounded-full border border-teal-200/80 shadow-2xs">
                   Day {synchronizedDayNumber} of {allTripDays.length}
                 </span>
                 <span
@@ -254,8 +254,8 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                   title={`${dateStr} (${chipCity.name})`}
                 >
                   <span>D{allTripDays.indexOf(dateStr) + 1}</span>
-                  <span className={`text-[10px] ${isSelected ? 'text-amber-200' : 'text-stone-300'}`}>•</span>
-                  <span className={`text-[10px] ${isSelected ? 'text-amber-100' : 'text-stone-500 font-normal'}`}>
+                  <span className={`text-[10px] ${isSelected ? 'text-teal-200' : 'text-stone-300'}`}>•</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-teal-100' : 'text-stone-500 font-normal'}`}>
                     {chipCity.name}
                   </span>
                 </button>
@@ -275,7 +275,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                     : 'text-stone-500 hover:text-stone-900'
                 }`}
               >
-                <User className={`w-3.5 h-3.5 ${scope === 'mine' ? 'text-amber-300' : 'text-stone-400'}`} />
+                <User className={`w-3.5 h-3.5 ${scope === 'mine' ? 'text-teal-300' : 'text-stone-400'}`} />
                 <span>My Schedule</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
@@ -295,7 +295,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                     : 'text-stone-500 hover:text-stone-900'
                 }`}
               >
-                <Users className={`w-3.5 h-3.5 ${scope === 'all' ? 'text-amber-300' : 'text-stone-400'}`} />
+                <Users className={`w-3.5 h-3.5 ${scope === 'all' ? 'text-teal-300' : 'text-stone-400'}`} />
                 <span>All Activities</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] ${
@@ -428,10 +428,10 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                 return (
                   <div key={slot.id} className="relative group">
                     {/* Node Dot */}
-                    <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500"></div>
+                    <div className="absolute -left-[23px] sm:-left-[27px] top-3.5 w-3 h-3 rounded-full bg-emerald-100 border-2 border-emerald-500 transition-transform duration-200 group-hover:scale-125"></div>
 
                     {/* Free Time Card */}
-                    <div className="p-3.5 rounded-2xl border border-dashed border-emerald-300/80 bg-emerald-50/50 hover:bg-emerald-50/70 backdrop-blur-xs transition-colors flex items-center justify-between gap-2.5 shadow-2xs">
+                    <div className="p-3.5 rounded-2xl border border-dashed border-emerald-300/80 bg-emerald-50/50 hover:bg-emerald-50/70 backdrop-blur-xs transition-all duration-200 hover:translate-x-1 hover:shadow-xs flex items-center justify-between gap-2.5 shadow-2xs">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-emerald-100/90 text-emerald-800 flex items-center justify-center shrink-0">
                           <Coffee className="w-4 h-4" />
@@ -450,7 +450,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                         onClick={() =>
                           onAddActivityWithTime(selectedDate, slot.startTime, addHoursToTime(slot.startTime, 1))
                         }
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white text-emerald-900 border border-emerald-300/80 hover:bg-emerald-50 shadow-2xs transition-colors shrink-0 cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-white text-emerald-900 border border-emerald-300/80 hover:bg-emerald-50 shadow-2xs transition-colors shrink-0 cursor-pointer hover-lift active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Fill Gap</span>
@@ -470,17 +470,17 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                   <div key={act.id} className="relative group">
                     {/* Node Dot */}
                     <div
-                      className={`absolute -left-[23px] sm:-left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-white border-2 shadow-xs ${
+                      className={`absolute -left-[23px] sm:-left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-white border-2 shadow-xs transition-transform duration-200 group-hover:scale-125 ${
                         isTaggedMe ? 'border-amber-600' : 'border-stone-400'
                       }`}
                     ></div>
 
                     {/* Activity Card (Frosted Glass) */}
                     <div
-                      className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 hover:translate-x-1 ${
                         isTaggedMe
-                          ? 'glass-card border-stone-200/80 shadow-xs hover:border-amber-300'
-                          : 'bg-white/60 border-stone-200/60 opacity-90'
+                          ? 'glass-card border-stone-200/80 shadow-xs hover:border-amber-300 hover:shadow-sm'
+                          : 'bg-white/60 border-stone-200/60 opacity-90 hover:bg-white/90'
                       }`}
                     >
                       {/* Line 1: Time on one line with actions */}

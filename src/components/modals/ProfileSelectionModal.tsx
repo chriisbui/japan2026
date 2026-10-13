@@ -36,7 +36,7 @@ export const ProfileSelectionModal: React.FC<ProfileSelectionModalProps> = ({
         aria-modal="true"
       >
         {/* Soft atmospheric ambient light */}
-        <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-br from-amber-200/20 via-rose-200/15 to-indigo-200/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-br from-teal-200/25 via-sky-200/20 to-emerald-200/15 rounded-full blur-2xl pointer-events-none" />
 
         {/* Header */}
         <div className="px-6 py-5 border-b border-stone-200/60 flex items-start justify-between bg-white/60 relative z-10">

@@ -76,9 +76,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="Go to Home"
           >
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-stone-800 to-stone-700 text-white flex items-center justify-center shadow-xs transition-transform group-hover:scale-105 shrink-0">
-              <Compass className="w-5 h-5 text-amber-200" />
+              <Compass className="w-5 h-5 text-teal-300" />
             </div>
-            <h1 className="text-xl font-serif font-medium text-stone-900 tracking-tight leading-none group-hover:text-amber-900 transition-colors">
+            <h1 className="text-xl font-serif font-medium text-stone-900 tracking-tight leading-none group-hover:text-teal-900 transition-colors">
               Japan 2026
             </h1>
             {supabaseConnected ? (
@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="active-user-switcher-btn"
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-stone-200/80 hover:border-amber-200 bg-white/70 hover:bg-white backdrop-blur-md transition-all cursor-pointer shadow-2xs"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-stone-200/80 hover:border-teal-300 bg-white/70 hover:bg-white backdrop-blur-md transition-all cursor-pointer shadow-2xs"
                 title="Instant switch logged-in profile"
               >
                 <ProfileAvatar profile={activeProfile} size="sm" isActive />
@@ -144,7 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <div
                             key={p.id}
                             className={`w-full flex items-center justify-between px-3.5 py-2 text-left hover:bg-stone-50/80 text-xs transition-colors cursor-pointer ${
-                              isSelected ? 'bg-amber-50/60 font-semibold' : ''
+                              isSelected ? 'bg-teal-50/70 font-semibold' : ''
                             }`}
                           >
                             <button
@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             >
                               <ProfileAvatar profile={p} size="sm" />
                               <span className="font-semibold text-stone-900 truncate">{p.name}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-auto" />}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-teal-700 shrink-0 ml-auto" />}
                             </button>
                           </div>
                         );
@@ -191,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={onOpenAddModal}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0 active:scale-95"
             >
-              <Plus className="w-3.5 h-3.5 text-amber-300" />
+              <Plus className="w-3.5 h-3.5 text-teal-300" />
               <span className="hidden sm:inline">Add Activity</span>
             </button>
           </div>
@@ -218,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      isActive ? 'bg-amber-400 text-stone-900' : 'bg-stone-200/80 text-stone-700'
+                      isActive ? 'bg-teal-400 text-teal-950' : 'bg-stone-200/80 text-stone-700'
                     }`}
                   >
                     {tab.badge}
@@ -256,7 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {tab.badge !== undefined && tab.badge > 0 && (
               <span
                 className={`absolute top-1 right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
-                  isActive ? 'bg-amber-400 text-stone-900' : 'bg-amber-500 text-white'
+                  isActive ? 'bg-teal-400 text-teal-950' : 'bg-teal-600 text-white'
                 }`}
               >
                 {tab.badge}

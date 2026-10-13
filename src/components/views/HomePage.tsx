@@ -16,25 +16,25 @@ export const CATEGORY_CALENDAR_STYLES: Record<
   }
 > = {
   'Food & Drink': {
-    bg: 'bg-yellow-100/90',
-    hoverBg: 'hover:bg-yellow-200',
-    text: 'text-yellow-950',
-    border: 'border-yellow-300',
-    dot: 'bg-yellow-500',
+    bg: 'bg-amber-100/90',
+    hoverBg: 'hover:bg-amber-200',
+    text: 'text-amber-950',
+    border: 'border-amber-300',
+    dot: 'bg-amber-500',
   },
   Sightseeing: {
     bg: 'bg-sky-100/90',
     hoverBg: 'hover:bg-sky-200',
     text: 'text-sky-950',
     border: 'border-sky-300',
-    dot: 'bg-sky-400',
+    dot: 'bg-sky-500',
   },
   Experiences: {
-    bg: 'bg-blue-100/90',
-    hoverBg: 'hover:bg-blue-200',
-    text: 'text-blue-950',
-    border: 'border-blue-400',
-    dot: 'bg-blue-700',
+    bg: 'bg-purple-100/90',
+    hoverBg: 'hover:bg-purple-200',
+    text: 'text-purple-950',
+    border: 'border-purple-300',
+    dot: 'bg-purple-500',
   },
   'Theme Parks': {
     bg: 'bg-orange-100/90',
@@ -51,32 +51,39 @@ export const CATEGORY_CALENDAR_STYLES: Record<
     dot: 'bg-emerald-500',
   },
   Transit: {
-    bg: 'bg-stone-200/90',
-    hoverBg: 'hover:bg-stone-300',
-    text: 'text-stone-800',
-    border: 'border-stone-300',
-    dot: 'bg-stone-500',
+    bg: 'bg-slate-100/90',
+    hoverBg: 'hover:bg-slate-200',
+    text: 'text-slate-800',
+    border: 'border-slate-300',
+    dot: 'bg-slate-500',
   },
   Relaxation: {
-    bg: 'bg-pink-100/90',
-    hoverBg: 'hover:bg-pink-200',
-    text: 'text-pink-950',
-    border: 'border-pink-300',
-    dot: 'bg-pink-400',
+    bg: 'bg-rose-100/90',
+    hoverBg: 'hover:bg-rose-200',
+    text: 'text-rose-950',
+    border: 'border-rose-300',
+    dot: 'bg-rose-400',
   },
   Nightlife: {
-    bg: 'bg-purple-100/90',
-    hoverBg: 'hover:bg-purple-200',
-    text: 'text-purple-950',
-    border: 'border-purple-300',
-    dot: 'bg-purple-600',
+    bg: 'bg-indigo-100/90',
+    hoverBg: 'hover:bg-indigo-200',
+    text: 'text-indigo-950',
+    border: 'border-indigo-300',
+    dot: 'bg-indigo-500',
   },
   Shopping: {
-    bg: 'bg-red-100/90',
-    hoverBg: 'hover:bg-red-200',
-    text: 'text-red-950',
-    border: 'border-red-300',
-    dot: 'bg-red-500',
+    bg: 'bg-fuchsia-100/90',
+    hoverBg: 'hover:bg-fuchsia-200',
+    text: 'text-fuchsia-950',
+    border: 'border-fuchsia-300',
+    dot: 'bg-fuchsia-500',
+  },
+  Accommodation: {
+    bg: 'bg-stone-100/90',
+    hoverBg: 'hover:bg-stone-200',
+    text: 'text-stone-900',
+    border: 'border-stone-300',
+    dot: 'bg-stone-600',
   },
 };
 
@@ -167,15 +174,12 @@ export const HomePage: React.FC<HomePageProps> = ({
     <div className="space-y-6">
       {/* Trip Overview Banner (Frosted Glass with Editorial Serif) */}
       <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-sm relative overflow-hidden">
-        {/* Soft atmospheric ambient light aura */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-amber-200/40 via-rose-200/30 to-transparent blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-sky-200/35 via-indigo-100/25 to-transparent blur-3xl pointer-events-none" />
+        {/* Soft atmospheric ambient light aura (Cool Toned: Sky Blue, Mint, Teal) */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-gradient-to-br from-sky-200/40 via-teal-200/35 to-transparent blur-3xl pointer-events-none animate-float-ambient" />
+        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-emerald-100/40 via-cyan-100/35 to-transparent blur-3xl pointer-events-none animate-float-ambient-reverse" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="text-[11px] uppercase tracking-widest text-amber-900/70 font-semibold block mb-1">
-              Autumn Journey · Group Itinerary
-            </span>
             <h1 className="text-3xl sm:text-4xl font-serif font-normal text-stone-900 tracking-tight">
               Japan 2026
             </h1>
@@ -184,7 +188,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={onViewFullCalendar}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white/80 hover:bg-white text-stone-800 transition-all cursor-pointer shadow-2xs border border-white/90 active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white/80 hover:bg-white text-stone-800 transition-all cursor-pointer shadow-2xs border border-white/90 hover-lift active:scale-95"
             >
               <Calendar className="w-3.5 h-3.5 text-stone-500" />
               <span>Full Calendar</span>
@@ -195,9 +199,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         {/* Days Until We Leave (Oct 26), Deadlines, & Expenses Summary */}
         <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-6 pt-5 border-t border-stone-200/40">
-          {/* Days until we leave (Oct 26) - Soft Sky / Mist Tone */}
-          <div className="bg-gradient-to-br from-sky-50/80 via-white/70 to-indigo-50/60 p-4 rounded-2xl border border-sky-100/80 flex items-center gap-3.5 shadow-2xs backdrop-blur-sm">
-            <div className="w-10 h-10 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center shrink-0 shadow-xs">
+          {/* Days until we leave (Oct 26) - Cool Sky Blue Tone */}
+          <div className="bg-gradient-to-br from-sky-50/90 via-white/75 to-teal-50/60 p-4 rounded-2xl border border-sky-100/80 flex items-center gap-3.5 shadow-2xs backdrop-blur-sm hover-lift">
+            <div className="w-10 h-10 rounded-full bg-stone-900 text-sky-200 flex items-center justify-center shrink-0 shadow-xs">
               <Plane className="w-4 h-4" />
             </div>
             <div>
@@ -210,14 +214,14 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
 
-          {/* Deadlines Number & Link - Soft Sunset Amber Tone */}
+          {/* Deadlines Number & Link - Light Green / Mint Tone */}
           <button
             type="button"
             id="home-deadlines-btn"
             onClick={onOpenDeadlinesDrawer}
-            className={`p-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer text-left shadow-2xs backdrop-blur-sm ${
+            className={`p-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer text-left shadow-2xs backdrop-blur-sm hover-lift ${
               needsBookingCount > 0
-                ? 'bg-gradient-to-br from-amber-50/85 via-white/70 to-orange-50/60 border-amber-200/80 hover:border-amber-300 hover:bg-white'
+                ? 'bg-gradient-to-br from-teal-50/85 via-white/70 to-emerald-50/60 border-teal-200/80 hover:border-teal-300 hover:bg-white'
                 : 'bg-gradient-to-br from-stone-50/80 via-white/70 to-stone-50/50 border-stone-200/70 hover:border-stone-300 hover:bg-white'
             }`}
           >
@@ -225,7 +229,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-xs ${
                   needsBookingCount > 0
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-teal-600 text-white'
                     : 'bg-stone-200 text-stone-600'
                 }`}
               >
@@ -246,20 +250,20 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-stone-200/60 text-xs font-medium text-stone-800 shrink-0 ml-2 shadow-2xs">
               <span>Details</span>
-              <ArrowRight className="w-3 h-3 text-stone-400" />
+              <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
             </div>
           </button>
 
-          {/* Expenses Summary Tile - Mist Sage / Rose Tone */}
+          {/* Expenses Summary Tile - Soft Mint & Sky Tone */}
           <button
             type="button"
             id="home-expenses-summary-btn"
             onClick={onViewExpenses}
-            className="p-4 rounded-2xl border border-stone-200/70 bg-gradient-to-br from-rose-50/50 via-white/70 to-emerald-50/50 hover:bg-white hover:border-stone-300 flex items-center justify-between transition-all cursor-pointer text-left group shadow-2xs backdrop-blur-sm"
+            className="p-4 rounded-2xl border border-stone-200/70 bg-gradient-to-br from-cyan-50/50 via-white/70 to-emerald-50/50 hover:bg-white hover:border-stone-300 flex items-center justify-between transition-all cursor-pointer text-left group shadow-2xs backdrop-blur-sm hover-lift"
           >
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-10 h-10 rounded-full bg-stone-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Wallet className="w-4 h-4 text-emerald-300" />
+                <Wallet className="w-4 h-4 text-teal-300" />
               </div>
               <div className="min-w-0">
                 <span className="text-xs font-medium text-stone-600 block">
@@ -335,7 +339,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             return (
               <div
                 key={catName}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium shrink-0 shadow-2xs backdrop-blur-xs ${style.bg} ${style.text} ${style.border}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-medium shrink-0 shadow-2xs backdrop-blur-xs hover:scale-105 active:scale-95 transition-transform duration-150 cursor-default ${style.bg} ${style.text} ${style.border}`}
               >
                 <CatIcon className="w-3 h-3 shrink-0 opacity-80" />
                 <span>{catName}</span>
@@ -415,7 +419,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                           e.stopPropagation();
                           onSelectActivity(act);
                         }}
-                        className={`group/item flex items-center justify-between gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border shadow-2xs transition-all leading-snug cursor-pointer backdrop-blur-xs ${style.bg} ${style.hoverBg} ${style.text} ${style.border}`}
+                        className={`group/item flex items-center justify-between gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border shadow-2xs transition-all leading-snug cursor-pointer backdrop-blur-xs hover:scale-[1.01] hover:shadow-xs active:scale-[0.98] ${style.bg} ${style.hoverBg} ${style.text} ${style.border}`}
                         title={`${act.title} (${act.category}${act.startTime ? ` • ${act.startTime}` : ''})`}
                       >
                         <CatIcon className="w-3 h-3 shrink-0 opacity-80" />

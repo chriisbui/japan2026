@@ -905,7 +905,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         role="dialog"
       >
         {/* Soft atmospheric ambient light aura */}
-        <div className="absolute -top-16 -right-16 w-44 h-44 bg-gradient-to-br from-amber-200/20 via-rose-200/20 to-sky-200/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-44 h-44 bg-gradient-to-br from-teal-200/25 via-sky-200/20 to-emerald-200/15 rounded-full blur-2xl pointer-events-none" />
 
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-stone-200/60 flex items-center justify-between bg-white/60 relative z-10">

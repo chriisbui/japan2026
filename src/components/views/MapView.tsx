@@ -384,7 +384,7 @@ export const MapView: React.FC<MapViewProps> = ({
                     setSelectedAreaId(area.id);
                     setSelectedActivity(null);
                   }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs hover:scale-105 active:scale-95 duration-150 ${
                     isSelected
                       ? 'bg-stone-900 text-white shadow-xs font-semibold'
                       : 'bg-white/80 text-stone-700 hover:bg-white border border-stone-200/80'

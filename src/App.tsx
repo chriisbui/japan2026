@@ -695,7 +695,7 @@ export default function App() {
 
   return (
     <div
-      className={`bg-mesh-atmospheric text-stone-800 font-sans selection:bg-amber-200 selection:text-stone-900 relative ${
+      className={`bg-mesh-atmospheric text-stone-800 font-sans selection:bg-teal-200 selection:text-teal-950 relative ${
         activeTab === 'map'
           ? 'h-screen h-[100dvh] overflow-hidden flex flex-col'
           : 'min-h-screen'
@@ -764,10 +764,10 @@ export default function App() {
           {activeTab === 'home' && (
             <motion.div
               key="home"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <HomePage
                 trip={trip}
@@ -791,10 +791,10 @@ export default function App() {
           {activeTab === 'calendar' && (
             <motion.div
               key="calendar"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <MacroCalendarView
                 trip={trip}
@@ -813,10 +813,10 @@ export default function App() {
           {activeTab === 'schedule' && (
             <motion.div
               key="schedule"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <MicroTimelineView
                 trip={trip}
@@ -838,10 +838,10 @@ export default function App() {
           {activeTab === 'ideas' && (
             <motion.div
               key="ideas"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <IdeaBucketView
                 trip={trip}
@@ -861,10 +861,10 @@ export default function App() {
           {activeTab === 'expenses' && (
             <motion.div
               key="expenses"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <ExpenseLedgerView
                 trip={trip}

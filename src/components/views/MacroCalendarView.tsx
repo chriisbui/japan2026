@@ -71,9 +71,11 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
   return (
     <div className="space-y-5">
       {/* Overview header */}
-      <div className="glass-panel rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-amber-900/70 block mb-0.5">
+      <div className="glass-panel rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
+        {/* Soft atmospheric ambient light aura */}
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-gradient-to-br from-teal-200/30 via-sky-200/25 to-emerald-200/20 rounded-full blur-3xl pointer-events-none animate-float-ambient" />
+        <div className="relative z-10">
+          <span className="text-[10px] uppercase font-semibold tracking-wider text-teal-900/75 block mb-0.5">
             Full Itinerary Overview
           </span>
           <h2 className="text-2xl sm:text-3xl font-serif font-normal text-stone-900 tracking-tight flex items-center gap-2.5">
@@ -84,14 +86,14 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
             {days.length}-day journey overview. Click any day card to expand its hour-by-hour schedule.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-stone-600 flex-wrap">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
+        <div className="relative z-10 flex items-center gap-2 text-xs text-stone-600 flex-wrap">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs hover-lift">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Booked
           </span>
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span> Needs Booking
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs hover-lift">
+            <span className="w-2 h-2 rounded-full bg-teal-500"></span> Needs Booking
           </span>
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 border border-stone-200/70 shadow-2xs hover-lift">
             <span className="w-2 h-2 rounded-full bg-stone-300"></span> Flexible
           </span>
         </div>
@@ -127,7 +129,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                 className="p-3.5 bg-white/60 hover:bg-white/90 border-b border-stone-100 flex items-center justify-between cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white border border-stone-200/80 flex flex-col items-center justify-center shadow-2xs group-hover:border-amber-400 shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-white border border-stone-200/80 flex flex-col items-center justify-center shadow-2xs group-hover:border-teal-400 group-hover:scale-105 transition-all duration-200 shrink-0">
                     <span className="text-[10px] font-semibold uppercase text-stone-500 tracking-wider">
                       {weekday}
                     </span>
@@ -135,7 +137,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-medium text-amber-900 uppercase tracking-wider bg-amber-50 px-2 py-0.2 rounded-full border border-amber-200/60">
+                      <span className="text-[10px] font-medium text-teal-900 uppercase tracking-wider bg-teal-50 px-2 py-0.2 rounded-full border border-teal-200/60">
                         Day {allTripDays.indexOf(dateStr) + 1}
                       </span>
                       <span className={`inline-flex items-center gap-0.5 px-2 py-0.2 rounded-full text-[10px] font-medium border ${city.badgeClass}`}>
@@ -166,7 +168,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                     <p className="text-xs font-serif italic text-stone-400">Open Day / Free Time</p>
                     <button
                       onClick={() => onAddActivityForDay(dateStr)}
-                      className="mt-2 text-xs text-stone-700 hover:text-stone-900 font-medium inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/80 hover:bg-white border border-stone-200/80 shadow-2xs transition-all cursor-pointer"
+                      className="mt-2 text-xs text-stone-700 hover:text-stone-900 font-medium inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/80 hover:bg-white border border-stone-200/80 shadow-2xs transition-all cursor-pointer hover-lift active:scale-95"
                     >
                       <Plus className="w-3.5 h-3.5 text-stone-500" /> Plan an activity
                     </button>
@@ -180,7 +182,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                       <div
                         key={act.id}
                         onClick={() => onEditActivity(act)}
-                        className={`group/card p-2 rounded-lg border text-left cursor-pointer transition-all hover:shadow-xs hover:border-indigo-400 ${catMeta.color.bg} ${catMeta.color.border} ${
+                        className={`group/card p-2 rounded-lg border text-left cursor-pointer transition-all duration-150 hover:shadow-xs hover:border-indigo-400 hover:translate-x-0.5 hover:scale-[1.01] active:scale-[0.98] ${catMeta.color.bg} ${catMeta.color.border} ${
                           isTaggedMe ? 'shadow-2xs' : 'opacity-85'
                         }`}
                       >

@@ -77,7 +77,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
       {/* Personalized Header Banner */}
       <div className="glass-panel rounded-3xl p-5 sm:p-7 shadow-sm relative overflow-hidden">
         {/* Soft atmospheric ambient light aura */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br from-amber-200/25 via-rose-200/20 to-indigo-200/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br from-sky-200/35 via-teal-200/25 to-emerald-200/20 rounded-full blur-2xl pointer-events-none animate-float-ambient" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
@@ -96,7 +96,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
 
           <button
             onClick={onOpenSwitchProfile}
-            className="self-start sm:self-auto text-xs font-medium text-stone-700 hover:text-stone-900 bg-white/80 hover:bg-white px-4 py-2 rounded-full border border-stone-200/80 shadow-2xs transition-all cursor-pointer"
+            className="self-start sm:self-auto text-xs font-medium text-stone-700 hover:text-stone-900 bg-white/80 hover:bg-white px-4 py-2 rounded-full border border-stone-200/80 shadow-2xs transition-all cursor-pointer hover-lift active:scale-95"
           >
             Switch Profile
           </button>
@@ -104,21 +104,21 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
 
         {/* 4 Quick Stat Pills */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mt-5 pt-5 border-t border-stone-200/60 relative z-10">
-          <div className="glass-card p-3 rounded-2xl border border-stone-200/70">
+          <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">My Activities</span>
             <p className="font-serif text-lg font-medium text-stone-900 mt-0.5">{myTotalEvents} events</p>
           </div>
-          <div className="glass-card p-3 rounded-2xl border border-stone-200/70">
+          <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">Confirmed Booked</span>
             <p className="font-serif text-lg font-medium text-emerald-800 mt-0.5">{myBookedCount} booked</p>
           </div>
-          <div className="glass-card p-3 rounded-2xl border border-stone-200/70">
+          <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">My Cost Share</span>
             <p className="font-serif text-lg font-medium text-stone-900 mt-0.5">${myTotalCost}</p>
           </div>
-          <div className="glass-card p-3 rounded-2xl border border-stone-200/70">
+          <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">Bookings to Manage</span>
-            <p className="font-serif text-lg font-medium text-amber-800 mt-0.5">
+            <p className="font-serif text-lg font-medium text-teal-800 mt-0.5">
               {myNeedsBookingCount > 0 ? `${myNeedsBookingCount} pending` : 'All booked'}
             </p>
           </div>

@@ -192,14 +192,16 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
     <div className="space-y-4">
       {/* Top Banner (Frosted Glass & Editorial Serif) */}
       <div className="glass-panel rounded-3xl px-5 py-4 sm:py-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 relative overflow-hidden">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
-            <Lightbulb className="w-5 h-5 text-amber-600" />
+        {/* Soft atmospheric ambient light aura */}
+        <div className="absolute -top-12 -right-12 w-64 h-64 bg-gradient-to-br from-teal-200/25 via-sky-200/20 to-emerald-200/15 rounded-full blur-3xl pointer-events-none animate-float-ambient" />
+        <div className="flex items-center gap-3.5 relative z-10">
+          <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-700 border border-teal-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+            <Lightbulb className="w-5 h-5 text-teal-600" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-serif font-normal text-stone-900 tracking-tight">Idea Bucket</h2>
-              <span className="text-xs bg-amber-50/80 text-amber-900 border border-amber-200/90 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+              <span className="text-xs bg-teal-50/80 text-teal-900 border border-teal-200/90 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                 {ideas.length} ideas
               </span>
             </div>
@@ -211,9 +213,9 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
 
         <button
           onClick={onAddNewIdea}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs transition-all shrink-0 cursor-pointer active:scale-95"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-full shadow-xs transition-all shrink-0 cursor-pointer hover-lift active:scale-95 relative z-10"
         >
-          <Plus className="w-4 h-4 text-amber-300" />
+          <Plus className="w-4 h-4 text-teal-300" />
           <span>Dump New Idea</span>
         </button>
       </div>
@@ -230,7 +232,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
               placeholder="Search ideas by title, notes, or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs text-stone-800 placeholder-stone-400 bg-white/70 hover:bg-white focus:bg-white border border-stone-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-stone-400 transition-all shadow-2xs"
+              className="w-full pl-9 pr-8 py-2 text-xs text-stone-800 placeholder-stone-400 bg-white/70 hover:bg-white focus:bg-white border border-stone-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-stone-400 transition-all shadow-2xs"
             />
             {searchQuery && (
               <button
@@ -561,7 +563,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleVote(idea.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shadow-2xs ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shadow-2xs hover-lift group/vote ${
                         hasVoted
                           ? 'bg-amber-100/90 text-amber-900 border border-amber-300/80 shadow-xs'
                           : 'bg-white/80 text-stone-600 hover:bg-white hover:text-stone-900 border border-stone-200/80'
@@ -575,7 +577,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                       }
                     >
                       <ThumbsUp
-                        className={`w-3.5 h-3.5 transition-transform active:scale-125 ${
+                        className={`w-3.5 h-3.5 transition-transform duration-150 group-hover/vote:scale-115 active:scale-125 ${
                           hasVoted ? 'fill-amber-600 text-amber-700' : 'text-stone-400'
                         }`}
                       />

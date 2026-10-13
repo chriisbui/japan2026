@@ -543,7 +543,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-md overflow-y-auto">
       <div className="glass-panel rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-stone-200/80 animate-in fade-in zoom-in-95 duration-150 my-8 relative">
         {/* Atmospheric ambient light */}
-        <div className="absolute -top-12 -right-12 w-40 h-40 bg-gradient-to-br from-emerald-200/20 via-amber-200/20 to-sky-200/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-gradient-to-br from-teal-200/25 via-emerald-200/20 to-sky-200/20 rounded-full blur-2xl pointer-events-none" />
 
         {/* Header without the subtitle */}
         <div className="p-5 sm:p-6 border-b border-stone-200/60 flex items-center justify-between bg-white/60 relative z-10">

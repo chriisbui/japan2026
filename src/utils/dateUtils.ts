@@ -162,33 +162,33 @@ export function getCityMeta(cityName?: string): CityTagInfo {
   if (norm === 'tokyo') {
     return {
       name: 'Tokyo',
-      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-      tagClass: 'bg-rose-100 text-rose-800 border-rose-300',
-      subtleClass: 'bg-rose-500/10 text-rose-700',
+      badgeClass: 'bg-sky-50 text-sky-800 border-sky-200',
+      tagClass: 'bg-sky-100 text-sky-900 border-sky-300',
+      subtleClass: 'bg-sky-500/10 text-sky-800',
     };
   }
   if (norm === 'fuji') {
     return {
       name: 'Fuji',
-      badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
-      tagClass: 'bg-teal-100 text-teal-800 border-teal-300',
-      subtleClass: 'bg-teal-500/10 text-teal-700',
+      badgeClass: 'bg-teal-50 text-teal-800 border-teal-200',
+      tagClass: 'bg-teal-100 text-teal-900 border-teal-300',
+      subtleClass: 'bg-teal-500/10 text-teal-800',
     };
   }
   if (norm === 'kyoto') {
     return {
       name: 'Kyoto',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
-      tagClass: 'bg-amber-100 text-amber-900 border-amber-300',
-      subtleClass: 'bg-amber-500/10 text-amber-800',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      tagClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      subtleClass: 'bg-emerald-500/10 text-emerald-800',
     };
   }
   if (norm === 'osaka') {
     return {
       name: 'Osaka',
-      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
-      tagClass: 'bg-purple-100 text-purple-800 border-purple-300',
-      subtleClass: 'bg-purple-500/10 text-purple-700',
+      badgeClass: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+      tagClass: 'bg-cyan-100 text-cyan-900 border-cyan-300',
+      subtleClass: 'bg-cyan-500/10 text-cyan-800',
     };
   }
   return {
