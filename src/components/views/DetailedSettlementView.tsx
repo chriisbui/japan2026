@@ -10,16 +10,16 @@ import {
   Scale,
   CheckCircle2,
   Circle,
-  Clock,
   Calendar,
   Copy,
   Check,
   Search,
-  Users,
   Edit3,
   CheckCheck,
   Plus,
-  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react';
 
 interface DetailedSettlementViewProps {
@@ -49,6 +49,8 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterParticipant, setFilterParticipant] = useState<string>('all');
+  const [selectedTransferIndex, setSelectedTransferIndex] = useState<number | null>(null);
+  const [filterToSelectedTransferOnly, setFilterToSelectedTransferOnly] = useState(false);
   const [copiedPlan, setCopiedPlan] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
@@ -62,24 +64,43 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
 
   const { unsettledActivities, totalUnsettledAmount, transfers } = detailedSummary;
 
+  const selectedTransfer = selectedTransferIndex !== null ? transfers[selectedTransferIndex] : null;
+
   // Filter transactions
   const filteredActivities = useMemo(() => {
     return unsettledActivities.filter((item) => {
       const act = item.activity;
+
+      // If user toggled filtering to the currently selected transfer's transactions only
+      if (filterToSelectedTransferOnly && selectedTransfer) {
+        const isCovered = selectedTransfer.fromDebts.some((d) => d.activity.id === act.id);
+        if (!isCovered) return false;
+      }
+
       const matchesSearch =
         searchQuery.trim() === '' ||
         act.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (getProfile(item.payerId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
 
+      // Only show for participant if:
+      // 1. Participant is the payer and still has pending payback, OR
+      // 2. Participant is currently an UNPAID debtor.
+      // (If a participant has already paid, do NOT show the transaction for them)
       const matchesParticipant =
         filterParticipant === 'all' ||
-        item.payerId === filterParticipant ||
-        item.unpaidDebtors.some((d) => d.debtorId === filterParticipant) ||
-        item.paidDebtors.some((d) => d.debtorId === filterParticipant);
+        (item.payerId === filterParticipant && item.unpaidDebtors.length > 0) ||
+        item.unpaidDebtors.some((d) => d.debtorId === filterParticipant);
 
       return matchesSearch && matchesParticipant;
     });
-  }, [unsettledActivities, searchQuery, filterParticipant, profiles]);
+  }, [
+    unsettledActivities,
+    searchQuery,
+    filterParticipant,
+    filterToSelectedTransferOnly,
+    selectedTransfer,
+    profiles,
+  ]);
 
   // Copy transfer plan text
   const handleCopyPlan = () => {
@@ -105,7 +126,7 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
         .map((d) => `${getProfile(d.debtorId)?.name || 'Traveler'} ($${d.amount.toFixed(2)})`)
         .join(', ');
       lines.push(`• ${u.activity.title} (Fronted by ${payerName}, Total $${u.totalCost})`);
-      lines.push(`  Pending debtors: ${unpaidList}`);
+      lines.push(`  Pending: ${unpaidList}`);
     });
 
     navigator.clipboard?.writeText(lines.join('\n'));
@@ -118,6 +139,15 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
       (a) => !a.isIdea && a.bookingStatus === 'Booked' && Number(a.costPerPerson) > 0
     );
   }, [activities]);
+
+  const toggleSelectTransfer = (idx: number) => {
+    if (selectedTransferIndex === idx) {
+      setSelectedTransferIndex(null);
+      setFilterToSelectedTransferOnly(false);
+    } else {
+      setSelectedTransferIndex(idx);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -133,7 +163,7 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
             </h2>
           </div>
           <p className="text-xs text-stone-500 mt-1">
-            A clear summary of who needs to pay whom, followed by the individual unsettled transactions contributing to the balances.
+            Review who needs to pay whom and click any transfer to see which transactions it covers.
           </p>
         </div>
 
@@ -182,9 +212,14 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
             </span>
           </div>
 
-          <span className="text-xs text-stone-500 font-medium">
-            Total Unsettled: <strong className="text-stone-900 font-serif text-sm">${totalUnsettledAmount.toFixed(2)}</strong>
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-stone-400 hidden sm:inline">
+              Click any transfer to see covered transactions
+            </span>
+            <span className="text-xs text-stone-500 font-medium">
+              Total Unsettled: <strong className="text-stone-900 font-serif text-sm">${totalUnsettledAmount.toFixed(2)}</strong>
+            </span>
+          </div>
         </div>
 
         {transfers.length === 0 ? (
@@ -222,9 +257,9 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead className="bg-stone-50/80 text-stone-500 font-semibold border-b border-stone-200/80">
                 <tr>
-                  <th className="py-3 px-4 sm:px-6">Who Pays (Sender)</th>
+                  <th className="py-3 px-4 sm:px-6">Who Pays</th>
                   <th className="py-3 px-3"></th>
-                  <th className="py-3 px-4 sm:px-6">Who Receives (Recipient)</th>
+                  <th className="py-3 px-4 sm:px-6">Who Receives</th>
                   <th className="py-3 px-4 text-right">Transfer Amount</th>
                   <th className="py-3 px-4 text-right">Your Role</th>
                 </tr>
@@ -233,80 +268,210 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                 {transfers.map((t, idx) => {
                   const isSenderMe = t.settlement.fromId === activeProfileId;
                   const isReceiverMe = t.settlement.toId === activeProfileId;
+                  const isSelected = selectedTransferIndex === idx;
 
                   return (
-                    <tr
-                      key={idx}
-                      className={`hover:bg-stone-50/60 transition-colors ${
-                        isSenderMe
-                          ? 'bg-rose-50/20'
-                          : isReceiverMe
-                          ? 'bg-emerald-50/20'
-                          : ''
-                      }`}
-                    >
-                      {/* Sender */}
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="flex items-center gap-2.5">
-                          <ProfileAvatar profile={t.fromProfile} size="sm" />
-                          <div>
-                            <span className="font-semibold text-stone-900 block">
+                    <React.Fragment key={idx}>
+                      <tr
+                        onClick={() => toggleSelectTransfer(idx)}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600'
+                            : isSenderMe
+                            ? 'bg-rose-50/20 hover:bg-rose-50/40'
+                            : isReceiverMe
+                            ? 'bg-emerald-50/20 hover:bg-emerald-50/40'
+                            : 'hover:bg-stone-50'
+                        }`}
+                        title="Click to see which transactions this transfer covers"
+                      >
+                        {/* Who Pays */}
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="flex items-center gap-2.5">
+                            <ProfileAvatar profile={t.fromProfile} size="sm" />
+                            <span className="font-semibold text-stone-900">
                               {t.fromProfile?.name || 'Traveler'}
                             </span>
-                            <span className="text-[10px] text-stone-400">Owes to group</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Direction Arrow */}
-                      <td className="py-3.5 px-3 text-center">
-                        <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-100 text-stone-500">
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </div>
-                      </td>
+                        {/* Direction Arrow */}
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-100 text-stone-500">
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </div>
+                        </td>
 
-                      {/* Recipient */}
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="flex items-center gap-2.5">
-                          <ProfileAvatar profile={t.toProfile} size="sm" />
-                          <div>
-                            <span className="font-semibold text-stone-900 block">
+                        {/* Who Receives */}
+                        <td className="py-3.5 px-4 sm:px-6">
+                          <div className="flex items-center gap-2.5">
+                            <ProfileAvatar profile={t.toProfile} size="sm" />
+                            <span className="font-semibold text-stone-900">
                               {t.toProfile?.name || 'Traveler'}
                             </span>
-                            <span className="text-[10px] text-stone-400">Owed by group</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Transfer Amount */}
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="font-serif font-bold text-sm text-stone-900 block">
-                          ${t.settlement.amount.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-stone-400">
-                          {t.directBilateralDebts.length > 0
-                            ? `${t.directBilateralDebts.length} direct debt${t.directBilateralDebts.length === 1 ? '' : 's'}`
-                            : 'Group net settle'}
-                        </span>
-                      </td>
+                        {/* Transfer Amount */}
+                        <td className="py-3.5 px-4 text-right">
+                          <span className="font-serif font-bold text-sm text-stone-900 block">
+                            ${t.settlement.amount.toFixed(2)}
+                          </span>
+                        </td>
 
-                      {/* Your Role */}
-                      <td className="py-3.5 px-4 text-right">
-                        {isSenderMe && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                            You pay ${t.settlement.amount.toFixed(2)}
-                          </span>
-                        )}
-                        {isReceiverMe && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            You receive ${t.settlement.amount.toFixed(2)}
-                          </span>
-                        )}
-                        {!isSenderMe && !isReceiverMe && (
-                          <span className="text-stone-400 text-[11px]">—</span>
-                        )}
-                      </td>
-                    </tr>
+                        {/* Your Role & Expand Indicator */}
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {isSenderMe && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                You pay ${t.settlement.amount.toFixed(2)}
+                              </span>
+                            )}
+                            {isReceiverMe && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                You receive ${t.settlement.amount.toFixed(2)}
+                              </span>
+                            )}
+                            {!isSenderMe && !isReceiverMe && (
+                              <span className="text-stone-400 text-[11px]">—</span>
+                            )}
+
+                            <span className="p-1 rounded text-stone-400 hover:text-stone-600">
+                              {isSelected ? (
+                                <ChevronUp className="w-4 h-4 text-indigo-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* EXPANDED ROW: TRANSACTIONS COVERED BY THIS TRANSFER */}
+                      {isSelected && (
+                        <tr className="bg-stone-50/80">
+                          <td colSpan={5} className="py-4 px-4 sm:px-6">
+                            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-indigo-200 shadow-2xs space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
+                                    <h4 className="text-xs font-bold text-stone-900">
+                                      Transactions covered by {t.fromProfile?.name} &rarr; {t.toProfile?.name} (${t.settlement.amount.toFixed(2)})
+                                    </h4>
+                                  </div>
+                                  <p className="text-[11px] text-stone-500 mt-0.5">
+                                    These are {t.fromProfile?.name}&apos;s unsettled shares settled via this payment.
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFilterToSelectedTransferOnly(!filterToSelectedTransferOnly);
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                                      filterToSelectedTransferOnly
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200'
+                                    }`}
+                                  >
+                                    <span>
+                                      {filterToSelectedTransferOnly
+                                        ? 'Showing in table below ✓'
+                                        : 'Filter table below to these'}
+                                    </span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedTransferIndex(null);
+                                      setFilterToSelectedTransferOnly(false);
+                                    }}
+                                    className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                                    title="Close"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {t.fromDebts.length === 0 ? (
+                                <p className="text-xs text-stone-400 py-2">
+                                  No specific unsettled receipts found for this transfer.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {t.fromDebts.map((debt, dIdx) => {
+                                    const payer = getProfile(debt.payerId);
+
+                                    return (
+                                      <div
+                                        key={dIdx}
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-stone-200/90 bg-stone-50/60 hover:bg-stone-50 transition-colors text-xs"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <CategoryBadge category={debt.activity.category} size="sm" />
+                                          <div>
+                                            <span className="font-semibold text-stone-900 block">
+                                              {debt.activity.title}
+                                            </span>
+                                            <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5">
+                                              <span>Fronted by {payer?.name}</span>
+                                              {debt.activity.date && (
+                                                <>
+                                                  <span>•</span>
+                                                  <span className="flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3 text-stone-400" />
+                                                    {formatDatePretty(debt.activity.date)}
+                                                  </span>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-200/60">
+                                          <div className="text-right">
+                                            <span className="font-serif font-bold text-sm text-stone-900 block">
+                                              ${debt.amount.toFixed(2)}
+                                            </span>
+                                            <span className="text-[10px] text-stone-500">
+                                              {debt.isDirectToReceiver
+                                                ? `Direct debt to ${t.toProfile?.name}`
+                                                : `Consolidated via simplified plan`}
+                                            </span>
+                                          </div>
+
+                                          {onToggleDebtorPayment && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onToggleDebtorPayment(debt.activity.id, t.settlement.fromId);
+                                              }}
+                                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                                              title={`Mark ${t.fromProfile?.name}'s share as paid`}
+                                            >
+                                              <Check className="w-3 h-3 text-emerald-600" />
+                                              <span>Mark Paid</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -326,16 +491,29 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                 Unsettled Transactions & Participants
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-200 text-stone-700">
-                {unsettledActivities.length}
+                {filteredActivities.length}
               </span>
             </div>
             <p className="text-xs text-stone-500 mt-0.5">
-              Individual booked activities with remaining unpaid debtor shares contributing to the settlement plan.
+              Individual booked activities with remaining unpaid debtor shares.
             </p>
           </div>
 
           {/* Search & Filter */}
           <div className="flex items-center gap-2 flex-wrap">
+            {filterToSelectedTransferOnly && selectedTransfer && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 border border-indigo-200 text-indigo-800">
+                <span>Filter: {selectedTransfer.fromProfile?.name} &rarr; {selectedTransfer.toProfile?.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setFilterToSelectedTransferOnly(false)}
+                  className="hover:text-indigo-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
@@ -428,10 +606,9 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Who Is Part of It */}
+                      {/* Who Is Part of It (ONLY unpaid debtors shown, no '(Owes)' label) */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {/* Unpaid Debtors */}
                           {item.unpaidDebtors.map((deb) => {
                             const debProfile = getProfile(deb.debtorId);
                             const isMe = deb.debtorId === activeProfileId;
@@ -442,17 +619,14 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                                 className={`inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-full border text-[11px] ${
                                   isMe
                                     ? 'bg-rose-50 border-rose-300 text-rose-950 font-bold'
-                                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                                    : 'bg-stone-50 border-stone-200 text-stone-800'
                                 }`}
-                                title={`${debProfile?.name || 'Traveler'} owes $${deb.amount.toFixed(2)} (Unpaid)`}
+                                title={`${debProfile?.name || 'Traveler'}: $${deb.amount.toFixed(2)} (Unpaid)`}
                               >
                                 <ProfileAvatar profile={debProfile} size="xs" />
                                 <span>{debProfile?.name}:</span>
                                 <span className="font-serif font-bold text-rose-700">
                                   ${deb.amount.toFixed(2)}
-                                </span>
-                                <span className="text-[9px] uppercase tracking-wider font-semibold opacity-75">
-                                  (Owes)
                                 </span>
 
                                 {/* Quick inline settle button */}
@@ -466,26 +640,6 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                                     <Circle className="w-3 h-3" />
                                   </button>
                                 )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Paid Debtors */}
-                          {item.paidDebtors.map((deb) => {
-                            const debProfile = getProfile(deb.debtorId);
-
-                            return (
-                              <div
-                                key={deb.debtorId}
-                                className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-full border bg-emerald-50/70 border-emerald-200 text-emerald-900 text-[11px] opacity-80"
-                                title={`${debProfile?.name || 'Traveler'} already paid $${deb.amount.toFixed(2)}`}
-                              >
-                                <ProfileAvatar profile={debProfile} size="xs" />
-                                <span>{debProfile?.name}:</span>
-                                <span className="font-serif font-semibold text-emerald-800">
-                                  ${deb.amount.toFixed(2)}
-                                </span>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               </div>
                             );
                           })}
