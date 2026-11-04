@@ -50,16 +50,17 @@ export function calculateLedger(
     let activityTotalCost = 0;
     if (hasCustomSplits) {
       expenseParticipants.forEach((pid) => {
-        activityTotalCost += act.customSplitAmounts?.[pid] ?? costPerPerson;
+        activityTotalCost += Math.round((act.customSplitAmounts?.[pid] ?? costPerPerson) * 100) / 100;
       });
     } else {
-      activityTotalCost = costPerPerson * expenseParticipants.length;
+      activityTotalCost = Math.round(costPerPerson * expenseParticipants.length * 100) / 100;
     }
+    activityTotalCost = Math.round(activityTotalCost * 100) / 100;
 
     totalTripCost += activityTotalCost;
 
     // Track category totals
-    totalPerCategory[act.category] = (totalPerCategory[act.category] || 0) + activityTotalCost;
+    totalPerCategory[act.category] = Math.round(((totalPerCategory[act.category] || 0) + activityTotalCost) * 100) / 100;
 
     const payerId = act.whoPaidId;
     const isPayerValid = Boolean(payerId && payerId !== 'unpaid' && profiles.some((p) => p.id === payerId));
@@ -73,7 +74,7 @@ export function calculateLedger(
     expenseParticipants.forEach((pid) => {
       const share = hasCustomSplits ? (act.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson;
       if (memberFinancials[pid]) {
-        memberFinancials[pid].totalOwed += share;
+        memberFinancials[pid].totalOwed += Math.round(share * 100) / 100;
       }
     });
 
@@ -86,21 +87,22 @@ export function calculateLedger(
 
     expenseParticipants.forEach((pid) => {
       const share = hasCustomSplits ? (act.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson;
+      const roundedShare = Math.round(share * 100) / 100;
       if (pid === payerId) {
         // Payer paying for their own personal share
         if (memberFinancials[payerId]) {
-          memberFinancials[payerId].totalPaid += share;
+          memberFinancials[payerId].totalPaid += roundedShare;
         }
       } else {
         if (paidBackSet.has(pid)) {
           // Debtor has already paid back the payer
           if (memberFinancials[pid]) {
-            memberFinancials[pid].totalPaid += share;
+            memberFinancials[pid].totalPaid += roundedShare;
           }
         } else {
           // Debtor has not paid back yet; payer is still fronting this debtor's share
           if (memberFinancials[payerId]) {
-            memberFinancials[payerId].totalPaid += share;
+            memberFinancials[payerId].totalPaid += roundedShare;
           }
         }
       }
@@ -110,6 +112,8 @@ export function calculateLedger(
   // Calculate net balances (rounded to 2 decimal places)
   profiles.forEach((p) => {
     const fin = memberFinancials[p.id];
+    fin.totalPaid = Math.round(fin.totalPaid * 100) / 100;
+    fin.totalOwed = Math.round(fin.totalOwed * 100) / 100;
     fin.netBalance = Math.round((fin.totalPaid - fin.totalOwed) * 100) / 100;
   });
 
@@ -117,11 +121,11 @@ export function calculateLedger(
   const settlements = calculateSettlements(profiles, memberFinancials);
 
   return {
-    totalTripCost,
+    totalTripCost: Math.round(totalTripCost * 100) / 100,
     totalPerCategory: totalPerCategory as Record<ActivityCategory, number>,
     memberFinancials,
     settlements,
-    averageCostPerPerson: profiles.length > 0 ? totalTripCost / profiles.length : 0,
+    averageCostPerPerson: profiles.length > 0 ? Math.round((totalTripCost / profiles.length) * 100) / 100 : 0,
   };
 }
 
@@ -263,33 +267,37 @@ export function getActivityExpenseBreakdown(activity: Activity): ActivityExpense
   let totalCost = 0;
   if (hasCustomSplits) {
     expenseParticipants.forEach((pid) => {
-      totalCost += activity.customSplitAmounts?.[pid] ?? costPerPerson;
+      totalCost += Math.round((activity.customSplitAmounts?.[pid] ?? costPerPerson) * 100) / 100;
     });
   } else {
-    totalCost = costPerPerson * (expenseParticipants.length > 0 ? expenseParticipants.length : (allParticipants.length > 0 ? allParticipants.length : 1));
+    totalCost = Math.round(costPerPerson * (expenseParticipants.length > 0 ? expenseParticipants.length : (allParticipants.length > 0 ? allParticipants.length : 1)) * 100) / 100;
   }
+  totalCost = Math.round(totalCost * 100) / 100;
 
   let amountOwedToPayer = 0;
   debtorIds.forEach((pid) => {
-    amountOwedToPayer += hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson;
+    amountOwedToPayer += Math.round((hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson) * 100) / 100;
   });
+  amountOwedToPayer = Math.round(amountOwedToPayer * 100) / 100;
 
   let amountPaidBack = 0;
   paidDebtorIds.forEach((pid) => {
-    amountPaidBack += hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson;
+    amountPaidBack += Math.round((hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson) * 100) / 100;
   });
+  amountPaidBack = Math.round(amountPaidBack * 100) / 100;
 
   let amountStillOwed = 0;
   unpaidDebtorIds.forEach((pid) => {
-    amountStillOwed += hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson;
+    amountStillOwed += Math.round((hasCustomSplits ? (activity.customSplitAmounts?.[pid] ?? costPerPerson) : costPerPerson) * 100) / 100;
   });
+  amountStillOwed = Math.round(amountStillOwed * 100) / 100;
 
   // Fully settled if all debtors have paid back
   const isSettled = totalDebtors > 0 ? unpaidDebtorIds.length === 0 : true;
 
   return {
     payerId,
-    costPerPerson,
+    costPerPerson: Math.round(costPerPerson * 100) / 100,
     totalCost,
     allParticipants,
     expenseParticipants,

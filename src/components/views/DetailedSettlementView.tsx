@@ -30,6 +30,8 @@ interface DetailedSettlementViewProps {
   onBackToSummary?: () => void;
   onToggleDebtorPayment?: (activityId: string, debtorProfileId: string) => void;
   onSettleAllDebtors?: (activityId: string) => void;
+  onSettleParticipantDebts?: (debtorProfileId: string, activityIds?: string[]) => void;
+  onUnsettleParticipantDebts?: (debtorProfileId: string, activityIds: string[]) => void;
   onEditActivity?: (activity: Activity) => void;
   onEditExpense?: (expense: Activity) => void;
   onAddExpense?: () => void;
@@ -43,6 +45,8 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
   onBackToSummary,
   onToggleDebtorPayment,
   onSettleAllDebtors,
+  onSettleParticipantDebts,
+  onUnsettleParticipantDebts,
   onEditActivity,
   onEditExpense,
   onAddExpense,
@@ -52,6 +56,12 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
   const [selectedTransferIndex, setSelectedTransferIndex] = useState<number | null>(null);
   const [filterToSelectedTransferOnly, setFilterToSelectedTransferOnly] = useState(false);
   const [copiedPlan, setCopiedPlan] = useState(false);
+  const [settledToast, setSettledToast] = useState<{
+    profileName: string;
+    amount: number;
+    activityIds: string[];
+    participantId: string;
+  } | null>(null);
 
   const profileMap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
   const getProfile = (id: string) => profileMap.get(id);
@@ -63,6 +73,36 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
   );
 
   const { unsettledActivities, totalUnsettledAmount, transfers } = detailedSummary;
+
+  const handleSettleAll = (t: (typeof transfers)[number]) => {
+    const participantId = t.settlement.fromId;
+    const participantName = t.fromProfile?.name || 'Traveler';
+    const activityIds = t.fromDebts.map((d) => d.activity.id);
+
+    if (onSettleParticipantDebts) {
+      onSettleParticipantDebts(participantId, activityIds);
+      if (selectedTransferIndex !== null) {
+        setSelectedTransferIndex(null);
+        setFilterToSelectedTransferOnly(false);
+      }
+      setSettledToast({
+        profileName: participantName,
+        amount: t.settlement.amount,
+        activityIds,
+        participantId,
+      });
+      setTimeout(() => {
+        setSettledToast((prev) => (prev?.participantId === participantId ? null : prev));
+      }, 7000);
+    }
+  };
+
+  const handleUndo = () => {
+    if (settledToast && onUnsettleParticipantDebts) {
+      onUnsettleParticipantDebts(settledToast.participantId, settledToast.activityIds);
+      setSettledToast(null);
+    }
+  };
 
   const selectedTransfer = selectedTransferIndex !== null ? transfers[selectedTransferIndex] : null;
 
@@ -125,7 +165,7 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
       const unpaidList = u.unpaidDebtors
         .map((d) => `${getProfile(d.debtorId)?.name || 'Traveler'} ($${d.amount.toFixed(2)})`)
         .join(', ');
-      lines.push(`• ${u.activity.title} (Fronted by ${payerName}, Total $${u.totalCost})`);
+      lines.push(`• ${u.activity.title} (Fronted by ${payerName}, Total $${u.totalCost.toFixed(2)})`);
       lines.push(`  Pending: ${unpaidList}`);
     });
 
@@ -222,6 +262,37 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
           </div>
         </div>
 
+        {/* Settle Toast / Undo Banner */}
+        {settledToast && (
+          <div className="mx-4 sm:mx-5 my-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-xs text-emerald-950 animate-in fade-in duration-200 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                Marked all transactions paid for <strong>{settledToast.profileName}</strong> (${settledToast.amount.toFixed(2)} across {settledToast.activityIds.length} {settledToast.activityIds.length === 1 ? 'activity' : 'activities'}).
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              {onUnsettleParticipantDebts && (
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="px-2.5 py-1 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-white hover:bg-emerald-100 rounded-lg border border-emerald-300 transition-colors cursor-pointer"
+                >
+                  Undo
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSettledToast(null)}
+                className="p-1 text-emerald-600 hover:text-emerald-800 rounded-lg cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {transfers.length === 0 ? (
           <div className="p-8 text-center">
             {!hasAnyBookedExpenses ? (
@@ -261,7 +332,7 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                   <th className="py-3 px-3"></th>
                   <th className="py-3 px-4 sm:px-6">Who Receives</th>
                   <th className="py-3 px-4 text-right">Transfer Amount</th>
-                  <th className="py-3 px-4 text-right">Your Role</th>
+                  <th className="py-3 px-4 text-right min-w-[140px]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -319,24 +390,28 @@ export const DetailedSettlementView: React.FC<DetailedSettlementViewProps> = ({
                           </span>
                         </td>
 
-                        {/* Your Role & Expand Indicator */}
+                        {/* Settle All Button & Expand Indicator */}
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {isSenderMe && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                You pay ${t.settlement.amount.toFixed(2)}
-                              </span>
-                            )}
-                            {isReceiverMe && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                You receive ${t.settlement.amount.toFixed(2)}
-                              </span>
-                            )}
-                            {!isSenderMe && !isReceiverMe && (
-                              <span className="text-stone-400 text-[11px]">—</span>
+                            {onSettleParticipantDebts && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSettleAll(t);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-300 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 group/btn"
+                                title={`Mark all transactions as paid for ${t.fromProfile?.name || 'this participant'} ($${t.settlement.amount.toFixed(2)})`}
+                              >
+                                <CheckCheck className="w-3.5 h-3.5 text-emerald-600 group-hover/btn:text-white transition-colors" />
+                                <span>Settle All</span>
+                              </button>
                             )}
 
-                            <span className="p-1 rounded text-stone-400 hover:text-stone-600">
+                            <span
+                              className="p-1 rounded text-stone-400 hover:text-stone-600"
+                              title={isSelected ? "Collapse covered transactions" : "View covered transactions"}
+                            >
                               {isSelected ? (
                                 <ChevronUp className="w-4 h-4 text-indigo-600" />
                               ) : (

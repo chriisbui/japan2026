@@ -581,7 +581,7 @@ export const MapView: React.FC<MapViewProps> = ({
                       <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[11px]">
                         <span className="text-stone-500 font-medium">
                           {act.costPerPerson > 0 ? (
-                            <strong className="text-stone-900">${act.costPerPerson}/person</strong>
+                            <strong className="text-stone-900">${Number(act.costPerPerson).toFixed(2)}/person</strong>
                           ) : (
                             'Free / No cost'
                           )}

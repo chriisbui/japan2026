@@ -47,6 +47,8 @@ interface ExpenseLedgerViewProps {
   onToggleExcludeDebtor?: (activityId: string, debtorProfileId: string) => void;
   onSettleAllDebtors?: (activityId: string) => void;
   onReopenDebtors?: (activityId: string) => void;
+  onSettleParticipantDebts?: (debtorProfileId: string, activityIds?: string[]) => void;
+  onUnsettleParticipantDebts?: (debtorProfileId: string, activityIds: string[]) => void;
   onEditActivity?: (activity: Activity) => void;
   onAddExpense?: () => void;
   onEditExpense?: (expense: Activity) => void;
@@ -62,6 +64,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
   onToggleExcludeDebtor,
   onSettleAllDebtors,
   onReopenDebtors,
+  onSettleParticipantDebts,
+  onUnsettleParticipantDebts,
   onEditActivity,
   onAddExpense,
   onEditExpense,
@@ -447,9 +451,9 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
-                            <span>Total Fronted: <strong className="text-stone-800">${bd.totalCost}</strong></span>
+                            <span>Total Fronted: <strong className="text-stone-800">${bd.totalCost.toFixed(2)}</strong></span>
                             <span>•</span>
-                            <span>{bd.totalDebtors} traveler{bd.totalDebtors === 1 ? '' : 's'} owe <strong className="text-stone-800">${bd.costPerPerson}</strong> each</span>
+                            <span>{bd.totalDebtors} traveler{bd.totalDebtors === 1 ? '' : 's'} owe <strong className="text-stone-800">${bd.costPerPerson.toFixed(2)}</strong> each</span>
                           </div>
                         </div>
                       </div>
@@ -459,7 +463,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                         <div className="text-right">
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
                             <Clock className="w-3 h-3 text-amber-600" />
-                            <span>${bd.amountStillOwed} Owed</span>
+                            <span>${bd.amountStillOwed.toFixed(2)} Owed</span>
                           </span>
                           <span className="block text-[10px] text-stone-400 mt-0.5">
                             {bd.paidDebtorIds.length} of {bd.totalDebtors} paid back ({progressPct}%)
@@ -514,7 +518,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                           <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
                             <Users className="w-3.5 h-3.5 text-indigo-600" />
                             <span>
-                              Who Owes You {act.isNonEvenSplit ? '(Custom Split)' : `($${bd.costPerPerson} each)`}
+                              Who Owes You {act.isNonEvenSplit ? '(Custom Split)' : `($${bd.costPerPerson.toFixed(2)} each)`}
                             </span>
                           </div>
 
@@ -557,8 +561,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                     <span className="text-[11px] text-stone-500">
                                       Share: $
                                       {act.isNonEvenSplit && act.customSplitAmounts?.[debtorId] !== undefined
-                                        ? act.customSplitAmounts[debtorId]
-                                        : bd.costPerPerson}
+                                        ? Number(act.customSplitAmounts[debtorId]).toFixed(2)
+                                        : bd.costPerPerson.toFixed(2)}
                                     </span>
                                   </div>
                                 </div>
@@ -656,7 +660,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                           <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1">
                             <span>Reimbursement progress</span>
                             <span className="font-semibold text-stone-800">
-                              ${bd.amountPaidBack} of ${bd.amountOwedToPayer} recovered
+                              ${bd.amountPaidBack.toFixed(2)} of ${bd.amountOwedToPayer.toFixed(2)} recovered
                             </span>
                           </div>
                           <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
@@ -736,9 +740,9 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                             </span>
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
-                            <span>Total: <strong className="text-stone-800">${bd.totalCost}</strong></span>
+                            <span>Total: <strong className="text-stone-800">${bd.totalCost.toFixed(2)}</strong></span>
                             <span>•</span>
-                            <span>All {bd.totalDebtors} debtor{bd.totalDebtors === 1 ? '' : 's'} paid ${bd.costPerPerson} each</span>
+                            <span>All {bd.totalDebtors} debtor{bd.totalDebtors === 1 ? '' : 's'} paid ${bd.costPerPerson.toFixed(2)} each</span>
                             {act.date && <span>• {formatDatePretty(act.date)}</span>}
                           </div>
                         </div>
@@ -746,7 +750,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
                       <div className="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto">
                         <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                          100% Recovered (${bd.amountPaidBack})
+                          100% Recovered (${bd.amountPaidBack.toFixed(2)})
                         </span>
                         <div className="flex items-center gap-1">
                           {((act.isExpenseOnly && onEditExpense) || (!act.isExpenseOnly && onEditActivity)) && (
@@ -822,8 +826,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                   <CheckCircle2 className="w-3 h-3" />
                                   Paid $
                                   {act.isNonEvenSplit && act.customSplitAmounts?.[debtorId] !== undefined
-                                    ? act.customSplitAmounts[debtorId]
-                                    : bd.costPerPerson}
+                                    ? Number(act.customSplitAmounts[debtorId]).toFixed(2)
+                                    : bd.costPerPerson.toFixed(2)}
                                 </span>
                               </div>
                             );
@@ -964,8 +968,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                             <span className="text-xs font-bold text-stone-900 block">
                               Your share: $
                               {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
-                                ? act.customSplitAmounts[activeProfileId]
-                                : act.costPerPerson}
+                                ? Number(act.customSplitAmounts[activeProfileId]).toFixed(2)
+                                : Number(act.costPerPerson).toFixed(2)}
                             </span>
                             <span className="text-[10px] text-stone-400">
                               Awaiting reimbursement
@@ -1072,8 +1076,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 <span className="text-xs font-bold text-stone-900 block">
                                   Your share: $
                                   {act.isNonEvenSplit && act.customSplitAmounts?.[activeProfileId] !== undefined
-                                    ? act.customSplitAmounts[activeProfileId]
-                                    : act.costPerPerson}
+                                    ? Number(act.customSplitAmounts[activeProfileId]).toFixed(2)
+                                    : Number(act.costPerPerson).toFixed(2)}
                                 </span>
                                 <span className="text-[10px] text-stone-400">
                                   Recorded by payer
@@ -1180,6 +1184,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
               onBackToSummary={() => setBalancesMode('summary')}
               onToggleDebtorPayment={onToggleDebtorPayment}
               onSettleAllDebtors={onSettleAllDebtors}
+              onSettleParticipantDebts={onSettleParticipantDebts}
+              onUnsettleParticipantDebts={onUnsettleParticipantDebts}
               onEditActivity={onEditActivity}
               onEditExpense={onEditExpense}
               onAddExpense={onAddExpense}
@@ -1249,17 +1255,31 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 <span className="font-semibold text-stone-900">{toProfile?.name}</span>
                               </div>
 
-                              <div className="text-right">
-                                <span className="text-sm font-bold text-stone-900">
-                                  ${tx.amount.toFixed(2)}
-                                </span>
-                                {tx.fromId === activeProfileId && (
-                                  <span className="block text-[10px] text-rose-600 font-semibold">You pay</span>
-                                )}
-                                {tx.toId === activeProfileId && (
-                                  <span className="block text-[10px] text-emerald-600 font-semibold">
-                                    You receive
+                              <div className="flex items-center gap-2.5">
+                                <div className="text-right">
+                                  <span className="text-sm font-bold text-stone-900 block font-serif">
+                                    ${tx.amount.toFixed(2)}
                                   </span>
+                                  {tx.fromId === activeProfileId && (
+                                    <span className="block text-[10px] text-rose-600 font-semibold">You pay</span>
+                                  )}
+                                  {tx.toId === activeProfileId && (
+                                    <span className="block text-[10px] text-emerald-600 font-semibold">
+                                      You receive
+                                    </span>
+                                  )}
+                                </div>
+
+                                {onSettleParticipantDebts && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onSettleParticipantDebts(tx.fromId)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-300 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 group/btn"
+                                    title={`Mark all transactions as paid for ${fromProfile?.name || 'this participant'}`}
+                                  >
+                                    <Check className="w-3 h-3 text-emerald-600 group-hover/btn:text-white transition-colors" />
+                                    <span>Settle All</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -1312,7 +1332,7 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                                 {cat}
                               </span>
                               <span className="font-bold text-stone-900">
-                                ${catTotal.toLocaleString()}{' '}
+                                ${catTotal.toFixed(2)}{' '}
                                 <span className="text-stone-400 font-normal">({percent.toFixed(1)}%)</span>
                               </span>
                             </div>

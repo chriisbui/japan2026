@@ -545,7 +545,7 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
                       {idea.costPerPerson > 0 && (
                         <div className="flex items-center gap-0.5 text-stone-700 font-serif font-semibold">
                           <DollarSign className="w-3 h-3 text-stone-400 shrink-0 -mr-0.5" />
-                          <span>~${idea.costPerPerson}</span>
+                          <span>~${Number(idea.costPerPerson).toFixed(2)}</span>
                         </div>
                       )}
                     </div>

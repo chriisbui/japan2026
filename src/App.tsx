@@ -680,6 +680,95 @@ export default function App() {
     }
   };
 
+  // Settle all debts for a participant across activities at once (e.g. when they transfer all at once)
+  const handleSettleParticipantDebts = async (debtorProfileId: string, activityIds?: string[]) => {
+    setActivityError(null);
+
+    // Find all activities where debtor owes money
+    const targetActivities = activities.filter((a) => {
+      if (a.isIdea || a.bookingStatus !== 'Booked' || Number(a.costPerPerson) <= 0) return false;
+      if (a.whoPaidId === debtorProfileId) return false;
+      if (activityIds && activityIds.length > 0 && !activityIds.includes(a.id)) return false;
+
+      const isTagged = (a.taggedProfileIds || []).includes(debtorProfileId);
+      const isExcluded = (a.excludedExpenseProfileIds || []).includes(debtorProfileId);
+      const isPaid = (a.paidBackProfileIds || []).includes(debtorProfileId);
+
+      return isTagged && !isExcluded && !isPaid;
+    });
+
+    if (targetActivities.length === 0) return;
+
+    // Optimistically update all target activities in React state
+    setActivities((prev) =>
+      prev.map((a) => {
+        if (!targetActivities.some((t) => t.id === a.id)) return a;
+        const currentPaid = a.paidBackProfileIds || [];
+        return {
+          ...a,
+          paidBackProfileIds: Array.from(new Set([...currentPaid, debtorProfileId])),
+        };
+      })
+    );
+
+    // Persist each updated activity to Supabase
+    try {
+      await Promise.all(
+        targetActivities.map((act) => {
+          const currentPaid = act.paidBackProfileIds || [];
+          const nextPaid = Array.from(new Set([...currentPaid, debtorProfileId]));
+          return updateActivityInSupabase(act.id, {
+            ...act,
+            paidBackProfileIds: nextPaid,
+          });
+        })
+      );
+    } catch (err: any) {
+      console.error('[Supabase settle participant debts error]:', err);
+      setActivityError(err?.message || 'Failed to settle all debts for participant in Supabase');
+    }
+  };
+
+  // Revert / unsettle debts for a participant on specific activities (e.g. undo)
+  const handleUnsettleParticipantDebts = async (debtorProfileId: string, activityIds: string[]) => {
+    setActivityError(null);
+
+    const targetActivities = activities.filter(
+      (a) =>
+        activityIds.includes(a.id) &&
+        (a.paidBackProfileIds || []).includes(debtorProfileId)
+    );
+
+    if (targetActivities.length === 0) return;
+
+    setActivities((prev) =>
+      prev.map((a) => {
+        if (!targetActivities.some((t) => t.id === a.id)) return a;
+        const currentPaid = a.paidBackProfileIds || [];
+        return {
+          ...a,
+          paidBackProfileIds: currentPaid.filter((id) => id !== debtorProfileId),
+        };
+      })
+    );
+
+    try {
+      await Promise.all(
+        targetActivities.map((act) => {
+          const currentPaid = act.paidBackProfileIds || [];
+          const nextPaid = currentPaid.filter((id) => id !== debtorProfileId);
+          return updateActivityInSupabase(act.id, {
+            ...act,
+            paidBackProfileIds: nextPaid,
+          });
+        })
+      );
+    } catch (err: any) {
+      console.error('[Supabase unsettle participant debts error]:', err);
+      setActivityError(err?.message || 'Failed to revert settlement in Supabase');
+    }
+  };
+
   const handleSelectDay = (date: string) => {
     setSelectedTimelineDate(date);
     setActiveTab('schedule');
@@ -875,6 +964,8 @@ export default function App() {
                 onToggleExcludeDebtor={handleToggleExcludeDebtor}
                 onSettleAllDebtors={handleSettleAllDebtors}
                 onReopenDebtors={handleReopenDebtors}
+                onSettleParticipantDebts={handleSettleParticipantDebts}
+                onUnsettleParticipantDebts={handleUnsettleParticipantDebts}
                 onEditActivity={handleOpenEditModal}
                 onAddExpense={handleOpenAddExpense}
                 onEditExpense={handleOpenEditExpense}

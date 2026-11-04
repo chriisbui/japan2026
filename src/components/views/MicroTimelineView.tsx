@@ -498,7 +498,7 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
                           {act.bookingStatus === 'Booked' && (
                             act.costPerPerson > 0 ? (
                               <div className="text-right">
-                                <span className="font-serif font-semibold text-stone-900">${act.costPerPerson}</span>
+                                <span className="font-serif font-semibold text-stone-900">${Number(act.costPerPerson).toFixed(2)}</span>
                                 <span className="text-[10px] text-stone-500"> /person</span>
                               </div>
                             ) : (

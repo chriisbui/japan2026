@@ -153,7 +153,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                     {dayActs.length} {dayActs.length === 1 ? 'event' : 'events'}
                   </span>
                   {dayTotalCost > 0 && (
-                    <span className="text-[11px] text-stone-500 font-serif">${dayTotalCost} est.</span>
+                    <span className="text-[11px] text-stone-500 font-serif">${dayTotalCost.toFixed(2)} est.</span>
                   )}
                 </div>
               </div>
@@ -247,7 +247,7 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
                           </div>
                           {act.bookingStatus === 'Booked' && act.costPerPerson > 0 && (
                             <span className="text-[10px] font-semibold text-stone-600">
-                              ${act.costPerPerson}/p
+                              ${Number(act.costPerPerson).toFixed(2)}/p
                             </span>
                           )}
                         </div>

@@ -114,7 +114,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
           </div>
           <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">My Cost Share</span>
-            <p className="font-serif text-lg font-medium text-stone-900 mt-0.5">${myTotalCost}</p>
+            <p className="font-serif text-lg font-medium text-stone-900 mt-0.5">${myTotalCost.toFixed(2)}</p>
           </div>
           <div className="glass-card p-3 rounded-2xl border border-stone-200/70 hover-lift">
             <span className="text-[11px] font-medium text-stone-500">Bookings to Manage</span>
@@ -270,7 +270,7 @@ export const MyScheduleView: React.FC<MyScheduleViewProps> = ({
                             {act.bookingStatus === 'Booked' && (
                               act.costPerPerson > 0 ? (
                                 <span className="text-xs font-semibold text-stone-900">
-                                  ${act.costPerPerson} <span className="font-normal text-stone-500 text-[11px]">your share</span>
+                                  ${Number(act.costPerPerson).toFixed(2)} <span className="font-normal text-stone-500 text-[11px]">your share</span>
                                 </span>
                               ) : (
                                 <span className="text-xs font-medium text-emerald-700">Free</span>

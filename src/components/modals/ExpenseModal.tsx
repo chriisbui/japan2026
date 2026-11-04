@@ -106,10 +106,10 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     }
   }, [isOpen, fetchExchangeRate]);
 
-  // Convert an amount to AUD if current currency is JPY
+  // Convert an amount to AUD if current currency is JPY (always round to 2 decimal places)
   const toAud = useCallback(
     (amount: number): number => {
-      if (currency === 'AUD') return amount;
+      if (currency === 'AUD') return Math.round(amount * 100) / 100;
       return Math.round(amount * jpyToAudRate * 100) / 100;
     },
     [currency, jpyToAudRate]
@@ -127,7 +127,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         setCategory(normalizeCategory(expenseToEdit.category));
         setDate(expenseToEdit.date || getTodayDateString());
 
-        const cpp = Number(expenseToEdit.costPerPerson) || 0;
+        const cpp = Math.round((Number(expenseToEdit.costPerPerson) || 0) * 100) / 100;
         setCostPerPerson(cpp);
 
         const tagged =
@@ -148,8 +148,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           let totalSum = 0;
           tagged.forEach((pid) => {
             const val = expenseToEdit.customSplitAmounts?.[pid];
-            const num = val !== undefined ? Number(val) : cpp;
-            splitObj[pid] = num ? String(num) : '';
+            const num = val !== undefined ? Math.round(Number(val) * 100) / 100 : cpp;
+            splitObj[pid] = num ? num.toFixed(2) : '';
             totalSum += num || 0;
           });
           setCustomSplits(splitObj);
@@ -178,26 +178,28 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   // Derived financial calculations for non-even split
   const sumOfInputAmounts = useMemo(() => {
-    return Math.round(
-      taggedProfileIds.reduce((sum, pid) => {
-        const val = parseFloat(customSplits[pid] || '0') || 0;
-        return sum + val;
-      }, 0) * 100
-    ) / 100;
-  }, [taggedProfileIds, customSplits]);
+    const sum = taggedProfileIds.reduce((acc, pid) => {
+      const val = parseFloat(customSplits[pid] || '0') || 0;
+      return acc + val;
+    }, 0);
+    return currency === 'JPY' ? Math.round(sum) : Math.round(sum * 100) / 100;
+  }, [taggedProfileIds, customSplits, currency]);
 
   // Total expense cost target
   const totalExpenseCost = useMemo(() => {
     if (isNonEvenSplit) {
-      return Math.round(totalAmountInput * 100) / 100;
+      return currency === 'JPY' ? Math.round(totalAmountInput) : Math.round(totalAmountInput * 100) / 100;
     }
-    return Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
-  }, [isNonEvenSplit, totalAmountInput, costPerPerson, taggedProfileIds.length]);
+    return currency === 'JPY'
+      ? Math.round(costPerPerson * taggedProfileIds.length)
+      : Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
+  }, [isNonEvenSplit, totalAmountInput, costPerPerson, taggedProfileIds.length, currency]);
 
   // Remaining difference between sum of input amounts and total expense cost
   const remaining = useMemo(() => {
-    return Math.round((totalExpenseCost - sumOfInputAmounts) * 100) / 100;
-  }, [totalExpenseCost, sumOfInputAmounts]);
+    const diff = totalExpenseCost - sumOfInputAmounts;
+    return currency === 'JPY' ? Math.round(diff) : Math.round(diff * 100) / 100;
+  }, [totalExpenseCost, sumOfInputAmounts, currency]);
 
   if (!isOpen) return null;
 
@@ -261,7 +263,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     setTaggedProfileIds(nextTagged);
 
     if (!isNonEvenSplit) {
-      setTotalAmountInput(Math.round(costPerPerson * nextTagged.length * 100) / 100);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson * nextTagged.length)
+          : Math.round(costPerPerson * nextTagged.length * 100) / 100
+      );
     } else {
       if (!taggedProfileIds.includes(pid) && customSplits[pid] === undefined) {
         setCustomSplits((prev) => ({
@@ -277,7 +283,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     setTaggedProfileIds(all);
     setErrorMessage(null);
     if (!isNonEvenSplit) {
-      setTotalAmountInput(Math.round(costPerPerson * all.length * 100) / 100);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson * all.length)
+          : Math.round(costPerPerson * all.length * 100) / 100
+      );
     }
   };
 
@@ -285,20 +295,28 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     setTaggedProfileIds([activeProfileId]);
     setErrorMessage(null);
     if (!isNonEvenSplit) {
-      setTotalAmountInput(costPerPerson);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson)
+          : Math.round(costPerPerson * 100) / 100
+      );
     }
   };
 
   // Handle per person change
   const handleCostPerPersonChange = (val: number) => {
     const safeVal = Math.max(0, val);
-    setCostPerPerson(safeVal);
-    const newTotal = Math.round(safeVal * taggedProfileIds.length * 100) / 100;
+    const roundedCpp = currency === 'JPY' ? Math.round(safeVal) : Math.round(safeVal * 100) / 100;
+    setCostPerPerson(roundedCpp);
+    const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+    const newTotal =
+      currency === 'JPY'
+        ? Math.round(roundedCpp * count)
+        : Math.round(roundedCpp * count * 100) / 100;
     setTotalAmountInput(newTotal);
 
     if (isNonEvenSplit) {
-      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-      const evenVal = currency === 'JPY' ? Math.round(newTotal / count).toString() : (newTotal / count).toFixed(2);
+      const evenVal = currency === 'JPY' ? roundedCpp.toString() : roundedCpp.toFixed(2);
       const nextSplits: Record<string, string> = {};
       taggedProfileIds.forEach((pid) => {
         nextSplits[pid] = evenVal;
@@ -310,9 +328,50 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   // Handle total amount change
   const handleTotalAmountChange = (val: number) => {
     const safeVal = Math.max(0, val);
-    setTotalAmountInput(safeVal);
     const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-    setCostPerPerson(Math.round((safeVal / count) * 100) / 100);
+    if (currency === 'JPY') {
+      const roundedTotal = Math.round(safeVal);
+      setTotalAmountInput(roundedTotal);
+      // Auto calculates the cost per person in Yen, ALWAYS ROUNDED so it doesn't cause any step or decimal errors
+      const calculatedCpp = Math.round(roundedTotal / count);
+      setCostPerPerson(calculatedCpp);
+
+      if (isNonEvenSplit) {
+        const baseShare = Math.floor(roundedTotal / count);
+        let extraYen = roundedTotal - baseShare * count;
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          let share = baseShare;
+          if (extraYen > 0) {
+            share += 1;
+            extraYen -= 1;
+          }
+          nextSplits[pid] = String(share);
+        });
+        setCustomSplits(nextSplits);
+      }
+    } else {
+      const roundedTotal = Math.round(safeVal * 100) / 100;
+      setTotalAmountInput(roundedTotal);
+      // Auto calculates the cost per person in dollars, ALWAYS ROUNDED to 2 decimal places
+      const calculatedCpp = Math.round((roundedTotal / count) * 100) / 100;
+      setCostPerPerson(calculatedCpp);
+
+      if (isNonEvenSplit) {
+        const baseShare = Math.floor((roundedTotal / count) * 100) / 100;
+        let extraCents = Math.round((roundedTotal - baseShare * count) * 100);
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          let share = baseShare;
+          if (extraCents > 0) {
+            share += 0.01;
+            extraCents -= 1;
+          }
+          nextSplits[pid] = share.toFixed(2);
+        });
+        setCustomSplits(nextSplits);
+      }
+    }
   };
 
   // Toggle non-even split option
@@ -322,17 +381,55 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
     if (checked) {
       const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-      const targetTotal = totalAmountInput > 0 ? totalAmountInput : costPerPerson * count;
-      const baseShare = count > 0 ? (currency === 'JPY' ? Math.round(targetTotal / count).toString() : (targetTotal / count).toFixed(2)) : '0';
+      const targetTotal =
+        totalAmountInput > 0
+          ? totalAmountInput
+          : currency === 'JPY'
+          ? Math.round(costPerPerson * count)
+          : Math.round(costPerPerson * count * 100) / 100;
 
-      const nextSplits: Record<string, string> = {};
-      taggedProfileIds.forEach((pid) => {
-        nextSplits[pid] = customSplits[pid] && customSplits[pid] !== '' ? customSplits[pid] : (targetTotal > 0 ? baseShare : '');
-      });
-      setCustomSplits(nextSplits);
-
-      if (totalAmountInput === 0 && costPerPerson > 0) {
-        setTotalAmountInput(Math.round(costPerPerson * count * 100) / 100);
+      if (currency === 'JPY') {
+        const roundedTarget = Math.round(targetTotal);
+        const baseShare = Math.floor(roundedTarget / count);
+        let extraYen = roundedTarget - baseShare * count;
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          if (customSplits[pid] && customSplits[pid] !== '') {
+            nextSplits[pid] = customSplits[pid];
+          } else {
+            let share = baseShare;
+            if (extraYen > 0) {
+              share += 1;
+              extraYen -= 1;
+            }
+            nextSplits[pid] = String(share);
+          }
+        });
+        setCustomSplits(nextSplits);
+        if (totalAmountInput === 0 && costPerPerson > 0) {
+          setTotalAmountInput(roundedTarget);
+        }
+      } else {
+        const roundedTarget = Math.round(targetTotal * 100) / 100;
+        const baseShare = Math.floor((roundedTarget / count) * 100) / 100;
+        let extraCents = Math.round((roundedTarget - baseShare * count) * 100);
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          if (customSplits[pid] && customSplits[pid] !== '') {
+            nextSplits[pid] = customSplits[pid];
+          } else {
+            let share = baseShare;
+            if (extraCents > 0) {
+              share += 0.01;
+              extraCents -= 1;
+            }
+            nextSplits[pid] = share.toFixed(2);
+          }
+        });
+        setCustomSplits(nextSplits);
+        if (totalAmountInput === 0 && costPerPerson > 0) {
+          setTotalAmountInput(roundedTarget);
+        }
       }
     }
   };
@@ -399,7 +496,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const handleSyncTotalToSum = () => {
     setTotalAmountInput(sumOfInputAmounts);
     const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-    setCostPerPerson(Math.round((sumOfInputAmounts / count) * 100) / 100);
+    if (currency === 'JPY') {
+      setCostPerPerson(Math.round(sumOfInputAmounts / count));
+    } else {
+      setCostPerPerson(Math.round((sumOfInputAmounts / count) * 100) / 100);
+    }
   };
 
   // Quick helper: Reset non-even split amounts equally
@@ -474,7 +575,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       }
     }
 
-    // Convert and store all amounts in AUD!
+    // Convert and store all amounts in AUD (rounded to 2 decimal places)!
     let finalAudCostPerPerson = 0;
     let parsedCustomSplitsInAud: Record<string, number> | undefined = undefined;
 
@@ -504,7 +605,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       title: title.trim(),
       category,
       date,
-      costPerPerson: Number(finalAudCostPerPerson),
+      costPerPerson: Number(finalAudCostPerPerson.toFixed(2)),
       whoPaidId,
       taggedProfileIds,
       bookingStatus: 'Booked',
@@ -533,9 +634,13 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   } else {
     amountToRecover = costPerPerson * debtorCount;
   }
-  amountToRecover = Math.round(amountToRecover * 100) / 100;
+  amountToRecover = currency === 'JPY' ? Math.round(amountToRecover) : Math.round(amountToRecover * 100) / 100;
 
-  const totalFrontedDisplay = isNonEvenSplit ? totalExpenseCost : Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
+  const totalFrontedDisplay = isNonEvenSplit
+    ? totalExpenseCost
+    : currency === 'JPY'
+    ? Math.round(costPerPerson * taggedProfileIds.length)
+    : Math.round(costPerPerson * taggedProfileIds.length * 100) / 100;
 
   const currencySymbol = currency === 'JPY' ? '¥' : '$';
 
@@ -801,7 +906,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     min="0"
                     step={currency === 'JPY' ? '1' : '0.01'}
                     placeholder={currency === 'JPY' ? '0' : '0.00'}
-                    value={costPerPerson === 0 ? '' : costPerPerson}
+                    value={costPerPerson === 0 ? '' : (currency === 'JPY' ? Math.round(costPerPerson) : costPerPerson)}
                     onChange={(e) => handleCostPerPersonChange(parseFloat(e.target.value) || 0)}
                     disabled={isNonEvenSplit}
                     className={`w-full pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
@@ -829,7 +934,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                     min="0"
                     step={currency === 'JPY' ? '1' : '0.01'}
                     placeholder={currency === 'JPY' ? '0' : '0.00'}
-                    value={totalAmountInput === 0 ? '' : totalAmountInput}
+                    value={totalAmountInput === 0 ? '' : (currency === 'JPY' ? Math.round(totalAmountInput) : totalAmountInput)}
                     onChange={(e) => handleTotalAmountChange(parseFloat(e.target.value) || 0)}
                     className="w-full pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                   />
@@ -942,7 +1047,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                               : 'text-rose-700'
                           }`}
                         >
-                          {remaining < 0 ? `-${currencySymbol}${Math.abs(remaining).toLocaleString()}` : `${currencySymbol}${remaining.toLocaleString()}`}
+                          {remaining < 0
+                            ? `-${currencySymbol}${currency === 'JPY' ? Math.round(Math.abs(remaining)).toLocaleString() : Math.abs(remaining).toFixed(2)}`
+                            : `${currencySymbol}${currency === 'JPY' ? Math.round(remaining).toLocaleString() : remaining.toFixed(2)}`}
                         </span>
                         {currency === 'JPY' && Math.abs(remaining) >= 1 && (
                           <span className="text-[11px] text-stone-600 font-medium">
@@ -976,7 +1083,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                             className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-stone-300 hover:border-emerald-400 rounded-lg text-stone-700 hover:text-emerald-800 hover:bg-emerald-50/50 transition-colors cursor-pointer shadow-2xs"
                             title="Set total expense cost to match sum of inputs"
                           >
-                            Set Total ({currencySymbol}{sumOfInputAmounts.toLocaleString()})
+                            Set Total ({currencySymbol}{currency === 'JPY' ? Math.round(sumOfInputAmounts).toLocaleString() : sumOfInputAmounts.toFixed(2)})
                           </button>
                         </>
                       )}

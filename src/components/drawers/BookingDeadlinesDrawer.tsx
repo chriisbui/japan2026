@@ -200,8 +200,8 @@ export const BookingDeadlinesDrawer: React.FC<BookingDeadlinesDrawerProps> = ({
                       <div className="flex items-center gap-1.5 truncate">
                         <DollarSign className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                         <span>
-                          ${activity.costPerPerson}/person ($
-                          {activity.costPerPerson * (activity.taggedProfileIds?.length || 1)} total)
+                          ${Number(activity.costPerPerson).toFixed(2)}/person ($
+                          {(Number(activity.costPerPerson) * (activity.taggedProfileIds?.length || 1)).toFixed(2)} total)
                         </span>
                       </div>
                     )}

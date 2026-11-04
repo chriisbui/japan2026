@@ -546,7 +546,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   // Total cost of the transaction
   const totalExpenseCost = useMemo(() => {
     if (totalAmountInput > 0) {
-      return totalAmountInput;
+      return currency === 'JPY' ? Math.round(totalAmountInput) : Math.round(totalAmountInput * 100) / 100;
     }
     const count = taggedProfileIds.length;
     return currency === 'JPY' ? Math.round(costPerPerson * count) : Math.round(costPerPerson * count * 100) / 100;
@@ -602,13 +602,17 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   // Handle per person change
   const handleCostPerPersonChange = (val: number) => {
     const safeVal = Math.max(0, val);
-    setCostPerPerson(safeVal);
-    const newTotal = Math.round(safeVal * taggedProfileIds.length * 100) / 100;
+    const roundedCpp = currency === 'JPY' ? Math.round(safeVal) : Math.round(safeVal * 100) / 100;
+    setCostPerPerson(roundedCpp);
+    const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
+    const newTotal =
+      currency === 'JPY'
+        ? Math.round(roundedCpp * count)
+        : Math.round(roundedCpp * count * 100) / 100;
     setTotalAmountInput(newTotal);
 
     if (isNonEvenSplit) {
-      const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-      const evenVal = currency === 'JPY' ? Math.round(newTotal / count).toString() : (newTotal / count).toFixed(2);
+      const evenVal = currency === 'JPY' ? roundedCpp.toString() : roundedCpp.toFixed(2);
       const nextSplits: Record<string, string> = {};
       taggedProfileIds.forEach((pid) => {
         nextSplits[pid] = evenVal;
@@ -620,9 +624,50 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   // Handle total amount change
   const handleTotalAmountChange = (val: number) => {
     const safeVal = Math.max(0, val);
-    setTotalAmountInput(safeVal);
     const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-    setCostPerPerson(Math.round((safeVal / count) * 100) / 100);
+    if (currency === 'JPY') {
+      const roundedTotal = Math.round(safeVal);
+      setTotalAmountInput(roundedTotal);
+      // Auto calculates the cost per person in Yen, ALWAYS ROUNDED so it doesn't cause any step or decimal errors
+      const calculatedCpp = Math.round(roundedTotal / count);
+      setCostPerPerson(calculatedCpp);
+
+      if (isNonEvenSplit) {
+        const baseShare = Math.floor(roundedTotal / count);
+        let extraYen = roundedTotal - baseShare * count;
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          let share = baseShare;
+          if (extraYen > 0) {
+            share += 1;
+            extraYen -= 1;
+          }
+          nextSplits[pid] = String(share);
+        });
+        setCustomSplits(nextSplits);
+      }
+    } else {
+      const roundedTotal = Math.round(safeVal * 100) / 100;
+      setTotalAmountInput(roundedTotal);
+      // Auto calculates the cost per person in dollars, ALWAYS ROUNDED to 2 decimal places
+      const calculatedCpp = Math.round((roundedTotal / count) * 100) / 100;
+      setCostPerPerson(calculatedCpp);
+
+      if (isNonEvenSplit) {
+        const baseShare = Math.floor((roundedTotal / count) * 100) / 100;
+        let extraCents = Math.round((roundedTotal - baseShare * count) * 100);
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          let share = baseShare;
+          if (extraCents > 0) {
+            share += 0.01;
+            extraCents -= 1;
+          }
+          nextSplits[pid] = share.toFixed(2);
+        });
+        setCustomSplits(nextSplits);
+      }
+    }
   };
 
   // Toggle non-even split option
@@ -631,17 +676,55 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
     if (checked) {
       const count = taggedProfileIds.length > 0 ? taggedProfileIds.length : 1;
-      const targetTotal = totalAmountInput > 0 ? totalAmountInput : costPerPerson * count;
-      const baseShare = count > 0 ? (currency === 'JPY' ? Math.round(targetTotal / count).toString() : (targetTotal / count).toFixed(2)) : '0';
+      const targetTotal =
+        totalAmountInput > 0
+          ? totalAmountInput
+          : currency === 'JPY'
+          ? Math.round(costPerPerson * count)
+          : Math.round(costPerPerson * count * 100) / 100;
 
-      const nextSplits: Record<string, string> = {};
-      taggedProfileIds.forEach((pid) => {
-        nextSplits[pid] = customSplits[pid] && customSplits[pid] !== '' ? customSplits[pid] : (targetTotal > 0 ? baseShare : '');
-      });
-      setCustomSplits(nextSplits);
-
-      if (totalAmountInput === 0 && costPerPerson > 0) {
-        setTotalAmountInput(Math.round(costPerPerson * count * 100) / 100);
+      if (currency === 'JPY') {
+        const roundedTarget = Math.round(targetTotal);
+        const baseShare = Math.floor(roundedTarget / count);
+        let extraYen = roundedTarget - baseShare * count;
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          if (customSplits[pid] && customSplits[pid] !== '') {
+            nextSplits[pid] = customSplits[pid];
+          } else {
+            let share = baseShare;
+            if (extraYen > 0) {
+              share += 1;
+              extraYen -= 1;
+            }
+            nextSplits[pid] = String(share);
+          }
+        });
+        setCustomSplits(nextSplits);
+        if (totalAmountInput === 0 && costPerPerson > 0) {
+          setTotalAmountInput(roundedTarget);
+        }
+      } else {
+        const roundedTarget = Math.round(targetTotal * 100) / 100;
+        const baseShare = Math.floor((roundedTarget / count) * 100) / 100;
+        let extraCents = Math.round((roundedTarget - baseShare * count) * 100);
+        const nextSplits: Record<string, string> = {};
+        taggedProfileIds.forEach((pid) => {
+          if (customSplits[pid] && customSplits[pid] !== '') {
+            nextSplits[pid] = customSplits[pid];
+          } else {
+            let share = baseShare;
+            if (extraCents > 0) {
+              share += 0.01;
+              extraCents -= 1;
+            }
+            nextSplits[pid] = share.toFixed(2);
+          }
+        });
+        setCustomSplits(nextSplits);
+        if (totalAmountInput === 0 && costPerPerson > 0) {
+          setTotalAmountInput(roundedTarget);
+        }
       }
     }
   };
@@ -714,7 +797,11 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     setTaggedProfileIds(nextTagged);
 
     if (!isNonEvenSplit) {
-      setTotalAmountInput(Math.round(costPerPerson * nextTagged.length * 100) / 100);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson * nextTagged.length)
+          : Math.round(costPerPerson * nextTagged.length * 100) / 100
+      );
     } else {
       if (!taggedProfileIds.includes(pid) && customSplits[pid] === undefined) {
         setCustomSplits((prev) => ({
@@ -729,14 +816,22 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     const all = profiles.map((p) => p.id);
     setTaggedProfileIds(all);
     if (!isNonEvenSplit) {
-      setTotalAmountInput(Math.round(costPerPerson * all.length * 100) / 100);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson * all.length)
+          : Math.round(costPerPerson * all.length * 100) / 100
+      );
     }
   };
 
   const selectOnlyMe = () => {
     setTaggedProfileIds([activeProfileId]);
     if (!isNonEvenSplit) {
-      setTotalAmountInput(costPerPerson);
+      setTotalAmountInput(
+        currency === 'JPY'
+          ? Math.round(costPerPerson)
+          : Math.round(costPerPerson * 100) / 100
+      );
     }
   };
 
@@ -860,7 +955,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
         finalAudCostPerPerson =
           currency === 'JPY'
             ? Math.round(costPerPerson * jpyToAudRate * 100) / 100
-            : Number(costPerPerson) || 0;
+            : Math.round((Number(costPerPerson) || 0) * 100) / 100;
       }
     }
 
@@ -879,7 +974,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
       placeId: finalPlaceId,
       formattedAddress: finalFormattedAddress || (location.trim() ? location.trim() : undefined),
       description: description.trim(),
-      costPerPerson: finalAudCostPerPerson,
+      costPerPerson: Number(finalAudCostPerPerson.toFixed(2)),
       whoPaidId,
       taggedProfileIds: isIdea ? [] : taggedProfileIds,
       hostProfileId,
@@ -1571,7 +1666,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                       min="0"
                       step={currency === 'JPY' ? '1' : '0.01'}
                       placeholder={currency === 'JPY' ? '0' : '0.00'}
-                      value={costPerPerson === 0 ? '' : costPerPerson}
+                      value={costPerPerson === 0 ? '' : (currency === 'JPY' ? Math.round(costPerPerson) : costPerPerson)}
                       onChange={(e) => handleCostPerPersonChange(parseFloat(e.target.value) || 0)}
                       disabled={isNonEvenSplit}
                       className={`w-full pl-7 pr-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
@@ -1599,7 +1694,7 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                       min="0"
                       step={currency === 'JPY' ? '1' : '0.01'}
                       placeholder={currency === 'JPY' ? '0' : '0.00'}
-                      value={totalAmountInput === 0 ? '' : totalAmountInput}
+                      value={totalAmountInput === 0 ? '' : (currency === 'JPY' ? Math.round(totalAmountInput) : totalAmountInput)}
                       onChange={(e) => handleTotalAmountChange(parseFloat(e.target.value) || 0)}
                       className="w-full pl-7 pr-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -1729,8 +1824,8 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
                             }`}
                           >
                             {remaining < 0
-                              ? `-${currency === 'JPY' ? '¥' : '$'}${Math.abs(remaining).toLocaleString()}`
-                              : `${currency === 'JPY' ? '¥' : '$'}${remaining.toLocaleString()}`}
+                              ? `-${currency === 'JPY' ? '¥' : '$'}${currency === 'JPY' ? Math.round(Math.abs(remaining)).toLocaleString() : Math.abs(remaining).toFixed(2)}`
+                              : `${currency === 'JPY' ? '¥' : '$'}${currency === 'JPY' ? Math.round(remaining).toLocaleString() : remaining.toFixed(2)}`}
                           </span>
                           {currency === 'JPY' && Math.abs(remaining) >= 1 && (
                             <span className="text-[11px] text-stone-600 font-medium">
