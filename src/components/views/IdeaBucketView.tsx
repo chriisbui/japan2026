@@ -200,14 +200,11 @@ export const IdeaBucketView: React.FC<IdeaBucketViewProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-serif font-normal text-stone-900 tracking-tight">Idea Bucket</h2>
+              <h2 className="text-xl sm:text-2xl font-serif font-normal text-stone-900 tracking-tight">Ideas</h2>
               <span className="text-xs bg-teal-50/80 text-teal-900 border border-teal-200/90 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                 {ideas.length} ideas
               </span>
             </div>
-            <p className="text-xs text-stone-500 line-clamp-1 mt-0.5">
-              Wishlist spots, restaurants, and activities. Vote on favorites and slot into the schedule.
-            </p>
           </div>
         </div>
 

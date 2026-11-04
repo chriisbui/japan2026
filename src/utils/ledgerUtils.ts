@@ -304,3 +304,214 @@ export function getActivityExpenseBreakdown(activity: Activity): ActivityExpense
     isSettled,
   };
 }
+
+export interface UnsettledDebtorShare {
+  debtorId: string;
+  amount: number;
+  paid: boolean;
+}
+
+export interface UnsettledActivityDetail {
+  activity: Activity;
+  payerId: string;
+  totalCost: number;
+  unpaidDebtors: UnsettledDebtorShare[];
+  paidDebtors: UnsettledDebtorShare[];
+  totalUnsettledAmount: number;
+}
+
+export interface ContributingDebtItem {
+  activity: Activity;
+  payerId: string;
+  amount: number;
+  isDirectToReceiver: boolean;
+}
+
+export interface ContributingReceivableItem {
+  activity: Activity;
+  totalUnsettled: number;
+  unpaidDebtors: UnsettledDebtorShare[];
+  involvesSender: boolean;
+}
+
+export interface DetailedSettlementTransfer {
+  settlement: SettlementTransaction;
+  fromProfile?: Profile;
+  toProfile?: Profile;
+  fromDebts: ContributingDebtItem[];
+  toReceivables: ContributingReceivableItem[];
+  directBilateralDebts: ContributingDebtItem[];
+  directBilateralAmount: number;
+  indirectReroutedAmount: number;
+}
+
+export interface MemberUnsettledSummary {
+  profileId: string;
+  totalOwedToOthers: number;
+  totalOwedFromOthers: number;
+  netBalance: number;
+  unsettledDebts: { activity: Activity; payerId: string; amount: number }[];
+  unsettledReceivables: { activity: Activity; debtorId: string; amount: number }[];
+}
+
+export interface DetailedSettlementSummary {
+  unsettledActivities: UnsettledActivityDetail[];
+  totalUnsettledAmount: number;
+  totalDirectDebtsCount: number;
+  transfers: DetailedSettlementTransfer[];
+  memberSummaries: Record<string, MemberUnsettledSummary>;
+}
+
+export function getDetailedSettlementSummary(
+  activities: Activity[],
+  profiles: Profile[]
+): DetailedSettlementSummary {
+  const profileMap = new Map(profiles.map((p) => [p.id, p]));
+  const bookedActivities = activities.filter(
+    (a) => !a.isIdea && a.bookingStatus === 'Booked' && Number(a.costPerPerson) > 0
+  );
+
+  const unsettledActivities: UnsettledActivityDetail[] = [];
+  let totalUnsettledAmount = 0;
+  let totalDirectDebtsCount = 0;
+
+  const memberSummaries: Record<string, MemberUnsettledSummary> = {};
+  profiles.forEach((p) => {
+    memberSummaries[p.id] = {
+      profileId: p.id,
+      totalOwedToOthers: 0,
+      totalOwedFromOthers: 0,
+      netBalance: 0,
+      unsettledDebts: [],
+      unsettledReceivables: [],
+    };
+  });
+
+  bookedActivities.forEach((act) => {
+    const payerId = act.whoPaidId;
+    const isPayerValid = Boolean(payerId && payerId !== 'unpaid' && profileMap.has(payerId));
+    if (!isPayerValid) return;
+
+    const bd = getActivityExpenseBreakdown(act);
+    if (bd.unpaidDebtorIds.length === 0) return;
+
+    const hasCustomSplits = Boolean(
+      act.isNonEvenSplit &&
+      act.customSplitAmounts &&
+      Object.keys(act.customSplitAmounts).length > 0
+    );
+
+    const costPerPerson = Number(act.costPerPerson) || 0;
+
+    const unpaidDebtors: UnsettledDebtorShare[] = bd.unpaidDebtorIds.map((did) => {
+      const share = hasCustomSplits ? (act.customSplitAmounts?.[did] ?? costPerPerson) : costPerPerson;
+      return { debtorId: did, amount: Math.round(share * 100) / 100, paid: false };
+    });
+
+    const paidDebtors: UnsettledDebtorShare[] = bd.paidDebtorIds.map((did) => {
+      const share = hasCustomSplits ? (act.customSplitAmounts?.[did] ?? costPerPerson) : costPerPerson;
+      return { debtorId: did, amount: Math.round(share * 100) / 100, paid: true };
+    });
+
+    const activityUnsettledTotal = unpaidDebtors.reduce((sum, d) => sum + d.amount, 0);
+    totalUnsettledAmount += activityUnsettledTotal;
+    totalDirectDebtsCount += unpaidDebtors.length;
+
+    unsettledActivities.push({
+      activity: act,
+      payerId,
+      totalCost: bd.totalCost,
+      unpaidDebtors,
+      paidDebtors,
+      totalUnsettledAmount: Math.round(activityUnsettledTotal * 100) / 100,
+    });
+
+    // Populate member summaries
+    unpaidDebtors.forEach((debtor) => {
+      if (memberSummaries[debtor.debtorId]) {
+        memberSummaries[debtor.debtorId].totalOwedToOthers += debtor.amount;
+        memberSummaries[debtor.debtorId].unsettledDebts.push({
+          activity: act,
+          payerId,
+          amount: debtor.amount,
+        });
+      }
+      if (memberSummaries[payerId]) {
+        memberSummaries[payerId].totalOwedFromOthers += debtor.amount;
+        memberSummaries[payerId].unsettledReceivables.push({
+          activity: act,
+          debtorId: debtor.debtorId,
+          amount: debtor.amount,
+        });
+      }
+    });
+  });
+
+  // Calculate net balances for each member based on unsettled debts
+  profiles.forEach((p) => {
+    const mem = memberSummaries[p.id];
+    mem.totalOwedToOthers = Math.round(mem.totalOwedToOthers * 100) / 100;
+    mem.totalOwedFromOthers = Math.round(mem.totalOwedFromOthers * 100) / 100;
+    mem.netBalance = Math.round((mem.totalOwedFromOthers - mem.totalOwedToOthers) * 100) / 100;
+  });
+
+  // Calculate standard settlements
+  const ledger = calculateLedger(activities, profiles);
+
+  // Map each settlement transfer to its contributing transactions
+  const transfers: DetailedSettlementTransfer[] = ledger.settlements.map((tx) => {
+    const fromProfile = profileMap.get(tx.fromId);
+    const toProfile = profileMap.get(tx.toId);
+
+    // Debts where tx.fromId owes money
+    const fromDebts: ContributingDebtItem[] = [];
+    unsettledActivities.forEach((uAct) => {
+      const match = uAct.unpaidDebtors.find((d) => d.debtorId === tx.fromId);
+      if (match) {
+        fromDebts.push({
+          activity: uAct.activity,
+          payerId: uAct.payerId,
+          amount: match.amount,
+          isDirectToReceiver: uAct.payerId === tx.toId,
+        });
+      }
+    });
+
+    // Receivables where tx.toId is owed money
+    const toReceivables: ContributingReceivableItem[] = [];
+    unsettledActivities.forEach((uAct) => {
+      if (uAct.payerId === tx.toId) {
+        toReceivables.push({
+          activity: uAct.activity,
+          totalUnsettled: uAct.totalUnsettledAmount,
+          unpaidDebtors: uAct.unpaidDebtors,
+          involvesSender: uAct.unpaidDebtors.some((d) => d.debtorId === tx.fromId),
+        });
+      }
+    });
+
+    const directBilateralDebts = fromDebts.filter((d) => d.isDirectToReceiver);
+    const directBilateralAmount = directBilateralDebts.reduce((sum, d) => sum + d.amount, 0);
+    const indirectReroutedAmount = Math.max(0, Math.round((tx.amount - directBilateralAmount) * 100) / 100);
+
+    return {
+      settlement: tx,
+      fromProfile,
+      toProfile,
+      fromDebts,
+      toReceivables,
+      directBilateralDebts,
+      directBilateralAmount: Math.round(directBilateralAmount * 100) / 100,
+      indirectReroutedAmount,
+    };
+  });
+
+  return {
+    unsettledActivities,
+    totalUnsettledAmount: Math.round(totalUnsettledAmount * 100) / 100,
+    totalDirectDebtsCount,
+    transfers,
+    memberSummaries,
+  };
+}
+

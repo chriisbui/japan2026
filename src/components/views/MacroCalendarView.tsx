@@ -75,15 +75,12 @@ export const MacroCalendarView: React.FC<MacroCalendarViewProps> = ({
         {/* Soft atmospheric ambient light aura */}
         <div className="absolute -top-16 -right-16 w-64 h-64 bg-gradient-to-br from-teal-200/30 via-sky-200/25 to-emerald-200/20 rounded-full blur-3xl pointer-events-none animate-float-ambient" />
         <div className="relative z-10">
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-teal-900/75 block mb-0.5">
-            Full Itinerary Overview
-          </span>
           <h2 className="text-2xl sm:text-3xl font-serif font-normal text-stone-900 tracking-tight flex items-center gap-2.5">
             <Calendar className="w-5 h-5 text-stone-600" />
             Calendar
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            {days.length}-day journey overview. Click any day card to expand its hour-by-hour schedule.
+            Click any day card to expand its hour-by-hour schedule.
           </p>
         </div>
         <div className="relative z-10 flex items-center gap-2 text-xs text-stone-600 flex-wrap">

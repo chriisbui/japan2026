@@ -5,6 +5,7 @@ import { CATEGORIES_META, CATEGORY_LIST } from '../../data/categories';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { formatDatePretty } from '../../utils/dateUtils';
+import { DetailedSettlementView } from './DetailedSettlementView';
 import {
   DollarSign,
   ArrowRight,
@@ -67,6 +68,8 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 }) => {
   // Primary view tabs: 'active' (unsettled) | 'settled' (settled history) | 'owe' (what I owe) | 'balances' (group breakdown)
   const [viewTab, setViewTab] = useState<'active' | 'settled' | 'owe' | 'balances'>('active');
+  // In Balances tab: 'summary' (overview charts & balances) | 'detailed' (simplified settlement plan + contributing transactions)
+  const [balancesMode, setBalancesMode] = useState<'summary' | 'detailed'>('summary');
   // Track open/collapsed activities
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   // Settlement text copy status
@@ -191,9 +194,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="text-[10px] uppercase font-semibold tracking-wider text-amber-900/70 block mb-1">
-              Trip Balances & Settlements
-            </span>
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-full bg-stone-900 text-emerald-300 flex items-center justify-center shrink-0 shadow-2xs">
                 <DollarSign className="w-5 h-5" />
@@ -202,9 +202,6 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
                 Expenses & Reimbursements
               </h1>
             </div>
-            <p className="text-xs text-stone-500 mt-1">
-              Track itinerary and standalone group expenses you fronted, mark who has paid you back, and settle balances.
-            </p>
           </div>
 
           <div className="relative z-10 flex items-center gap-2.5 self-start md:self-auto flex-wrap">
@@ -285,77 +282,81 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
 
       {/* Navigation Sub-Tabs (Pill Segmented Control) */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200/50 pb-3">
-        <div className="glass-pill rounded-full p-1 inline-flex items-center gap-1 flex-wrap">
-          {/* Main Active tab */}
-          <button
-            onClick={() => setViewTab('active')}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              viewTab === 'active'
-                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
-            }`}
-          >
-            <span>Paid by You</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                viewTab === 'active' ? 'bg-white/20 text-white' : 'bg-stone-200/80 text-stone-700'
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="glass-pill rounded-full p-1 inline-flex items-center gap-1 flex-wrap">
+            {/* Main Active tab */}
+            <button
+              onClick={() => setViewTab('active')}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                viewTab === 'active'
+                  ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
               }`}
             >
-              {activePayerActivities.length}
-            </span>
-          </button>
-
-          {/* Dedicated Settled Button */}
-          <button
-            id="settled-transactions-btn"
-            onClick={() => setViewTab('settled')}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              viewTab === 'settled'
-                ? 'bg-emerald-700 text-white shadow-2xs font-semibold'
-                : 'text-emerald-800 hover:bg-emerald-50/70'
-            }`}
-            title="View past already settled transactions"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Settled</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                viewTab === 'settled' ? 'bg-white/25 text-white' : 'bg-emerald-200/80 text-emerald-900'
-              }`}
-            >
-              {settledPayerActivities.length}
-            </span>
-          </button>
-
-          {/* What I Owe Tab */}
-          <button
-            onClick={() => setViewTab('owe')}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              viewTab === 'owe'
-                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
-            }`}
-          >
-            <span>What You Owe</span>
-            {unpaidActivitiesIOwe.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold">
-                {unpaidActivitiesIOwe.length}
+              <span>Paid by You</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  viewTab === 'active' ? 'bg-white/20 text-white' : 'bg-stone-200/80 text-stone-700'
+                }`}
+              >
+                {activePayerActivities.length}
               </span>
-            )}
-          </button>
+            </button>
 
-          {/* Group Balances & Cash Flow Tab */}
-          <button
-            onClick={() => setViewTab('balances')}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              viewTab === 'balances'
-                ? 'bg-stone-900 text-white shadow-2xs font-semibold'
-                : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
-            }`}
-          >
-            <Scale className="w-3.5 h-3.5 text-stone-400" />
-            <span>Overall Balances</span>
-          </button>
+            {/* What I Owe Tab */}
+            <button
+              onClick={() => setViewTab('owe')}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                viewTab === 'owe'
+                  ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
+              }`}
+            >
+              <span>What You Owe</span>
+              {unpaidActivitiesIOwe.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold">
+                  {unpaidActivitiesIOwe.length}
+                </span>
+              )}
+            </button>
+
+            {/* Dedicated Settled Button */}
+            <button
+              id="settled-transactions-btn"
+              onClick={() => setViewTab('settled')}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                viewTab === 'settled'
+                  ? 'bg-emerald-700 text-white shadow-2xs font-semibold'
+                  : 'text-emerald-800 hover:bg-emerald-50/70'
+              }`}
+              title="View past already settled transactions"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Settled</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  viewTab === 'settled' ? 'bg-white/25 text-white' : 'bg-emerald-200/80 text-emerald-900'
+                }`}
+              >
+                {settledPayerActivities.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Group Balances & Cash Flow Tab in its own separate pill */}
+          <div className="glass-pill rounded-full p-1 inline-flex items-center">
+            <button
+              onClick={() => setViewTab('balances')}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                viewTab === 'balances'
+                  ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/70'
+              }`}
+            >
+              <Scale className={`w-3.5 h-3.5 ${viewTab === 'balances' ? 'text-teal-300' : 'text-stone-400'}`} />
+              <span>Overall Balances</span>
+            </button>
+          </div>
         </div>
 
         {viewTab === 'active' && activePayerActivities.length > 0 && (
@@ -1118,232 +1119,312 @@ export const ExpenseLedgerView: React.FC<ExpenseLedgerViewProps> = ({
       {/* VIEW 4: GROUP BALANCES & SIMPLIFIED CASH FLOW SETTLEMENT PLAN */}
       {viewTab === 'balances' && (
         <div className="space-y-6">
-          {/* 6 Members Financial Ledger Cards */}
-          <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
-              <div>
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-indigo-600" />
-                  Individual Member Balances & Spending Breakdown
-                </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Tracks total payments made vs. personal share of tagged activities across all 6 members.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {profiles.map((profile) => {
-                const fin = ledger.memberFinancials[profile.id] || {
-                  totalPaid: 0,
-                  totalOwed: 0,
-                  netBalance: 0,
-                };
-                const isMe = profile.id === activeProfileId;
-                const isCreditor = fin.netBalance > 0.01;
-                const isDebtor = fin.netBalance < -0.01;
-
-                return (
-                  <div
-                    key={profile.id}
-                    className={`p-4 rounded-xl border transition-all ${
-                      isMe
-                        ? 'bg-stone-50/80 border-indigo-300 ring-1 ring-indigo-200'
-                        : 'bg-white border-stone-200'
+          {/* Sub-mode switcher within Balances */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-100/80 p-1.5 rounded-2xl border border-stone-200/80">
+            <div className="glass-pill rounded-full p-1 inline-flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setBalancesMode('summary')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                  balancesMode === 'summary'
+                    ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                }`}
+              >
+                <PieChart className="w-3.5 h-3.5" />
+                <span>Balances Overview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBalancesMode('detailed')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                  balancesMode === 'detailed'
+                    ? 'bg-stone-900 text-white shadow-2xs font-semibold'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                }`}
+              >
+                <Sparkles
+                  className={`w-3.5 h-3.5 ${
+                    balancesMode === 'detailed' ? 'text-emerald-300' : 'text-emerald-600'
+                  }`}
+                />
+                <span>Detailed Settlement Plan & Receipts</span>
+                {ledger.settlements.length > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      balancesMode === 'detailed'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-emerald-100 text-emerald-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <ProfileAvatar profile={profile} size="md" />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-stone-900 text-xs">{profile.name}</span>
-                            {isMe && (
-                              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1 rounded">
-                                You
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-stone-500">{profile.role}</span>
-                        </div>
-                      </div>
-
-                      {/* Net status badge */}
-                      <div className="text-right">
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-md inline-block ${
-                            isCreditor
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : isDebtor
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-stone-100 text-stone-600'
-                          }`}
-                        >
-                          {isCreditor && `+$${fin.netBalance.toFixed(2)}`}
-                          {isDebtor && `-$${Math.abs(fin.netBalance).toFixed(2)}`}
-                          {!isCreditor && !isDebtor && '$0.00'}
-                        </span>
-                        <span className="block text-[10px] text-stone-400 mt-0.5">
-                          {isCreditor ? 'Owed to them' : isDebtor ? 'Owes group' : 'Settled'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-2.5 border-t border-stone-100">
-                      <div className="bg-white p-2 rounded-lg border border-stone-100">
-                        <span className="text-[10px] text-stone-400 block">Total Paid Out</span>
-                        <span className="font-semibold text-stone-800 text-xs">
-                          ${fin.totalPaid.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="bg-white p-2 rounded-lg border border-stone-100">
-                        <span className="text-[10px] text-stone-400 block">Personal Share</span>
-                        <span className="font-semibold text-stone-800 text-xs">
-                          ${fin.totalOwed.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    {ledger.settlements.length}
+                  </span>
+                )}
+              </button>
             </div>
+
+            <span className="text-xs text-stone-500 px-2 hidden sm:inline-block">
+              {balancesMode === 'summary'
+                ? 'High-level financial overview & category charts'
+                : 'Itemized audit of all contributing unsettled transactions'}
+            </span>
           </div>
 
-          {/* Debt Simplification & Settlement Plan */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-stone-100">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-sm font-bold text-stone-900">
-                      Simplified Settlement Plan ({ledger.settlements.length})
-                    </h3>
-                  </div>
-                  <button
-                    onClick={handleCopySettlements}
-                    disabled={ledger.settlements.length === 0}
-                    className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
-                  >
-                    {copiedSettlement ? (
-                      <>
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-600">Copied!</span>
-                      </>
+          {balancesMode === 'detailed' ? (
+            <DetailedSettlementView
+              trip={trip}
+              activities={activities}
+              profiles={profiles}
+              activeProfileId={activeProfileId}
+              onBackToSummary={() => setBalancesMode('summary')}
+              onToggleDebtorPayment={onToggleDebtorPayment}
+              onSettleAllDebtors={onSettleAllDebtors}
+              onEditActivity={onEditActivity}
+              onEditExpense={onEditExpense}
+              onAddExpense={onAddExpense}
+            />
+          ) : (
+            <>
+              {/* Debt Simplification & Settlement Plan */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-stone-100">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-emerald-600" />
+                        <h3 className="text-sm font-bold text-stone-900">
+                          Simplified Settlement Plan ({ledger.settlements.length})
+                        </h3>
+                      </div>
+                      <button
+                        onClick={handleCopySettlements}
+                        disabled={ledger.settlements.length === 0}
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
+                      >
+                        {copiedSettlement ? (
+                          <>
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Plan</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-stone-500 mb-4">
+                      Calculates the minimum number of cash transfers needed to settle all debts across all 6 members.
+                    </p>
+
+                    {ledger.settlements.length === 0 ? (
+                      <div className="py-8 text-center text-stone-400 text-xs">
+                        <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                        <p className="font-semibold text-stone-700">All balances are completely settled!</p>
+                      </div>
                     ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Plan</span>
-                      </>
+                      <div className="space-y-2.5">
+                        {ledger.settlements.map((tx, idx) => {
+                          const fromProfile = getProfile(tx.fromId);
+                          const toProfile = getProfile(tx.toId);
+                          const isRelevantToMe =
+                            tx.fromId === activeProfileId || tx.toId === activeProfileId;
+
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                                isRelevantToMe
+                                  ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-200'
+                                  : 'bg-stone-50/70 border-stone-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <ProfileAvatar profile={fromProfile} size="sm" />
+                                <span className="font-semibold text-stone-900">{fromProfile?.name}</span>
+                                <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
+                                <ProfileAvatar profile={toProfile} size="sm" />
+                                <span className="font-semibold text-stone-900">{toProfile?.name}</span>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-stone-900">
+                                  ${tx.amount.toFixed(2)}
+                                </span>
+                                {tx.fromId === activeProfileId && (
+                                  <span className="block text-[10px] text-rose-600 font-semibold">You pay</span>
+                                )}
+                                {tx.toId === activeProfileId && (
+                                  <span className="block text-[10px] text-emerald-600 font-semibold">
+                                    You receive
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
-                  </button>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex flex-col gap-2.5">
+                    <div className="text-[11px] text-stone-400 flex items-center justify-between">
+                      <span>Calculated via greedy cash-flow simplification algorithm.</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setBalancesMode('detailed')}
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium transition-all shadow-2xs cursor-pointer hover-lift"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                      <span>Inspect Contributing Transactions & Plan Details</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-stone-500 mb-4">
-                  Calculates the minimum number of cash transfers needed to settle all debts across all 6 members.
-                </p>
 
-                {ledger.settlements.length === 0 ? (
-                  <div className="py-8 text-center text-stone-400 text-xs">
-                    <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="font-semibold text-stone-700">All balances are completely settled!</p>
+                {/* Category Breakdown Progress Bars */}
+                <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs">
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-stone-100">
+                    <PieChart className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-stone-900">Spending by Category</h3>
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {ledger.settlements.map((tx, idx) => {
-                      const fromProfile = getProfile(tx.fromId);
-                      const toProfile = getProfile(tx.toId);
-                      const isRelevantToMe =
-                        tx.fromId === activeProfileId || tx.toId === activeProfileId;
 
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                            isRelevantToMe
-                              ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-200'
-                              : 'bg-stone-50/70 border-stone-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <ProfileAvatar profile={fromProfile} size="sm" />
-                            <span className="font-semibold text-stone-900">{fromProfile?.name}</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
-                            <ProfileAvatar profile={toProfile} size="sm" />
-                            <span className="font-semibold text-stone-900">{toProfile?.name}</span>
-                          </div>
+                  {ledger.totalTripCost === 0 ? (
+                    <p className="text-xs text-stone-400 py-6 text-center">
+                      No expenses recorded yet. As you add activities with split costs, category totals will calculate automatically here.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {CATEGORY_LIST.map((cat) => {
+                        const meta = CATEGORIES_META[cat];
+                        const Icon = meta.icon;
+                        const catTotal = ledger.totalPerCategory[cat] || 0;
+                        const percent =
+                          ledger.totalTripCost > 0 ? (catTotal / ledger.totalTripCost) * 100 : 0;
 
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-stone-900">
-                              ${tx.amount.toFixed(2)}
-                            </span>
-                            {tx.fromId === activeProfileId && (
-                              <span className="block text-[10px] text-rose-600 font-semibold">You pay</span>
-                            )}
-                            {tx.toId === activeProfileId && (
-                              <span className="block text-[10px] text-emerald-600 font-semibold">
-                                You receive
+                        if (catTotal === 0) return null;
+
+                        return (
+                          <div key={cat} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium text-stone-800 flex items-center gap-1.5">
+                                <Icon className="w-3.5 h-3.5 text-stone-500" />
+                                {cat}
                               </span>
-                            )}
+                              <span className="font-bold text-stone-900">
+                                ${catTotal.toLocaleString()}{' '}
+                                <span className="text-stone-400 font-normal">({percent.toFixed(1)}%)</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${meta.color.dot}`}
+                                style={{ width: `${percent}%` }}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 6 Members Financial Ledger Cards */}
+              <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-indigo-600" />
+                      Individual Member Balances & Spending Breakdown
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      Tracks total payments made vs. personal share of tagged activities across all 6 members.
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="mt-4 pt-3 border-t border-stone-100 text-[11px] text-stone-400 flex items-center justify-between">
-                <span>Calculated via greedy cash-flow simplification algorithm.</span>
-              </div>
-            </div>
-
-            {/* Category Breakdown Progress Bars */}
-            <div className="bg-white rounded-xl border border-stone-200 p-5 shadow-xs">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-stone-100">
-                <PieChart className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-stone-900">Spending by Category</h3>
-              </div>
-
-              {ledger.totalTripCost === 0 ? (
-                <p className="text-xs text-stone-400 py-6 text-center">
-                  No expenses recorded yet. As you add activities with split costs, category totals will calculate automatically here.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {CATEGORY_LIST.map((cat) => {
-                    const meta = CATEGORIES_META[cat];
-                    const Icon = meta.icon;
-                    const catTotal = ledger.totalPerCategory[cat] || 0;
-                    const percent =
-                      ledger.totalTripCost > 0 ? (catTotal / ledger.totalTripCost) * 100 : 0;
-
-                    if (catTotal === 0) return null;
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {profiles.map((profile) => {
+                    const fin = ledger.memberFinancials[profile.id] || {
+                      totalPaid: 0,
+                      totalOwed: 0,
+                      netBalance: 0,
+                    };
+                    const isMe = profile.id === activeProfileId;
+                    const isCreditor = fin.netBalance > 0.01;
+                    const isDebtor = fin.netBalance < -0.01;
 
                     return (
-                      <div key={cat} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-stone-800 flex items-center gap-1.5">
-                            <Icon className="w-3.5 h-3.5 text-stone-500" />
-                            {cat}
-                          </span>
-                          <span className="font-bold text-stone-900">
-                            ${catTotal.toLocaleString()}{' '}
-                            <span className="text-stone-400 font-normal">({percent.toFixed(1)}%)</span>
-                          </span>
+                      <div
+                        key={profile.id}
+                        className={`p-4 rounded-xl border transition-all ${
+                          isMe
+                            ? 'bg-stone-50/80 border-indigo-300 ring-1 ring-indigo-200'
+                            : 'bg-white border-stone-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <ProfileAvatar profile={profile} size="md" />
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-stone-900 text-xs">{profile.name}</span>
+                                {isMe && (
+                                  <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1 rounded">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-stone-500">{profile.role}</span>
+                            </div>
+                          </div>
+
+                          {/* Net status badge */}
+                          <div className="text-right">
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded-md inline-block ${
+                                isCreditor
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : isDebtor
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-stone-100 text-stone-600'
+                              }`}
+                            >
+                              {isCreditor && `+$${fin.netBalance.toFixed(2)}`}
+                              {isDebtor && `-$${Math.abs(fin.netBalance).toFixed(2)}`}
+                              {!isCreditor && !isDebtor && '$0.00'}
+                            </span>
+                            <span className="block text-[10px] text-stone-400 mt-0.5">
+                              {isCreditor ? 'Owed to them' : isDebtor ? 'Owes group' : 'Settled'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${meta.color.dot}`}
-                            style={{ width: `${percent}%` }}
-                          />
+
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-2.5 border-t border-stone-100">
+                          <div className="bg-white p-2 rounded-lg border border-stone-100">
+                            <span className="text-[10px] text-stone-400 block">Total Paid Out</span>
+                            <span className="font-semibold text-stone-800 text-xs">
+                              ${fin.totalPaid.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-stone-100">
+                            <span className="text-[10px] text-stone-400 block">Personal Share</span>
+                            <span className="font-semibold text-stone-800 text-xs">
+                              ${fin.totalOwed.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

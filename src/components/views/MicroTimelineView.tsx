@@ -28,7 +28,6 @@ import {
   Users,
   User,
   Sparkles,
-  Bed,
 } from 'lucide-react';
 
 interface MicroTimelineViewProps {
@@ -81,25 +80,6 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
 
   const prevDay = currentDayIndex > 0 ? days[currentDayIndex - 1] : null;
   const nextDay = currentDayIndex < days.length - 1 ? days[currentDayIndex + 1] : null;
-
-  // Find relevant accommodation for tonight/this date
-  const tonightAccommodation = useMemo(() => {
-    const targetProfiles = activeProfile?.accommodations?.length
-      ? [activeProfile]
-      : profiles;
-
-    for (const p of targetProfiles) {
-      const match = (p?.accommodations || []).find((item) => {
-        if (!item.location && !item.name) return false;
-        return (
-          (item.checkInDate && item.checkOutDate && selectedDate >= item.checkInDate && selectedDate <= item.checkOutDate) ||
-          item.city.toLowerCase() === getCityForDate(selectedDate).name.toLowerCase()
-        );
-      });
-      if (match) return match;
-    }
-    return null;
-  }, [activeProfile, profiles, selectedDate]);
 
   const getProfile = (id: string) => profiles.find((p) => p.id === id);
 
@@ -335,49 +315,6 @@ export const MicroTimelineView: React.FC<MicroTimelineViewProps> = ({
         </div>
       )}
 
-      {/* Accommodation for Tonight (if entered) */}
-      {tonightAccommodation && (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-stone-900 text-stone-100 shadow-xs border border-stone-800">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center shrink-0 text-stone-300">
-              <Bed className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
-                  Accommodation · {tonightAccommodation.city}
-                </span>
-                <span className="text-xs text-stone-400">
-                  {tonightAccommodation.label}
-                </span>
-              </div>
-              <h4 className="text-xs sm:text-sm font-bold text-white truncate mt-0.5">
-                {tonightAccommodation.name || `Stay in ${tonightAccommodation.city}`}
-              </h4>
-              {tonightAccommodation.location && (
-                <div className="flex items-center gap-1 text-[11px] text-stone-400 truncate mt-0.5">
-                  <MapPin className="w-3 h-3 text-stone-500 shrink-0" />
-                  <span className="truncate">{tonightAccommodation.location}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          {tonightAccommodation.location && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                `${tonightAccommodation.name || ''} ${tonightAccommodation.location}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium border border-stone-700 transition-colors ml-3 shrink-0"
-              title="Open accommodation in Google Maps"
-            >
-              <MapPin className="w-3 h-3 text-stone-400" />
-              <span>Map</span>
-            </a>
-          )}
-        </div>
-      )}
 
       {/* Hour-by-Hour Timeline Schedule */}
       <div className="glass-panel rounded-3xl p-4 sm:p-6 shadow-sm">
